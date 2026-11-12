@@ -1,0 +1,15 @@
+{
+  "name": "chart-annotation-studio",
+  "version": "1.3.0",
+  "private": true,
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node build.mjs && node tests/errorbar.cjs && node tests/interactions.mjs --headless && node tests/workflows.mjs --headless && node tests/edges.mjs --headless"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
