@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "build": "node build.mjs",
-    "test": "node build.mjs && node tests/errorbar.cjs && node tests/identity.cjs && node tests/interactions.mjs --headless && node tests/workflows.mjs --headless && node tests/edges.mjs --headless"
+    "test": "node build.mjs && node tests/errorbar.cjs && node tests/identity.cjs && node tests/interactions.mjs --headless && node tests/workflows.mjs --headless && node tests/edges.mjs --headless && node --test tests/semantic.test.cjs && node tests/browser.cjs",
+    "test:statistical": "node build.mjs && node --test tests/semantic.test.cjs",
+    "test:browser": "node build.mjs && node tests/browser.cjs"
   },
   "devDependencies": {
     "playwright": "1.62.1"

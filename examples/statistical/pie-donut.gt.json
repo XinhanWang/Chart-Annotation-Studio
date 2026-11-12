@@ -1,0 +1,33 @@
+{
+  "data": {
+    "values": [
+      {
+        "category": "Research",
+        "value": 55
+      },
+      {
+        "category": "Operations",
+        "value": 30
+      },
+      {
+        "category": "Other",
+        "value": 15
+      }
+    ]
+  },
+  "title": "pie-donut",
+  "mark": {
+    "type": "arc"
+  },
+  "encoding": {
+    "theta": {
+      "field": "value",
+      "type": "quantitative",
+      "title": "Share (%)"
+    },
+    "color": {
+      "field": "category",
+      "type": "nominal"
+    }
+  }
+}
