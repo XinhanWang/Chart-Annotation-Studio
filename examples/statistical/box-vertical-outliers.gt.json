@@ -1,0 +1,96 @@
+{
+  "data": {
+    "values": [
+      {
+        "category": "A",
+        "lower": 10,
+        "q1": 25,
+        "median": 40,
+        "q3": 65,
+        "upper": 90,
+        "outliers": [
+          -7,
+          107.1234567890123
+        ]
+      },
+      {
+        "category": "B",
+        "lower": 20,
+        "q1": 35,
+        "median": 50,
+        "q3": 70,
+        "upper": 85,
+        "outliers": []
+      }
+    ]
+  },
+  "title": "box-vertical-outliers",
+  "encoding": {
+    "x": {
+      "field": "category",
+      "type": "nominal",
+      "sort": null,
+      "title": "Treatment"
+    }
+  },
+  "layer": [
+    {
+      "mark": {
+        "type": "rule"
+      },
+      "encoding": {
+        "y": {
+          "field": "lower",
+          "type": "quantitative",
+          "title": "Duration (ms)"
+        },
+        "y2": {
+          "field": "upper"
+        }
+      }
+    },
+    {
+      "mark": {
+        "type": "bar"
+      },
+      "encoding": {
+        "y": {
+          "field": "q1",
+          "type": "quantitative"
+        },
+        "y2": {
+          "field": "q3"
+        }
+      }
+    },
+    {
+      "mark": {
+        "type": "tick"
+      },
+      "encoding": {
+        "y": {
+          "field": "median",
+          "type": "quantitative"
+        }
+      }
+    },
+    {
+      "transform": [
+        {
+          "flatten": [
+            "outliers"
+          ]
+        }
+      ],
+      "mark": {
+        "type": "point"
+      },
+      "encoding": {
+        "y": {
+          "field": "outliers",
+          "type": "quantitative"
+        }
+      }
+    }
+  ]
+}

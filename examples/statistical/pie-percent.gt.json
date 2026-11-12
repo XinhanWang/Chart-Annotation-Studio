@@ -1,0 +1,33 @@
+{
+  "data": {
+    "values": [
+      {
+        "category": "Research",
+        "value": 32.1234567890123
+      },
+      {
+        "category": "Operations",
+        "value": 27.8765432109877
+      },
+      {
+        "category": "Other",
+        "value": 40
+      }
+    ]
+  },
+  "title": "pie-percent",
+  "mark": {
+    "type": "arc"
+  },
+  "encoding": {
+    "theta": {
+      "field": "value",
+      "type": "quantitative",
+      "title": "Share (%)"
+    },
+    "color": {
+      "field": "category",
+      "type": "nominal"
+    }
+  }
+}

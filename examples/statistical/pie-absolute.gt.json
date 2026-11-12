@@ -1,0 +1,33 @@
+{
+  "data": {
+    "values": [
+      {
+        "category": "Research",
+        "value": 125.75
+      },
+      {
+        "category": "Operations",
+        "value": 60.1234567890123
+      },
+      {
+        "category": "Other",
+        "value": 48
+      }
+    ]
+  },
+  "title": "pie-absolute",
+  "mark": {
+    "type": "arc"
+  },
+  "encoding": {
+    "theta": {
+      "field": "value",
+      "type": "quantitative",
+      "title": "Revenue (万元)"
+    },
+    "color": {
+      "field": "category",
+      "type": "nominal"
+    }
+  }
+}

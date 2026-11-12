@@ -1,0 +1,2768 @@
+[
+  {
+    "name": "barh_1",
+    "project": {
+      "kind": "barh_1",
+      "title": "",
+      "xTitle": "",
+      "yTitle": "",
+      "xType": "quantitative",
+      "legend": true,
+      "rows": [
+        {
+          "category": "A",
+          "value": 20,
+          "series": "Series 1"
+        },
+        {
+          "category": "B",
+          "value": 35,
+          "series": "Series 1"
+        },
+        {
+          "category": "C",
+          "value": 50,
+          "series": "Series 1"
+        }
+      ],
+      "axes": {
+        "x": {
+          "p1": 80,
+          "p2": 560,
+          "v1": 0,
+          "v2": 10,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        },
+        "y": {
+          "p1": 400,
+          "p2": 50,
+          "v1": 0,
+          "v2": 100,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        }
+      },
+      "categories": [
+        "A",
+        "B",
+        "C"
+      ],
+      "series": [
+        {
+          "name": "Series 1",
+          "color": "#4263eb"
+        }
+      ]
+    },
+    "gt": {
+      "data": {
+        "values": [
+          {
+            "category": "A",
+            "value": 20,
+            "series": "Series 1"
+          },
+          {
+            "category": "B",
+            "value": 35,
+            "series": "Series 1"
+          },
+          {
+            "category": "C",
+            "value": 50,
+            "series": "Series 1"
+          }
+        ]
+      },
+      "mark": {
+        "type": "bar"
+      },
+      "encoding": {
+        "y": {
+          "field": "category",
+          "type": "nominal",
+          "sort": null
+        },
+        "x": {
+          "field": "value",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        }
+      }
+    },
+    "issues": [],
+    "roundTrip": {
+      "data": {
+        "values": [
+          {
+            "category": "A",
+            "value": 20,
+            "series": "Series 1"
+          },
+          {
+            "category": "B",
+            "value": 35,
+            "series": "Series 1"
+          },
+          {
+            "category": "C",
+            "value": 50,
+            "series": "Series 1"
+          }
+        ]
+      },
+      "mark": {
+        "type": "bar"
+      },
+      "encoding": {
+        "y": {
+          "field": "category",
+          "type": "nominal",
+          "sort": null
+        },
+        "x": {
+          "field": "value",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        }
+      }
+    }
+  },
+  {
+    "name": "barh_1-error-interval",
+    "project": {
+      "kind": "barh_1",
+      "title": "",
+      "xTitle": "",
+      "yTitle": "",
+      "xType": "quantitative",
+      "legend": true,
+      "rows": [
+        {
+          "category": "A",
+          "value": 20,
+          "series": "Series 1",
+          "lower": 18,
+          "upper": 23
+        },
+        {
+          "category": "B",
+          "value": 35,
+          "series": "Series 1",
+          "lower": 33,
+          "upper": 38
+        },
+        {
+          "category": "C",
+          "value": 50,
+          "series": "Series 1",
+          "lower": 48,
+          "upper": 53
+        }
+      ],
+      "axes": {
+        "x": {
+          "p1": 80,
+          "p2": 560,
+          "v1": 0,
+          "v2": 10,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        },
+        "y": {
+          "p1": 400,
+          "p2": 50,
+          "v1": 0,
+          "v2": 100,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        }
+      },
+      "categories": [
+        "A",
+        "B",
+        "C"
+      ],
+      "series": [
+        {
+          "name": "Series 1",
+          "color": "#4263eb"
+        }
+      ]
+    },
+    "gt": {
+      "data": {
+        "values": [
+          {
+            "category": "A",
+            "value": 20,
+            "series": "Series 1",
+            "lower": 18,
+            "upper": 23
+          },
+          {
+            "category": "B",
+            "value": 35,
+            "series": "Series 1",
+            "lower": 33,
+            "upper": 38
+          },
+          {
+            "category": "C",
+            "value": 50,
+            "series": "Series 1",
+            "lower": 48,
+            "upper": 53
+          }
+        ]
+      },
+      "encoding": {
+        "y": {
+          "field": "category",
+          "type": "nominal",
+          "sort": null
+        },
+        "x": {
+          "field": "value",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        }
+      },
+      "layer": [
+        {
+          "mark": {
+            "type": "bar"
+          }
+        },
+        {
+          "mark": {
+            "type": "rule"
+          },
+          "encoding": {
+            "x": {
+              "field": "lower",
+              "type": "quantitative"
+            },
+            "x2": {
+              "field": "upper"
+            }
+          }
+        }
+      ]
+    },
+    "issues": [],
+    "roundTrip": {
+      "data": {
+        "values": [
+          {
+            "category": "A",
+            "value": 20,
+            "series": "Series 1",
+            "lower": 18,
+            "upper": 23
+          },
+          {
+            "category": "B",
+            "value": 35,
+            "series": "Series 1",
+            "lower": 33,
+            "upper": 38
+          },
+          {
+            "category": "C",
+            "value": 50,
+            "series": "Series 1",
+            "lower": 48,
+            "upper": 53
+          }
+        ]
+      },
+      "encoding": {
+        "y": {
+          "field": "category",
+          "type": "nominal",
+          "sort": null
+        },
+        "x": {
+          "field": "value",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        }
+      },
+      "layer": [
+        {
+          "mark": {
+            "type": "bar"
+          }
+        },
+        {
+          "mark": {
+            "type": "rule"
+          },
+          "encoding": {
+            "x": {
+              "field": "lower",
+              "type": "quantitative"
+            },
+            "x2": {
+              "field": "upper"
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "barh_n",
+    "project": {
+      "kind": "barh_n",
+      "title": "",
+      "xTitle": "",
+      "yTitle": "",
+      "xType": "quantitative",
+      "legend": true,
+      "rows": [
+        {
+          "category": "A",
+          "value": 20,
+          "series": "Series 1"
+        },
+        {
+          "category": "B",
+          "value": 35,
+          "series": "Series 1"
+        },
+        {
+          "category": "C",
+          "value": 50,
+          "series": "Series 1"
+        },
+        {
+          "category": "A",
+          "value": 30,
+          "series": "Series 2"
+        },
+        {
+          "category": "B",
+          "value": 45,
+          "series": "Series 2"
+        },
+        {
+          "category": "C",
+          "value": 60,
+          "series": "Series 2"
+        }
+      ],
+      "axes": {
+        "x": {
+          "p1": 80,
+          "p2": 560,
+          "v1": 0,
+          "v2": 10,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        },
+        "y": {
+          "p1": 400,
+          "p2": 50,
+          "v1": 0,
+          "v2": 100,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        }
+      },
+      "categories": [
+        "A",
+        "B",
+        "C"
+      ],
+      "series": [
+        {
+          "name": "Series 1",
+          "color": "#4263eb"
+        },
+        {
+          "name": "Series 2",
+          "color": "#e8590c"
+        }
+      ]
+    },
+    "gt": {
+      "data": {
+        "values": [
+          {
+            "category": "A",
+            "value": 20,
+            "series": "Series 1"
+          },
+          {
+            "category": "A",
+            "value": 30,
+            "series": "Series 2"
+          },
+          {
+            "category": "B",
+            "value": 35,
+            "series": "Series 1"
+          },
+          {
+            "category": "B",
+            "value": 45,
+            "series": "Series 2"
+          },
+          {
+            "category": "C",
+            "value": 50,
+            "series": "Series 1"
+          },
+          {
+            "category": "C",
+            "value": 60,
+            "series": "Series 2"
+          }
+        ]
+      },
+      "mark": {
+        "type": "bar"
+      },
+      "encoding": {
+        "y": {
+          "field": "category",
+          "type": "nominal",
+          "sort": null
+        },
+        "x": {
+          "field": "value",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        },
+        "yOffset": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        }
+      }
+    },
+    "issues": [],
+    "roundTrip": {
+      "data": {
+        "values": [
+          {
+            "category": "A",
+            "value": 20,
+            "series": "Series 1"
+          },
+          {
+            "category": "A",
+            "value": 30,
+            "series": "Series 2"
+          },
+          {
+            "category": "B",
+            "value": 35,
+            "series": "Series 1"
+          },
+          {
+            "category": "B",
+            "value": 45,
+            "series": "Series 2"
+          },
+          {
+            "category": "C",
+            "value": 50,
+            "series": "Series 1"
+          },
+          {
+            "category": "C",
+            "value": 60,
+            "series": "Series 2"
+          }
+        ]
+      },
+      "mark": {
+        "type": "bar"
+      },
+      "encoding": {
+        "y": {
+          "field": "category",
+          "type": "nominal",
+          "sort": null
+        },
+        "x": {
+          "field": "value",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        },
+        "yOffset": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        }
+      }
+    }
+  },
+  {
+    "name": "barh_n-error-interval",
+    "project": {
+      "kind": "barh_n",
+      "title": "",
+      "xTitle": "",
+      "yTitle": "",
+      "xType": "quantitative",
+      "legend": true,
+      "rows": [
+        {
+          "category": "A",
+          "value": 20,
+          "series": "Series 1",
+          "lower": 18,
+          "upper": 23
+        },
+        {
+          "category": "B",
+          "value": 35,
+          "series": "Series 1",
+          "lower": 33,
+          "upper": 38
+        },
+        {
+          "category": "C",
+          "value": 50,
+          "series": "Series 1",
+          "lower": 48,
+          "upper": 53
+        },
+        {
+          "category": "A",
+          "value": 30,
+          "series": "Series 2",
+          "lower": 28,
+          "upper": 33
+        },
+        {
+          "category": "B",
+          "value": 45,
+          "series": "Series 2",
+          "lower": 43,
+          "upper": 48
+        },
+        {
+          "category": "C",
+          "value": 60,
+          "series": "Series 2",
+          "lower": 58,
+          "upper": 63
+        }
+      ],
+      "axes": {
+        "x": {
+          "p1": 80,
+          "p2": 560,
+          "v1": 0,
+          "v2": 10,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        },
+        "y": {
+          "p1": 400,
+          "p2": 50,
+          "v1": 0,
+          "v2": 100,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        }
+      },
+      "categories": [
+        "A",
+        "B",
+        "C"
+      ],
+      "series": [
+        {
+          "name": "Series 1",
+          "color": "#4263eb"
+        },
+        {
+          "name": "Series 2",
+          "color": "#e8590c"
+        }
+      ]
+    },
+    "gt": {
+      "data": {
+        "values": [
+          {
+            "category": "A",
+            "value": 20,
+            "series": "Series 1",
+            "lower": 18,
+            "upper": 23
+          },
+          {
+            "category": "A",
+            "value": 30,
+            "series": "Series 2",
+            "lower": 28,
+            "upper": 33
+          },
+          {
+            "category": "B",
+            "value": 35,
+            "series": "Series 1",
+            "lower": 33,
+            "upper": 38
+          },
+          {
+            "category": "B",
+            "value": 45,
+            "series": "Series 2",
+            "lower": 43,
+            "upper": 48
+          },
+          {
+            "category": "C",
+            "value": 50,
+            "series": "Series 1",
+            "lower": 48,
+            "upper": 53
+          },
+          {
+            "category": "C",
+            "value": 60,
+            "series": "Series 2",
+            "lower": 58,
+            "upper": 63
+          }
+        ]
+      },
+      "encoding": {
+        "y": {
+          "field": "category",
+          "type": "nominal",
+          "sort": null
+        },
+        "x": {
+          "field": "value",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        },
+        "yOffset": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        }
+      },
+      "layer": [
+        {
+          "mark": {
+            "type": "bar"
+          }
+        },
+        {
+          "mark": {
+            "type": "rule"
+          },
+          "encoding": {
+            "x": {
+              "field": "lower",
+              "type": "quantitative"
+            },
+            "x2": {
+              "field": "upper"
+            }
+          }
+        }
+      ]
+    },
+    "issues": [],
+    "roundTrip": {
+      "data": {
+        "values": [
+          {
+            "category": "A",
+            "value": 20,
+            "series": "Series 1",
+            "lower": 18,
+            "upper": 23
+          },
+          {
+            "category": "A",
+            "value": 30,
+            "series": "Series 2",
+            "lower": 28,
+            "upper": 33
+          },
+          {
+            "category": "B",
+            "value": 35,
+            "series": "Series 1",
+            "lower": 33,
+            "upper": 38
+          },
+          {
+            "category": "B",
+            "value": 45,
+            "series": "Series 2",
+            "lower": 43,
+            "upper": 48
+          },
+          {
+            "category": "C",
+            "value": 50,
+            "series": "Series 1",
+            "lower": 48,
+            "upper": 53
+          },
+          {
+            "category": "C",
+            "value": 60,
+            "series": "Series 2",
+            "lower": 58,
+            "upper": 63
+          }
+        ]
+      },
+      "encoding": {
+        "y": {
+          "field": "category",
+          "type": "nominal",
+          "sort": null
+        },
+        "x": {
+          "field": "value",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        },
+        "yOffset": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        }
+      },
+      "layer": [
+        {
+          "mark": {
+            "type": "bar"
+          }
+        },
+        {
+          "mark": {
+            "type": "rule"
+          },
+          "encoding": {
+            "x": {
+              "field": "lower",
+              "type": "quantitative"
+            },
+            "x2": {
+              "field": "upper"
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "barv_1",
+    "project": {
+      "kind": "barv_1",
+      "title": "",
+      "xTitle": "",
+      "yTitle": "",
+      "xType": "quantitative",
+      "legend": true,
+      "rows": [
+        {
+          "category": "A",
+          "value": 20,
+          "series": "Series 1"
+        },
+        {
+          "category": "B",
+          "value": 35,
+          "series": "Series 1"
+        },
+        {
+          "category": "C",
+          "value": 50,
+          "series": "Series 1"
+        }
+      ],
+      "axes": {
+        "x": {
+          "p1": 80,
+          "p2": 560,
+          "v1": 0,
+          "v2": 10,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        },
+        "y": {
+          "p1": 400,
+          "p2": 50,
+          "v1": 0,
+          "v2": 100,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        }
+      },
+      "categories": [
+        "A",
+        "B",
+        "C"
+      ],
+      "series": [
+        {
+          "name": "Series 1",
+          "color": "#4263eb"
+        }
+      ]
+    },
+    "gt": {
+      "data": {
+        "values": [
+          {
+            "category": "A",
+            "value": 20,
+            "series": "Series 1"
+          },
+          {
+            "category": "B",
+            "value": 35,
+            "series": "Series 1"
+          },
+          {
+            "category": "C",
+            "value": 50,
+            "series": "Series 1"
+          }
+        ]
+      },
+      "mark": {
+        "type": "bar"
+      },
+      "encoding": {
+        "x": {
+          "field": "category",
+          "type": "nominal",
+          "sort": null
+        },
+        "y": {
+          "field": "value",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        }
+      }
+    },
+    "issues": [],
+    "roundTrip": {
+      "data": {
+        "values": [
+          {
+            "category": "A",
+            "value": 20,
+            "series": "Series 1"
+          },
+          {
+            "category": "B",
+            "value": 35,
+            "series": "Series 1"
+          },
+          {
+            "category": "C",
+            "value": 50,
+            "series": "Series 1"
+          }
+        ]
+      },
+      "mark": {
+        "type": "bar"
+      },
+      "encoding": {
+        "x": {
+          "field": "category",
+          "type": "nominal",
+          "sort": null
+        },
+        "y": {
+          "field": "value",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        }
+      }
+    }
+  },
+  {
+    "name": "barv_1-error-interval",
+    "project": {
+      "kind": "barv_1",
+      "title": "",
+      "xTitle": "",
+      "yTitle": "",
+      "xType": "quantitative",
+      "legend": true,
+      "rows": [
+        {
+          "category": "A",
+          "value": 20,
+          "series": "Series 1",
+          "lower": 18,
+          "upper": 23
+        },
+        {
+          "category": "B",
+          "value": 35,
+          "series": "Series 1",
+          "lower": 33,
+          "upper": 38
+        },
+        {
+          "category": "C",
+          "value": 50,
+          "series": "Series 1",
+          "lower": 48,
+          "upper": 53
+        }
+      ],
+      "axes": {
+        "x": {
+          "p1": 80,
+          "p2": 560,
+          "v1": 0,
+          "v2": 10,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        },
+        "y": {
+          "p1": 400,
+          "p2": 50,
+          "v1": 0,
+          "v2": 100,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        }
+      },
+      "categories": [
+        "A",
+        "B",
+        "C"
+      ],
+      "series": [
+        {
+          "name": "Series 1",
+          "color": "#4263eb"
+        }
+      ]
+    },
+    "gt": {
+      "data": {
+        "values": [
+          {
+            "category": "A",
+            "value": 20,
+            "series": "Series 1",
+            "lower": 18,
+            "upper": 23
+          },
+          {
+            "category": "B",
+            "value": 35,
+            "series": "Series 1",
+            "lower": 33,
+            "upper": 38
+          },
+          {
+            "category": "C",
+            "value": 50,
+            "series": "Series 1",
+            "lower": 48,
+            "upper": 53
+          }
+        ]
+      },
+      "encoding": {
+        "x": {
+          "field": "category",
+          "type": "nominal",
+          "sort": null
+        },
+        "y": {
+          "field": "value",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        }
+      },
+      "layer": [
+        {
+          "mark": {
+            "type": "bar"
+          }
+        },
+        {
+          "mark": {
+            "type": "rule"
+          },
+          "encoding": {
+            "y": {
+              "field": "lower",
+              "type": "quantitative"
+            },
+            "y2": {
+              "field": "upper"
+            }
+          }
+        }
+      ]
+    },
+    "issues": [],
+    "roundTrip": {
+      "data": {
+        "values": [
+          {
+            "category": "A",
+            "value": 20,
+            "series": "Series 1",
+            "lower": 18,
+            "upper": 23
+          },
+          {
+            "category": "B",
+            "value": 35,
+            "series": "Series 1",
+            "lower": 33,
+            "upper": 38
+          },
+          {
+            "category": "C",
+            "value": 50,
+            "series": "Series 1",
+            "lower": 48,
+            "upper": 53
+          }
+        ]
+      },
+      "encoding": {
+        "x": {
+          "field": "category",
+          "type": "nominal",
+          "sort": null
+        },
+        "y": {
+          "field": "value",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        }
+      },
+      "layer": [
+        {
+          "mark": {
+            "type": "bar"
+          }
+        },
+        {
+          "mark": {
+            "type": "rule"
+          },
+          "encoding": {
+            "y": {
+              "field": "lower",
+              "type": "quantitative"
+            },
+            "y2": {
+              "field": "upper"
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "barv_n",
+    "project": {
+      "kind": "barv_n",
+      "title": "",
+      "xTitle": "",
+      "yTitle": "",
+      "xType": "quantitative",
+      "legend": true,
+      "rows": [
+        {
+          "category": "A",
+          "value": 20,
+          "series": "Series 1"
+        },
+        {
+          "category": "B",
+          "value": 35,
+          "series": "Series 1"
+        },
+        {
+          "category": "C",
+          "value": 50,
+          "series": "Series 1"
+        },
+        {
+          "category": "A",
+          "value": 30,
+          "series": "Series 2"
+        },
+        {
+          "category": "B",
+          "value": 45,
+          "series": "Series 2"
+        },
+        {
+          "category": "C",
+          "value": 60,
+          "series": "Series 2"
+        }
+      ],
+      "axes": {
+        "x": {
+          "p1": 80,
+          "p2": 560,
+          "v1": 0,
+          "v2": 10,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        },
+        "y": {
+          "p1": 400,
+          "p2": 50,
+          "v1": 0,
+          "v2": 100,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        }
+      },
+      "categories": [
+        "A",
+        "B",
+        "C"
+      ],
+      "series": [
+        {
+          "name": "Series 1",
+          "color": "#4263eb"
+        },
+        {
+          "name": "Series 2",
+          "color": "#e8590c"
+        }
+      ]
+    },
+    "gt": {
+      "data": {
+        "values": [
+          {
+            "category": "A",
+            "value": 20,
+            "series": "Series 1"
+          },
+          {
+            "category": "A",
+            "value": 30,
+            "series": "Series 2"
+          },
+          {
+            "category": "B",
+            "value": 35,
+            "series": "Series 1"
+          },
+          {
+            "category": "B",
+            "value": 45,
+            "series": "Series 2"
+          },
+          {
+            "category": "C",
+            "value": 50,
+            "series": "Series 1"
+          },
+          {
+            "category": "C",
+            "value": 60,
+            "series": "Series 2"
+          }
+        ]
+      },
+      "mark": {
+        "type": "bar"
+      },
+      "encoding": {
+        "x": {
+          "field": "category",
+          "type": "nominal",
+          "sort": null
+        },
+        "y": {
+          "field": "value",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        },
+        "xOffset": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        }
+      }
+    },
+    "issues": [],
+    "roundTrip": {
+      "data": {
+        "values": [
+          {
+            "category": "A",
+            "value": 20,
+            "series": "Series 1"
+          },
+          {
+            "category": "A",
+            "value": 30,
+            "series": "Series 2"
+          },
+          {
+            "category": "B",
+            "value": 35,
+            "series": "Series 1"
+          },
+          {
+            "category": "B",
+            "value": 45,
+            "series": "Series 2"
+          },
+          {
+            "category": "C",
+            "value": 50,
+            "series": "Series 1"
+          },
+          {
+            "category": "C",
+            "value": 60,
+            "series": "Series 2"
+          }
+        ]
+      },
+      "mark": {
+        "type": "bar"
+      },
+      "encoding": {
+        "x": {
+          "field": "category",
+          "type": "nominal",
+          "sort": null
+        },
+        "y": {
+          "field": "value",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        },
+        "xOffset": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        }
+      }
+    }
+  },
+  {
+    "name": "barv_n-error-interval",
+    "project": {
+      "kind": "barv_n",
+      "title": "",
+      "xTitle": "",
+      "yTitle": "",
+      "xType": "quantitative",
+      "legend": true,
+      "rows": [
+        {
+          "category": "A",
+          "value": 20,
+          "series": "Series 1",
+          "lower": 18,
+          "upper": 23
+        },
+        {
+          "category": "B",
+          "value": 35,
+          "series": "Series 1",
+          "lower": 33,
+          "upper": 38
+        },
+        {
+          "category": "C",
+          "value": 50,
+          "series": "Series 1",
+          "lower": 48,
+          "upper": 53
+        },
+        {
+          "category": "A",
+          "value": 30,
+          "series": "Series 2",
+          "lower": 28,
+          "upper": 33
+        },
+        {
+          "category": "B",
+          "value": 45,
+          "series": "Series 2",
+          "lower": 43,
+          "upper": 48
+        },
+        {
+          "category": "C",
+          "value": 60,
+          "series": "Series 2",
+          "lower": 58,
+          "upper": 63
+        }
+      ],
+      "axes": {
+        "x": {
+          "p1": 80,
+          "p2": 560,
+          "v1": 0,
+          "v2": 10,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        },
+        "y": {
+          "p1": 400,
+          "p2": 50,
+          "v1": 0,
+          "v2": 100,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        }
+      },
+      "categories": [
+        "A",
+        "B",
+        "C"
+      ],
+      "series": [
+        {
+          "name": "Series 1",
+          "color": "#4263eb"
+        },
+        {
+          "name": "Series 2",
+          "color": "#e8590c"
+        }
+      ]
+    },
+    "gt": {
+      "data": {
+        "values": [
+          {
+            "category": "A",
+            "value": 20,
+            "series": "Series 1",
+            "lower": 18,
+            "upper": 23
+          },
+          {
+            "category": "A",
+            "value": 30,
+            "series": "Series 2",
+            "lower": 28,
+            "upper": 33
+          },
+          {
+            "category": "B",
+            "value": 35,
+            "series": "Series 1",
+            "lower": 33,
+            "upper": 38
+          },
+          {
+            "category": "B",
+            "value": 45,
+            "series": "Series 2",
+            "lower": 43,
+            "upper": 48
+          },
+          {
+            "category": "C",
+            "value": 50,
+            "series": "Series 1",
+            "lower": 48,
+            "upper": 53
+          },
+          {
+            "category": "C",
+            "value": 60,
+            "series": "Series 2",
+            "lower": 58,
+            "upper": 63
+          }
+        ]
+      },
+      "encoding": {
+        "x": {
+          "field": "category",
+          "type": "nominal",
+          "sort": null
+        },
+        "y": {
+          "field": "value",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        },
+        "xOffset": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        }
+      },
+      "layer": [
+        {
+          "mark": {
+            "type": "bar"
+          }
+        },
+        {
+          "mark": {
+            "type": "rule"
+          },
+          "encoding": {
+            "y": {
+              "field": "lower",
+              "type": "quantitative"
+            },
+            "y2": {
+              "field": "upper"
+            }
+          }
+        }
+      ]
+    },
+    "issues": [],
+    "roundTrip": {
+      "data": {
+        "values": [
+          {
+            "category": "A",
+            "value": 20,
+            "series": "Series 1",
+            "lower": 18,
+            "upper": 23
+          },
+          {
+            "category": "A",
+            "value": 30,
+            "series": "Series 2",
+            "lower": 28,
+            "upper": 33
+          },
+          {
+            "category": "B",
+            "value": 35,
+            "series": "Series 1",
+            "lower": 33,
+            "upper": 38
+          },
+          {
+            "category": "B",
+            "value": 45,
+            "series": "Series 2",
+            "lower": 43,
+            "upper": 48
+          },
+          {
+            "category": "C",
+            "value": 50,
+            "series": "Series 1",
+            "lower": 48,
+            "upper": 53
+          },
+          {
+            "category": "C",
+            "value": 60,
+            "series": "Series 2",
+            "lower": 58,
+            "upper": 63
+          }
+        ]
+      },
+      "encoding": {
+        "x": {
+          "field": "category",
+          "type": "nominal",
+          "sort": null
+        },
+        "y": {
+          "field": "value",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        },
+        "xOffset": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        }
+      },
+      "layer": [
+        {
+          "mark": {
+            "type": "bar"
+          }
+        },
+        {
+          "mark": {
+            "type": "rule"
+          },
+          "encoding": {
+            "y": {
+              "field": "lower",
+              "type": "quantitative"
+            },
+            "y2": {
+              "field": "upper"
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "barv_stack",
+    "project": {
+      "kind": "barv_stack",
+      "title": "",
+      "xTitle": "",
+      "yTitle": "",
+      "xType": "quantitative",
+      "legend": true,
+      "rows": [
+        {
+          "category": "A",
+          "value": 20,
+          "series": "Series 1",
+          "stack_order": 0
+        },
+        {
+          "category": "B",
+          "value": 35,
+          "series": "Series 1",
+          "stack_order": 0
+        },
+        {
+          "category": "C",
+          "value": 50,
+          "series": "Series 1",
+          "stack_order": 0
+        },
+        {
+          "category": "A",
+          "value": 30,
+          "series": "Series 2",
+          "stack_order": 1
+        },
+        {
+          "category": "B",
+          "value": 45,
+          "series": "Series 2",
+          "stack_order": 1
+        },
+        {
+          "category": "C",
+          "value": 60,
+          "series": "Series 2",
+          "stack_order": 1
+        }
+      ],
+      "axes": {
+        "x": {
+          "p1": 80,
+          "p2": 560,
+          "v1": 0,
+          "v2": 10,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        },
+        "y": {
+          "p1": 400,
+          "p2": 50,
+          "v1": 0,
+          "v2": 100,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        }
+      },
+      "categories": [
+        "A",
+        "B",
+        "C"
+      ],
+      "series": [
+        {
+          "name": "Series 1",
+          "color": "#4263eb"
+        },
+        {
+          "name": "Series 2",
+          "color": "#e8590c"
+        }
+      ]
+    },
+    "gt": {
+      "data": {
+        "values": [
+          {
+            "category": "A",
+            "value": 30,
+            "series": "Series 2",
+            "stack_order": 1
+          },
+          {
+            "category": "A",
+            "value": 20,
+            "series": "Series 1",
+            "stack_order": 0
+          },
+          {
+            "category": "B",
+            "value": 45,
+            "series": "Series 2",
+            "stack_order": 1
+          },
+          {
+            "category": "B",
+            "value": 35,
+            "series": "Series 1",
+            "stack_order": 0
+          },
+          {
+            "category": "C",
+            "value": 60,
+            "series": "Series 2",
+            "stack_order": 1
+          },
+          {
+            "category": "C",
+            "value": 50,
+            "series": "Series 1",
+            "stack_order": 0
+          }
+        ]
+      },
+      "mark": {
+        "type": "bar"
+      },
+      "encoding": {
+        "x": {
+          "field": "category",
+          "type": "nominal",
+          "sort": null
+        },
+        "y": {
+          "field": "value",
+          "type": "quantitative",
+          "stack": "zero"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        },
+        "order": {
+          "field": "stack_order",
+          "type": "quantitative"
+        }
+      }
+    },
+    "issues": [],
+    "roundTrip": {
+      "data": {
+        "values": [
+          {
+            "category": "A",
+            "value": 30,
+            "series": "Series 2",
+            "stack_order": 1
+          },
+          {
+            "category": "A",
+            "value": 20,
+            "series": "Series 1",
+            "stack_order": 0
+          },
+          {
+            "category": "B",
+            "value": 45,
+            "series": "Series 2",
+            "stack_order": 1
+          },
+          {
+            "category": "B",
+            "value": 35,
+            "series": "Series 1",
+            "stack_order": 0
+          },
+          {
+            "category": "C",
+            "value": 60,
+            "series": "Series 2",
+            "stack_order": 1
+          },
+          {
+            "category": "C",
+            "value": 50,
+            "series": "Series 1",
+            "stack_order": 0
+          }
+        ]
+      },
+      "mark": {
+        "type": "bar"
+      },
+      "encoding": {
+        "x": {
+          "field": "category",
+          "type": "nominal",
+          "sort": null
+        },
+        "y": {
+          "field": "value",
+          "type": "quantitative",
+          "stack": "zero"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        },
+        "order": {
+          "field": "stack_order",
+          "type": "quantitative"
+        }
+      }
+    }
+  },
+  {
+    "name": "barv_stack-error-interval",
+    "project": {
+      "kind": "barv_stack",
+      "title": "",
+      "xTitle": "",
+      "yTitle": "",
+      "xType": "quantitative",
+      "legend": true,
+      "rows": [
+        {
+          "category": "A",
+          "value": 20,
+          "series": "Series 1",
+          "stack_order": 0,
+          "lower": 18,
+          "upper": 23
+        },
+        {
+          "category": "B",
+          "value": 35,
+          "series": "Series 1",
+          "stack_order": 0,
+          "lower": 33,
+          "upper": 38
+        },
+        {
+          "category": "C",
+          "value": 50,
+          "series": "Series 1",
+          "stack_order": 0,
+          "lower": 48,
+          "upper": 53
+        },
+        {
+          "category": "A",
+          "value": 30,
+          "series": "Series 2",
+          "stack_order": 1,
+          "lower": 28,
+          "upper": 33
+        },
+        {
+          "category": "B",
+          "value": 45,
+          "series": "Series 2",
+          "stack_order": 1,
+          "lower": 43,
+          "upper": 48
+        },
+        {
+          "category": "C",
+          "value": 60,
+          "series": "Series 2",
+          "stack_order": 1,
+          "lower": 58,
+          "upper": 63
+        }
+      ],
+      "axes": {
+        "x": {
+          "p1": 80,
+          "p2": 560,
+          "v1": 0,
+          "v2": 10,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        },
+        "y": {
+          "p1": 400,
+          "p2": 50,
+          "v1": 0,
+          "v2": 100,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        }
+      },
+      "categories": [
+        "A",
+        "B",
+        "C"
+      ],
+      "series": [
+        {
+          "name": "Series 1",
+          "color": "#4263eb"
+        },
+        {
+          "name": "Series 2",
+          "color": "#e8590c"
+        }
+      ]
+    },
+    "gt": {
+      "data": {
+        "values": [
+          {
+            "category": "A",
+            "value": 30,
+            "series": "Series 2",
+            "lower": 28,
+            "upper": 33,
+            "stack_order": 1
+          },
+          {
+            "category": "A",
+            "value": 20,
+            "series": "Series 1",
+            "lower": 18,
+            "upper": 23,
+            "stack_order": 0
+          },
+          {
+            "category": "B",
+            "value": 45,
+            "series": "Series 2",
+            "lower": 43,
+            "upper": 48,
+            "stack_order": 1
+          },
+          {
+            "category": "B",
+            "value": 35,
+            "series": "Series 1",
+            "lower": 33,
+            "upper": 38,
+            "stack_order": 0
+          },
+          {
+            "category": "C",
+            "value": 60,
+            "series": "Series 2",
+            "lower": 58,
+            "upper": 63,
+            "stack_order": 1
+          },
+          {
+            "category": "C",
+            "value": 50,
+            "series": "Series 1",
+            "lower": 48,
+            "upper": 53,
+            "stack_order": 0
+          }
+        ]
+      },
+      "encoding": {
+        "x": {
+          "field": "category",
+          "type": "nominal",
+          "sort": null
+        },
+        "y": {
+          "field": "value",
+          "type": "quantitative",
+          "stack": "zero"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        },
+        "order": {
+          "field": "stack_order",
+          "type": "quantitative"
+        }
+      },
+      "layer": [
+        {
+          "mark": {
+            "type": "bar"
+          }
+        },
+        {
+          "mark": {
+            "type": "rule"
+          },
+          "encoding": {
+            "y": {
+              "field": "lower",
+              "type": "quantitative",
+              "stack": null
+            },
+            "y2": {
+              "field": "upper"
+            }
+          }
+        }
+      ]
+    },
+    "issues": [],
+    "roundTrip": {
+      "data": {
+        "values": [
+          {
+            "category": "A",
+            "value": 30,
+            "series": "Series 2",
+            "lower": 28,
+            "upper": 33,
+            "stack_order": 1
+          },
+          {
+            "category": "A",
+            "value": 20,
+            "series": "Series 1",
+            "lower": 18,
+            "upper": 23,
+            "stack_order": 0
+          },
+          {
+            "category": "B",
+            "value": 45,
+            "series": "Series 2",
+            "lower": 43,
+            "upper": 48,
+            "stack_order": 1
+          },
+          {
+            "category": "B",
+            "value": 35,
+            "series": "Series 1",
+            "lower": 33,
+            "upper": 38,
+            "stack_order": 0
+          },
+          {
+            "category": "C",
+            "value": 60,
+            "series": "Series 2",
+            "lower": 58,
+            "upper": 63,
+            "stack_order": 1
+          },
+          {
+            "category": "C",
+            "value": 50,
+            "series": "Series 1",
+            "lower": 48,
+            "upper": 53,
+            "stack_order": 0
+          }
+        ]
+      },
+      "encoding": {
+        "x": {
+          "field": "category",
+          "type": "nominal",
+          "sort": null
+        },
+        "y": {
+          "field": "value",
+          "type": "quantitative",
+          "stack": "zero"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        },
+        "order": {
+          "field": "stack_order",
+          "type": "quantitative"
+        }
+      },
+      "layer": [
+        {
+          "mark": {
+            "type": "bar"
+          }
+        },
+        {
+          "mark": {
+            "type": "rule"
+          },
+          "encoding": {
+            "y": {
+              "field": "lower",
+              "type": "quantitative",
+              "stack": null
+            },
+            "y2": {
+              "field": "upper"
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "line_1",
+    "project": {
+      "kind": "line_1",
+      "title": "",
+      "xTitle": "",
+      "yTitle": "",
+      "xType": "quantitative",
+      "legend": true,
+      "rows": [
+        {
+          "x": 1,
+          "y": 20,
+          "series": "Series 1"
+        },
+        {
+          "x": 5,
+          "y": 35,
+          "series": "Series 1"
+        },
+        {
+          "x": 9,
+          "y": 50,
+          "series": "Series 1"
+        }
+      ],
+      "axes": {
+        "x": {
+          "p1": 80,
+          "p2": 560,
+          "v1": 0,
+          "v2": 10,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        },
+        "y": {
+          "p1": 400,
+          "p2": 50,
+          "v1": 0,
+          "v2": 100,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        }
+      },
+      "categories": [
+        "A",
+        "B",
+        "C"
+      ],
+      "series": [
+        {
+          "name": "Series 1",
+          "color": "#4263eb"
+        }
+      ]
+    },
+    "gt": {
+      "data": {
+        "values": [
+          {
+            "x": 1,
+            "y": 20,
+            "series": "Series 1"
+          },
+          {
+            "x": 5,
+            "y": 35,
+            "series": "Series 1"
+          },
+          {
+            "x": 9,
+            "y": 50,
+            "series": "Series 1"
+          }
+        ]
+      },
+      "mark": {
+        "type": "line"
+      },
+      "encoding": {
+        "x": {
+          "field": "x",
+          "type": "quantitative"
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        }
+      }
+    },
+    "issues": [],
+    "roundTrip": {
+      "data": {
+        "values": [
+          {
+            "x": 1,
+            "y": 20,
+            "series": "Series 1"
+          },
+          {
+            "x": 5,
+            "y": 35,
+            "series": "Series 1"
+          },
+          {
+            "x": 9,
+            "y": 50,
+            "series": "Series 1"
+          }
+        ]
+      },
+      "mark": {
+        "type": "line"
+      },
+      "encoding": {
+        "x": {
+          "field": "x",
+          "type": "quantitative"
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        }
+      }
+    }
+  },
+  {
+    "name": "line_n",
+    "project": {
+      "kind": "line_n",
+      "title": "",
+      "xTitle": "",
+      "yTitle": "",
+      "xType": "quantitative",
+      "legend": true,
+      "rows": [
+        {
+          "x": 1,
+          "y": 20,
+          "series": "Series 1"
+        },
+        {
+          "x": 5,
+          "y": 35,
+          "series": "Series 1"
+        },
+        {
+          "x": 9,
+          "y": 50,
+          "series": "Series 1"
+        },
+        {
+          "x": 1,
+          "y": 30,
+          "series": "Series 2"
+        },
+        {
+          "x": 5,
+          "y": 45,
+          "series": "Series 2"
+        },
+        {
+          "x": 9,
+          "y": 60,
+          "series": "Series 2"
+        }
+      ],
+      "axes": {
+        "x": {
+          "p1": 80,
+          "p2": 560,
+          "v1": 0,
+          "v2": 10,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        },
+        "y": {
+          "p1": 400,
+          "p2": 50,
+          "v1": 0,
+          "v2": 100,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        }
+      },
+      "categories": [
+        "A",
+        "B",
+        "C"
+      ],
+      "series": [
+        {
+          "name": "Series 1",
+          "color": "#4263eb"
+        },
+        {
+          "name": "Series 2",
+          "color": "#e8590c"
+        }
+      ]
+    },
+    "gt": {
+      "data": {
+        "values": [
+          {
+            "x": 1,
+            "y": 20,
+            "series": "Series 1"
+          },
+          {
+            "x": 1,
+            "y": 30,
+            "series": "Series 2"
+          },
+          {
+            "x": 5,
+            "y": 35,
+            "series": "Series 1"
+          },
+          {
+            "x": 5,
+            "y": 45,
+            "series": "Series 2"
+          },
+          {
+            "x": 9,
+            "y": 50,
+            "series": "Series 1"
+          },
+          {
+            "x": 9,
+            "y": 60,
+            "series": "Series 2"
+          }
+        ]
+      },
+      "mark": {
+        "type": "line"
+      },
+      "encoding": {
+        "x": {
+          "field": "x",
+          "type": "quantitative"
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        }
+      }
+    },
+    "issues": [],
+    "roundTrip": {
+      "data": {
+        "values": [
+          {
+            "x": 1,
+            "y": 20,
+            "series": "Series 1"
+          },
+          {
+            "x": 1,
+            "y": 30,
+            "series": "Series 2"
+          },
+          {
+            "x": 5,
+            "y": 35,
+            "series": "Series 1"
+          },
+          {
+            "x": 5,
+            "y": 45,
+            "series": "Series 2"
+          },
+          {
+            "x": 9,
+            "y": 50,
+            "series": "Series 1"
+          },
+          {
+            "x": 9,
+            "y": 60,
+            "series": "Series 2"
+          }
+        ]
+      },
+      "mark": {
+        "type": "line"
+      },
+      "encoding": {
+        "x": {
+          "field": "x",
+          "type": "quantitative"
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        }
+      }
+    }
+  },
+  {
+    "name": "scatter_1",
+    "project": {
+      "kind": "scatter_1",
+      "title": "",
+      "xTitle": "",
+      "yTitle": "",
+      "xType": "quantitative",
+      "legend": true,
+      "rows": [
+        {
+          "x": 1,
+          "y": 20,
+          "series": "Series 1"
+        },
+        {
+          "x": 5,
+          "y": 35,
+          "series": "Series 1"
+        },
+        {
+          "x": 9,
+          "y": 50,
+          "series": "Series 1"
+        }
+      ],
+      "axes": {
+        "x": {
+          "p1": 80,
+          "p2": 560,
+          "v1": 0,
+          "v2": 10,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        },
+        "y": {
+          "p1": 400,
+          "p2": 50,
+          "v1": 0,
+          "v2": 100,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        }
+      },
+      "categories": [
+        "A",
+        "B",
+        "C"
+      ],
+      "series": [
+        {
+          "name": "Series 1",
+          "color": "#4263eb"
+        }
+      ]
+    },
+    "gt": {
+      "data": {
+        "values": [
+          {
+            "x": 1,
+            "y": 20,
+            "series": "Series 1"
+          },
+          {
+            "x": 5,
+            "y": 35,
+            "series": "Series 1"
+          },
+          {
+            "x": 9,
+            "y": 50,
+            "series": "Series 1"
+          }
+        ]
+      },
+      "mark": {
+        "type": "point"
+      },
+      "encoding": {
+        "x": {
+          "field": "x",
+          "type": "quantitative"
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        }
+      }
+    },
+    "issues": [],
+    "roundTrip": {
+      "data": {
+        "values": [
+          {
+            "x": 1,
+            "y": 20,
+            "series": "Series 1"
+          },
+          {
+            "x": 5,
+            "y": 35,
+            "series": "Series 1"
+          },
+          {
+            "x": 9,
+            "y": 50,
+            "series": "Series 1"
+          }
+        ]
+      },
+      "mark": {
+        "type": "point"
+      },
+      "encoding": {
+        "x": {
+          "field": "x",
+          "type": "quantitative"
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        }
+      }
+    }
+  },
+  {
+    "name": "scatter_n",
+    "project": {
+      "kind": "scatter_n",
+      "title": "",
+      "xTitle": "",
+      "yTitle": "",
+      "xType": "quantitative",
+      "legend": true,
+      "rows": [
+        {
+          "x": 1,
+          "y": 20,
+          "series": "Series 1"
+        },
+        {
+          "x": 5,
+          "y": 35,
+          "series": "Series 1"
+        },
+        {
+          "x": 9,
+          "y": 50,
+          "series": "Series 1"
+        },
+        {
+          "x": 1,
+          "y": 30,
+          "series": "Series 2"
+        },
+        {
+          "x": 5,
+          "y": 45,
+          "series": "Series 2"
+        },
+        {
+          "x": 9,
+          "y": 60,
+          "series": "Series 2"
+        }
+      ],
+      "axes": {
+        "x": {
+          "p1": 80,
+          "p2": 560,
+          "v1": 0,
+          "v2": 10,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        },
+        "y": {
+          "p1": 400,
+          "p2": 50,
+          "v1": 0,
+          "v2": 100,
+          "type": "linear",
+          "reverse": false,
+          "calibrated": false
+        }
+      },
+      "categories": [
+        "A",
+        "B",
+        "C"
+      ],
+      "series": [
+        {
+          "name": "Series 1",
+          "color": "#4263eb"
+        },
+        {
+          "name": "Series 2",
+          "color": "#e8590c"
+        }
+      ]
+    },
+    "gt": {
+      "data": {
+        "values": [
+          {
+            "x": 1,
+            "y": 30,
+            "series": "Series 2"
+          },
+          {
+            "x": 1,
+            "y": 20,
+            "series": "Series 1"
+          },
+          {
+            "x": 5,
+            "y": 45,
+            "series": "Series 2"
+          },
+          {
+            "x": 5,
+            "y": 35,
+            "series": "Series 1"
+          },
+          {
+            "x": 9,
+            "y": 60,
+            "series": "Series 2"
+          },
+          {
+            "x": 9,
+            "y": 50,
+            "series": "Series 1"
+          }
+        ]
+      },
+      "mark": {
+        "type": "point"
+      },
+      "encoding": {
+        "x": {
+          "field": "x",
+          "type": "quantitative"
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        }
+      }
+    },
+    "issues": [],
+    "roundTrip": {
+      "data": {
+        "values": [
+          {
+            "x": 1,
+            "y": 30,
+            "series": "Series 2"
+          },
+          {
+            "x": 1,
+            "y": 20,
+            "series": "Series 1"
+          },
+          {
+            "x": 5,
+            "y": 45,
+            "series": "Series 2"
+          },
+          {
+            "x": 5,
+            "y": 35,
+            "series": "Series 1"
+          },
+          {
+            "x": 9,
+            "y": 60,
+            "series": "Series 2"
+          },
+          {
+            "x": 9,
+            "y": 50,
+            "series": "Series 1"
+          }
+        ]
+      },
+      "mark": {
+        "type": "point"
+      },
+      "encoding": {
+        "x": {
+          "field": "x",
+          "type": "quantitative"
+        },
+        "y": {
+          "field": "y",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "series",
+          "type": "nominal",
+          "sort": null
+        }
+      }
+    }
+  }
+]
