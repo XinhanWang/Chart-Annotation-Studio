@@ -307,7 +307,7 @@ function makeSpec(p) {
   out.data={values:rows};
   if(bar&&optional.includes('lower')) {
     out.encoding=enc;
-    out.layer=[{mark:{type:'bar'}},{mark:{type:'rule'},encoding:{[val]:{field:'lower',type:'quantitative',...(stack?{stack:null}:{})},[val+'2']:{field:'upper'}}}];
+    out.layer=[{mark:{type:'bar'}},{mark:{type:'errorbar'},encoding:{[val]:{field:'lower',type:'quantitative',...(stack?{stack:null}:{})},[val+'2']:{field:'upper'}}}];
   } else {out.mark=mark;out.encoding=enc;}
   return out;
 }
@@ -351,8 +351,9 @@ function importSpec(input) {
     p.axes[channel].reverse=!!scale?.reverse;
     if(scale?.type==='log')p.axes[channel].v1=1;
   }
-  const errorLayer=s.layer?.find(l=>(typeof l.mark==='string'?l.mark:l.mark?.type)==='rule');
-  if(s.layer&&(type!=='bar'||s.layer.length>(errorLayer?2:1)||s.layer.some(l=>l!==primary&&l!==errorLayer)))throw Error('只支持主柱图层与显式误差区间 rule 图层');
+  // Legacy rule intervals are accepted only on import and always re-exported as native errorbar.
+  const errorLayer=s.layer?.find(l=>['errorbar','rule'].includes(typeof l.mark==='string'?l.mark:l.mark?.type));
+  if(s.layer&&(type!=='bar'||s.layer.length>(errorLayer?2:1)||s.layer.some(l=>l!==primary&&l!==errorLayer)))throw Error('只支持主柱图层与显式误差区间 errorbar 图层（兼容导入旧版 rule）');
   if(errorLayer&&(!errorLayer.encoding?.[val]?.field||!errorLayer.encoding?.[val+'2']?.field||Object.keys(errorLayer.encoding).some(k=>![val,val+'2'].includes(k))))throw Error('误差图层只允许数值轴的 lower/upper 区间编码');
   p.rows=s.data.values.map(r=>{
     const row=type==='bar'?{category:r[enc[cat].field],value:r[enc[val].field]}:{x:r[enc.x.field],y:r[enc.y.field]};
