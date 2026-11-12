@@ -17,7 +17,7 @@ const task = async () => {
       await $('projectInput').onchange({target:$('projectInput')}); await wait();
     };
     const load = async kind => {
-      const p = {...structuredClone(base), kind, errorBars:true, legend:false, categories:['A'], rows:[], evidence:[]};
+      const legacyBase=structuredClone(base);delete legacyBase.categoryObjects;const p = {...legacyBase, kind, errorBars:true, legend:false, categories:['A'], rows:[], evidence:[]};
       await upload({format:'chart-studio-project',version:1,activeId:'bar',queue:[{id:'bar',name:'bar.png',image,project:p}],current:{project:p,image,name:'bar.png'}});
       document.querySelector('[data-tool="point"]').click();
     };

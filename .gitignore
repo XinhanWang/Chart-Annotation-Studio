@@ -1,1 +1,5 @@
 node_modules/
+
+!/docs/
+!/docs/*.md
+!/tests/identity.cjs

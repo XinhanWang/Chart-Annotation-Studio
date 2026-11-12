@@ -72,3 +72,9 @@ node tests/edges.mjs --headless
 测试覆盖连续取点、约束拖动、误差棒顺序、项目与文件夹、ZIP、旧工程恢复和 375 / 740 / 1024 / 1280 / 1920 px 布局。设置 `STUDIO_QA_OUTPUT` 可保存截图。
 
 保留 web-access CDP proxy 兼容入口：将 `--headless` 换成自己创建的隔离本地测试页 target ID。测试会修改该页的标注与本地草稿，不应在真实标注页上运行；后台标签页可能有计时器限流，优先使用隔离无头模式。
+
+## 自动重名身份（1.4.0）
+
+类别按实际轴位置建立对象，系列按图形/图例对象建立对象；同名不会合并。类别位置和系列提供独立改名、上下移动、添加和删除控件，数据表通过对象选择器维护归属；无需输入 ID。工程稳定 key 与 GT 顺序 ID 分离，备份和撤销保留绑定。重名时自动导出 `category_id=C1…` / 离散 `x_id=X1…` / `series_id=S1…`；无重名维度不导出 ID，单系列无图例不导出 series。Renderer 在副本中恢复原标签，GT 不保存表达式。兼容导入历史 `*_instance` 和 version 1/2 工程。详见 [统一契约](docs/gt-identity-contract.md)。
+
+新增测试：`node tests/identity.cjs`；修改 `studio.js` 后必须 `node build.mjs` 同步离线单文件。
