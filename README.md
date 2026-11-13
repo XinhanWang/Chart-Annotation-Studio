@@ -37,6 +37,12 @@ Browser-based scientific chart annotation with original-pixel calibration, inter
 
 兼容导入历史 `bar + rule` 区间，再次导出会统一转换为 `bar + errorbar`；数据数值、系列与顺序不变。堆叠图仍支持手动误差端点编辑，但不在这次四个连续误差棒子类中。
 
+## 图例 / 类别填写顺序与堆叠 GT
+
+系列、类别输入区会随图表类型显示填写说明：纵向堆叠的系列从下到上，横向堆叠从左到右；类别分别从左到右、从上到下。分组柱图显示组内柱子方向；折线、散点显示首次可见顺序和类别填写规则。
+
+普通堆叠的精简 GT、单图导出和 ZIP 导出使用同一规范化结果：每段记录 `category → value → stack_order → series`（重名时按规范插入身份字段），数值轴为 `value`、`stack: "zero"`，`order` 绑定 `stack_order`。下方数据记录及工程备份保留测量用的 `start/end`。旧版普通堆叠端点 GT 再次导出时自动转换为此形式；确实需要非零起点或非累计区间时才使用规范允许的显式端点形式。
+
 ## 开发与验证
 
 Node.js 22+。可编辑源码和发布用离线单文件分开维护：

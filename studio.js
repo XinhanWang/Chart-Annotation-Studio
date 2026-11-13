@@ -213,7 +213,6 @@ function validate(p) {
   });
   if(p.errorBars&&(!bar||p.rows.some(r=>!finite(r.lower)||!finite(r.upper))))issue('error','误差棒柱图需为每条记录填写数值下界和上界');
   for(const axis of requiredAxes(p)) {if(p.axes?.[axis]?.calibrated){try{axisTransform(p.axes?.[axis]);}catch(e){issue('error',`${axis.toUpperCase()} 轴：${e.message}`);}}}
-  if(stack&&fields.includes('start')&&fields.includes('stack_order')) issue('error','堆叠端点和 stack_order 二选一');
   if(bar&&fields.includes('lower')&&p.rows.some(r=>finite(r.lower)&&finite(r.upper)&&(r.value<r.lower||r.value>r.upper))) issue('warning','部分数值位于误差区间外，请核对区间是否为绝对上下界');
   if(line&&!fields.includes('path_order')) {
     const last=new Map();let nonmonotonic=false;
@@ -221,6 +220,24 @@ function validate(p) {
     if(nonmonotonic) issue('warning','折线路径包含重复或逆序 x，将按输入行顺序连接；也可填写 path_order');
   }
   return out;
+}
+
+// Boundaries are measurement evidence. Ordinary zero-based stacks export segment values.
+function stackNeedsEndpoints(p) {
+  if(!isStack(p)||!p.rows.every(r=>present(r.start)&&present(r.end)))return false;
+  const series=p.series.map(s=>s.key),totals=new Map(),near=(a,b)=>Math.abs(a-b)<=1e-9*Math.max(1,Math.abs(a),Math.abs(b));
+  const rows=[...p.rows].sort((a,b)=>(a.stack_order??series.indexOf(identity(a)))-(b.stack_order??series.indexOf(identity(b))));
+  for(const r of rows){const key=JSON.stringify([categoryIdentity(r),r.value<0]),start=totals.get(key)||0,end=start+r.value;if(!near(r.start,start)||!near(r.end,end))return true;totals.set(key,end);}
+  return false;
+}
+function annotationOrder(p) {
+  const stack=isStack(p),horizontal=isHorizontal(p),bar=isBar(p),line=p.kind.startsWith('line');
+  let series,category,records;
+  if(stack){series=horizontal?'图例 / 系列按柱段从左到右填写，一行一个系列；不要照图例框的排版顺序。':'图例 / 系列按柱段从下到上填写，一行一个系列；不要照图例框的排版顺序。';category=horizontal?'类别按原图从上到下填写，一行一个类别。':'类别按原图从左到右填写，一行一个类别。';records=horizontal?'每组从左到右：起点 → 各段交界点 → 终点。':'每组从下到上：起点 → 各段交界点 → 终点。';records+='N 段点 N+1 次，每个新类别重新点起点。';}
+  else if(bar){series=p.kind.endsWith('_n')?(horizontal?'系列按每组柱子从上到下填写。':'系列按每组柱子从左到右填写。'):'单系列仅填写原图中可读的图例名称；无图例时不填系列名。';category=horizontal?'类别按原图从上到下填写，一行一个类别。':'类别按原图从左到右填写，一行一个类别。';records='GT 先按类别，再按组内柱子的可见顺序记录；误差上下界随对应柱子保存。';}
+  else {series='系列按从左到右扫描原图时首次出现的顺序填写；同一位置按从上到下区分。';category=line&&p.xType==='ordinal'?'离散 X 类别按原图从左到右填写，一行一个位置。':'连续数值轴无需填写类别列表。';records=line?'每条线沿真实路径取点；GT 按可见位置排列，必要时用 path_order 保留连接顺序。':'GT 按点在原图中的位置从左到右、同一 X 从上到下记录。';}
+  if(p.legend===false&&!p.kind.endsWith('_1'))series+=' 原图无可读图例时，按上述顺序使用 Series 1、Series 2 等，不推测名称。';
+  return {series,category,records};
 }
 
 // Canonical output order is shared by preview, JSON and ZIP exports.
@@ -241,7 +258,8 @@ function makeSpec(p) {
   const repeatedSeries=unique(seriesKeys.map(k=>seriesName(p,k))).length<seriesKeys.length;
   const repeatedCategory=(bar||p.xType==='ordinal')&&unique(categoryKeys.map(k=>categoryName(p,k))).length<categoryKeys.length;
   const categoryID=bar?'category_id':'x_id';
-  const optional=['lower','upper','start','end','path_order','stack_order'].filter(k=>ordered.every(r=>present(r[k])));
+  const endpoints=stack&&p.stackEndpointMode==='explicit'&&stackNeedsEndpoints(p);
+  const optional=['lower','upper','start','end','path_order','stack_order'].filter(k=>ordered.every(r=>present(r[k]))&&(!stack||(['start','end'].includes(k)?endpoints:k==='stack_order'?!endpoints:true)));
   const stackKeys=p.series.map(s=>s.key);
   const rows=ordered.map(r=>{
     const out=bar?{category:r.category,value:r.value}:{x:r.x,y:r.y};
@@ -286,7 +304,7 @@ function importSpec(input) {
   const s=copy(input);
   if(!s||typeof s!=='object'||Array.isArray(s))throw Error('GT 必须为 JSON 对象');
   if(!s.data||!Array.isArray(s.data.values)||!s.data.values.length)throw Error('只支持包含 data.values 的非空内联 Vega-Lite 图表');
-  if(s.transform||s.concat||s.hconcat||s.vconcat||s.facet||s.repeat)throw Error('当前九类工具不支持变换或组合图表导入');
+  if(s.transform||s.concat||s.hconcat||s.vconcat||s.facet||s.repeat)throw Error('当前十类工具不支持变换或组合图表导入');
   if(s.usermeta?.semantic)throw Error('请导入合成数据的精简 GT，而不是包含 plot_* 布局字段的完整渲染 spec');
   if(s.layer&&(!Array.isArray(s.layer)||s.layer.some(l=>l.transform||l.data||l.layer||l.resolve)))throw Error('不支持带独立数据、变换或嵌套结构的图层');
   const primary=s.layer?.find(l=>['bar','line','point'].includes(typeof l.mark==='string'?l.mark:l.mark?.type));
@@ -295,7 +313,7 @@ function importSpec(input) {
   const type=typeof mark==='string'?mark:mark?.type;
   if(!['bar','line','point'].includes(type)||!enc.x||!enc.y)throw Error('仅支持柱、折线、散点图的 x/y 编码');
   if(typeof mark==='object'&&Object.keys(mark).some(k=>!['type','order','point'].includes(k)))throw Error('导入包含额外标记属性，请先转换为精简 GT');
-  if(Object.keys(enc).some(k=>!['x','y','x2','y2','color','xOffset','yOffset','order'].includes(k)))throw Error('导入包含当前九类工具尚不支持的视觉编码');
+  if(Object.keys(enc).some(k=>!['x','y','x2','y2','color','xOffset','yOffset','order'].includes(k)))throw Error('导入包含当前十类工具尚不支持的视觉编码');
   for(const def of Object.values(enc)) {
     if(def.condition||def.aggregate||def.bin||def.timeUnit||def.datum!==undefined||def.value!==undefined||def.sort!=null)throw Error('导入包含条件、聚合、分箱、常数或显式排序编码，不进行有损转换');
     if(def.axis?.labelExpr||def.legend?.labelExpr)throw Error('请使用当前规范的 category_id / x_id / series_id 身份字段，不导入旧版标签表达式');
@@ -335,6 +353,7 @@ function importSpec(input) {
     return row;
   });
   p.categories=unique(p.rows.map(r=>type==='bar'?r.category:r.x));delete p.categoryObjects;ensureIdentities(p);
+  if(stacked&&enc[val+'2']&&stackNeedsEndpoints(p))p.stackEndpointMode='explicit';
   // Compact-v4 omits display reversal; its observation table still follows screen order.
   // Recover a descending reading direction from that table for lossless re-export.
   if(type!=='bar'&&p.xType==='quantitative'&&!enc.x.scale?.reverse) {
@@ -377,7 +396,7 @@ function options(el,values,chosen){el.innerHTML=values.map(([v,t])=>`<option val
 const familyOf=kind=>kind.startsWith('bar')?'bar':kind.startsWith('line')?'line':'scatter';
 function syncTypes(){const family=familyOf(p.kind);$('family').value=family;options($('kind'),Object.entries(labels).filter(([k])=>familyOf(k)===family),p.kind+(hasErrors(p)&&!isStack(p)?'_error':''));}
 syncTypes();
-function syncForm(){ensureIdentities(p);syncTypes();$('seriesNames').value=p.series.map(s=>s.name).join('\n');for(const key of ['title','xTitle','yTitle','xType','notes'])$(key).value=p[key]??'';$('legend').checked=p.legend;$('reviewed').checked=!!p.reviewed;syncCategoryList();$('xTypeLabel').hidden=!p.kind.startsWith('line');$('addSeries').hidden=p.kind.endsWith('_1');$('activeSeries').closest('label').hidden=p.kind.endsWith('_1');$('seriesSection').hidden=p.kind.endsWith('_1')&&!p.legend;$('roleLabel').hidden=!p.kind.startsWith('line');$('connect').closest('label').hidden=!p.kind.startsWith('line');$('tableNote').textContent=bar()?(hasErrors(p)?'下限 / 上限是绝对数值界限，不是误差长度。':isStack(p)?'段起点 / 段终点是实际边界数值。':'每条记录对应一个柱子。'):p.kind.startsWith('line')?'默认按取点顺序连接；复杂路径可展开高级字段调整顺序。':'每条记录对应一个可见散点。';$('categoryLabel').hidden=!categorical();$('activeCategoryLabel').hidden=!categorical();
+function syncForm(){ensureIdentities(p);syncTypes();$('seriesNames').value=p.series.map(s=>s.name).join('\n');for(const key of ['title','xTitle','yTitle','xType','notes'])$(key).value=p[key]??'';$('legend').checked=p.legend;$('reviewed').checked=!!p.reviewed;syncCategoryList();$('xTypeLabel').hidden=!p.kind.startsWith('line');$('addSeries').hidden=p.kind.endsWith('_1');$('activeSeries').closest('label').hidden=p.kind.endsWith('_1');$('seriesSection').hidden=p.kind.endsWith('_1')&&!p.legend;$('roleLabel').hidden=!p.kind.startsWith('line');$('connect').closest('label').hidden=!p.kind.startsWith('line');$('tableNote').textContent=bar()?(hasErrors(p)?'下限 / 上限是绝对数值界限，不是误差长度。':isStack(p)?'数据记录保留段起点 / 段终点供测量核对；普通堆叠的精简 GT / 导出 GT 统一使用 value、stack_order，不导出这些中间端点。':'每条记录对应一个柱子。'):p.kind.startsWith('line')?'默认按取点顺序连接；复杂路径可展开高级字段调整顺序。':'每条记录对应一个可见散点。';$('categoryLabel').hidden=!categorical();$('activeCategoryLabel').hidden=!categorical();const order=annotationOrder(p);$('orderGuide').textContent=order.records;$('seriesOrderNote').textContent=order.series;$('categoryOrderNote').textContent=order.category;
 const active=$('activeSeries').value;options($('activeSeries'),p.series.map((s,i)=>[s.key,s.name+'（'+(i+1)+'）']),active);options($('activeCategory'),p.categoryObjects.map((c,i)=>[c.key,c.name+'（'+(i+1)+'）']),$('activeCategory').value);
 $('seriesList').innerHTML=p.series.map((s,i)=>`<div class="series-row"><input type="color" aria-label="系列颜色" value="${esc(s.color||'#008b7e')}" data-series="${i}" data-prop="color"><input aria-label="系列名称" value="${esc(s.name)}" data-series="${i}" data-prop="name"><button data-move-series="${i}" data-delta="-1" title="上移">↑</button><button data-move-series="${i}" data-delta="1" title="下移">↓</button><button data-remove-series="${i}" title="删除系列">×</button></div>`).join('');
 axisForm();syncAssist();}

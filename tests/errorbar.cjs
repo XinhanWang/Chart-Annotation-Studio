@@ -81,6 +81,7 @@ async function renderCheck(gt,label){
   }
   const p=defaultProject('barv_stack');
   p.rows.forEach((r,i)=>{r.start=5+(i%3)*2;r.end=r.start+r.value;r.lower=r.end-1;r.upper=r.end+2;delete r.stack_order;});
+  p.stackEndpointMode='explicit'; // Imported interval placement is intentionally preserved.
   const endpoints=plain(makeSpec(p));
   assert.equal(endpoints.encoding.y.field,'end');
   assert.equal(endpoints.layer[1].encoding.y.stack,null);
