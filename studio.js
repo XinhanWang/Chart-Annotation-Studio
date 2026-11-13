@@ -6,6 +6,22 @@ const present = n => n !== undefined && n !== null && n !== '';
 const unique = values => [...new Set(values)];
 const isBar = p => p.kind.startsWith('bar');
 const isHorizontal = p => p.kind.startsWith('barh');
+// Choose unused, contrasting colors first; generate new hues after the palette is exhausted.
+const SERIES_COLORS=['#4263eb','#e8590c','#2f9e44','#9c36b5','#0891b2','#d6336c','#795548','#f59f00','#5c940d','#6741d9','#0c8599','#c92a2a','#364fc7','#a61e4d','#087f5b','#7048e8','#cc5de8','#1098ad','#e67700','#66a80f','#845ef7','#f06595','#5f7c8a','#b67932'];
+function hslHex(h,s,l){
+  const a=s*Math.min(l,1-l),channel=n=>{const k=(n+h/30)%12;return Math.round(255*(l-a*Math.max(-1,Math.min(k-3,9-k,1)))).toString(16).padStart(2,'0');};
+  return '#'+channel(0)+channel(8)+channel(4);
+}
+function nextSeriesColor(series,random=Math.random){
+  const used=new Set(series.map(s=>s.color?.toLowerCase()).filter(Boolean)),available=SERIES_COLORS.filter(c=>!used.has(c));
+  if(available.length)return available[Math.floor(random()*available.length)];
+  const seed=random()*360;
+  // Golden-angle hue spacing prevents short color cycles, even with a fixed RNG.
+  for(let i=0;i<=used.size;i++){const color=hslHex((seed+i*137.508)%360,.62+(i%3)*.08,.42+(i%4)*.04);if(!used.has(color))return color;}
+  // A bounded exact-color fallback also handles unusually large imported palettes.
+  let rgb=Math.floor(random()*0xffffff);while(used.has('#'+rgb.toString(16).padStart(6,'0')))rgb=(rgb+1)%0x1000000;
+  return '#'+rgb.toString(16).padStart(6,'0');
+}
 // Stable project keys are opaque and survive renames/reorders; GT IDs are a projection.
 let keyCounter=0;
 const newKey=prefix=>prefix+':'+(globalThis.crypto?.randomUUID?.()??Date.now().toString(36)+':'+(++keyCounter));
@@ -55,8 +71,23 @@ function ensureIdentities(p){
 }
 function renameObject(p,kind,key,name){ensureIdentities(p);const list=kind==='series'?p.series:p.categoryObjects,obj=list.find(o=>o.key===key);if(!obj)throw Error('对象不存在');obj.name=name;const field=kind==='series'?'series':isBar(p)?'category':'x',ref=kind==='series'?'_seriesKey':'_categoryKey';for(const r of p.rows)if(r[ref]===key)r[field]=name;p.categories=p.categoryObjects.map(c=>c.name);}
 function moveObject(p,kind,key,delta){ensureIdentities(p);const list=kind==='series'?p.series:p.categoryObjects,i=list.findIndex(o=>o.key===key),j=i+delta;if(i<0||j<0||j>=list.length)return;[list[i],list[j]]=[list[j],list[i]];p.categories=p.categoryObjects.map(c=>c.name);}
-function addObject(p,kind,name){ensureIdentities(p);const obj={key:newKey(kind),name,...(kind==='series'?{color:'#e8590c'}:{})};(kind==='series'?p.series:p.categoryObjects).push(obj);p.categories=p.categoryObjects.map(c=>c.name);return obj;}
+function addObject(p,kind,name){ensureIdentities(p);const obj={key:newKey(kind),name,...(kind==='series'?{color:nextSeriesColor(p.series)}:{})};(kind==='series'?p.series:p.categoryObjects).push(obj);p.categories=p.categoryObjects.map(c=>c.name);return obj;}
 function removeObject(p,kind,key){ensureIdentities(p);const list=kind==='series'?p.series:p.categoryObjects;if(kind==='series'&&list.length===1)throw Error('至少保留一个系列');const ref=kind==='series'?'_seriesKey':'_categoryKey',keep=p.rows.map((r,i)=>r[ref]===key?-1:i).filter(i=>i>=0);p.rows=keep.map(i=>p.rows[i]);if(p.evidence)p.evidence=keep.map(i=>p.evidence[i]);list.splice(list.findIndex(o=>o.key===key),1);p.categories=p.categoryObjects.map(c=>c.name);}
+function parseObjectNames(text){return text.split(/\r\n?|\n/).map(name=>name.trim()).filter(Boolean);}
+function applyObjectNames(p,kind,text){
+  const names=parseObjectNames(text);if(!names.length)throw Error('请至少输入一个名称');
+  if(kind==='series'&&p.kind.endsWith('_1')&&names.length>1)throw Error('单系列类型只允许一个系列，请先选择多系列图表');
+  ensureIdentities(p);const list=kind==='series'?p.series:p.categoryObjects;
+  // Match by visible position, never by name: duplicate labels remain distinct objects.
+  const removed=new Set(list.slice(names.length).map(o=>o.key)),ref=kind==='series'?'_seriesKey':'_categoryKey';
+  const keep=p.rows.map((r,i)=>removed.has(r[ref])?-1:i).filter(i=>i>=0);
+  p.rows=keep.map(i=>p.rows[i]);if(p.evidence)p.evidence=keep.map(i=>p.evidence[i]);
+  list.splice(names.length);
+  names.forEach((name,i)=>{if(list[i])list[i].name=name;else list.push({key:newKey(kind),name,...(kind==='series'?{color:nextSeriesColor(list)}:{})});});
+  const byKey=new Map(list.map(o=>[o.key,o.name])),field=kind==='series'?'series':isBar(p)?'category':'x';
+  for(const r of p.rows)r[field]=byKey.get(r[ref]);
+  p.categories=p.categoryObjects.map(c=>c.name);return names.length;
+}
 function renderSpec(gt){
   const out=copy(gt),rows=out.data.values;
   function view(node){for(const [channel,d] of Object.entries(node.encoding||{})){
@@ -347,7 +378,7 @@ function options(el,values,chosen){el.innerHTML=values.map(([v,t])=>`<option val
 const familyOf=kind=>kind.startsWith('bar')?'bar':kind.startsWith('line')?'line':'scatter';
 function syncTypes(){const family=familyOf(p.kind);$('family').value=family;options($('kind'),Object.entries(labels).filter(([k])=>familyOf(k)===family),p.kind+(hasErrors(p)&&p.kind!=='barv_stack'?'_error':''));}
 syncTypes();
-function syncForm(){ensureIdentities(p);syncTypes();for(const key of ['title','xTitle','yTitle','xType','notes'])$(key).value=p[key]??'';$('legend').checked=p.legend;$('reviewed').checked=!!p.reviewed;syncCategoryList();$('xTypeLabel').hidden=!p.kind.startsWith('line');$('addSeries').hidden=p.kind.endsWith('_1');$('activeSeries').closest('label').hidden=p.kind.endsWith('_1');$('seriesSection').hidden=p.kind.endsWith('_1')&&!p.legend;$('roleLabel').hidden=!p.kind.startsWith('line');$('connect').closest('label').hidden=!p.kind.startsWith('line');$('tableNote').textContent=bar()?(hasErrors(p)?'下限 / 上限是绝对数值界限，不是误差长度。':p.kind==='barv_stack'?'段起点 / 段终点是实际边界数值。':'每条记录对应一个柱子。'):p.kind.startsWith('line')?'默认按取点顺序连接；复杂路径可展开高级字段调整顺序。':'每条记录对应一个可见散点。';$('categoryLabel').hidden=!categorical();$('activeCategoryLabel').hidden=!categorical();
+function syncForm(){ensureIdentities(p);syncTypes();$('seriesNames').value=p.series.map(s=>s.name).join('\n');for(const key of ['title','xTitle','yTitle','xType','notes'])$(key).value=p[key]??'';$('legend').checked=p.legend;$('reviewed').checked=!!p.reviewed;syncCategoryList();$('xTypeLabel').hidden=!p.kind.startsWith('line');$('addSeries').hidden=p.kind.endsWith('_1');$('activeSeries').closest('label').hidden=p.kind.endsWith('_1');$('seriesSection').hidden=p.kind.endsWith('_1')&&!p.legend;$('roleLabel').hidden=!p.kind.startsWith('line');$('connect').closest('label').hidden=!p.kind.startsWith('line');$('tableNote').textContent=bar()?(hasErrors(p)?'下限 / 上限是绝对数值界限，不是误差长度。':p.kind==='barv_stack'?'段起点 / 段终点是实际边界数值。':'每条记录对应一个柱子。'):p.kind.startsWith('line')?'默认按取点顺序连接；复杂路径可展开高级字段调整顺序。':'每条记录对应一个可见散点。';$('categoryLabel').hidden=!categorical();$('activeCategoryLabel').hidden=!categorical();
 const active=$('activeSeries').value;options($('activeSeries'),p.series.map((s,i)=>[s.key,s.name+'（'+(i+1)+'）']),active);options($('activeCategory'),p.categoryObjects.map((c,i)=>[c.key,c.name+'（'+(i+1)+'）']),$('activeCategory').value);
 $('seriesList').innerHTML=p.series.map((s,i)=>`<div class="series-row"><input type="color" aria-label="系列颜色" value="${esc(s.color||'#008b7e')}" data-series="${i}" data-prop="color"><input aria-label="系列名称" value="${esc(s.name)}" data-series="${i}" data-prop="name"><button data-move-series="${i}" data-delta="-1" title="上移">↑</button><button data-move-series="${i}" data-delta="1" title="下移">↓</button><button data-remove-series="${i}" title="删除系列">×</button></div>`).join('');
 axisForm();syncAssist();}
@@ -361,7 +392,7 @@ if(kind){const list=kind==='series'?p.series:p.categoryObjects,ref=kind==='serie
 return `<td><input aria-label="第${i+1}行 ${columnNames[k]}" data-i="${i}" data-key="${k}" value="${esc(r[k])}" type="number" step="any"></td>`;
 }).join('')}</tr>`).join('');$('countBadge').textContent=`${p.rows.length} 条记录`;$('undo').disabled=!history.length;$('redo').disabled=!future.length;}
 function syncCategoryList(){
-  $('categories').hidden=true;let list=$('categoryObjects');if(!list){list=document.createElement('div');list.id='categoryObjects';$('categories').after(list);}
+  $('categories').value=p.categoryObjects.map(c=>c.name).join('\n');const list=$('categoryObjects');
   list.innerHTML=p.categoryObjects.map((c,i)=>`<div class="series-row"><input aria-label="类别位置 ${i+1} 名称" data-category="${esc(c.key)}" value="${esc(c.name)}"><button data-move-category="${esc(c.key)}" data-delta="-1" title="上移">↑</button><button data-move-category="${esc(c.key)}" data-delta="1" title="下移">↓</button><button data-remove-category="${esc(c.key)}" title="删除类别及记录">×</button></div>`).join('')+'<button type="button" id="addCategory">＋ 添加类别位置</button>';
   list.onchange=e=>{if(e.target.dataset.category)change(()=>renameObject(p,'category',e.target.dataset.category,e.target.value),{form:true});};
   list.onclick=e=>{const d=e.target.dataset;if(e.target.id==='addCategory')change(()=>addObject(p,'category','新类别'),{form:true});else if(d.moveCategory)change(()=>moveObject(p,'category',d.moveCategory,Number(d.delta)),{form:true});else if(d.removeCategory){if(p.rows.some(r=>r._categoryKey===d.removeCategory)&&!confirm('删除该类别位置及其全部记录？'))return;change(()=>{removeObject(p,'category',d.removeCategory);selected=-1;},{form:true});}};
@@ -466,7 +497,18 @@ for(const key of ['title','xTitle','yTitle','notes','xType'])$(key).addEventList
 $('legend').onchange=()=>change(()=>p.legend=$('legend').checked,{form:true});$('reviewed').onchange=()=>{p.reviewed=$('reviewed').checked;p.reviewedAt=p.reviewed?new Date().toISOString():null;refresh();};
 $('kind').onchange=()=>{const kind=$('kind').value;if(p.rows.length&&!confirm('切换类型会清空当前数据记录。建议先保存工程。继续？')){syncTypes();return;}change(()=>{const old=p;p=fresh(kind);for(const k of ['title','xTitle','yTitle','notes'])p[k]=old[k];selected=-1;},{form:true});setTool('select');};
 $('family').onchange=()=>{const kind=Object.keys(labels).find(k=>familyOf(k)===$('family').value);options($('kind'),Object.entries(labels).filter(([k])=>familyOf(k)===familyOf(kind)),kind);$('kind').onchange();};
-$('categories').onchange=()=>{}; // Legacy bulk textarea replaced by stable object-bound controls.
+function applyBulkNames(kind,inputId){
+  const text=$(inputId).value,names=parseObjectNames(text),label=kind==='series'?'系列':'类别位置';
+  if(!names.length){toast('请至少输入一个名称');return;}
+  if(kind==='series'&&p.kind.endsWith('_1')&&names.length>1){toast('单系列类型只允许一个系列，请先选择多系列图表');return;}
+  const list=kind==='series'?p.series:p.categoryObjects,removed=new Set(list.slice(names.length).map(o=>o.key));
+  const ref=kind==='series'?'_seriesKey':'_categoryKey',rows=p.rows.filter(r=>removed.has(r[ref])).length;
+  if(removed.size&&!confirm('将删除末尾 '+removed.size+' 个'+label+'及其 '+rows+' 条记录。继续？'))return;
+  let applied=false;change(()=>{applyObjectNames(p,kind,text);selected=-1;pendingStart=null;applied=true;},{form:true});
+  if(applied)toast('已按行应用 '+names.length+' 个'+label+'名称');
+}
+$('applySeriesNames').onclick=()=>applyBulkNames('series','seriesNames');
+$('applyCategoryNames').onclick=()=>applyBulkNames('category','categories');
 $('seriesList').onchange=e=>{const {series,prop}=e.target.dataset;if(series===undefined)return;change(()=>{const obj=p.series[series];if(prop==='name')renameObject(p,'series',obj.key,e.target.value);else obj[prop]=e.target.value;},{form:true});};
 $('seriesList').onclick=e=>{const d=e.target.dataset;if(d.moveSeries!==undefined){change(()=>moveObject(p,'series',p.series[d.moveSeries].key,Number(d.delta)),{form:true});return;}if(d.removeSeries===undefined)return;const obj=p.series[d.removeSeries];if(p.rows.some(r=>identity(r)===obj.key)&&!confirm('删除该系列及其全部记录？'))return;change(()=>{removeObject(p,'series',obj.key);selected=-1;},{form:true});};
 $('addSeries').onclick=()=>{if(p.kind.endsWith('_1')){toast('单系列类型只允许一个系列，请先选择多系列图表');return;}change(()=>addObject(p,'series','Series '+(p.series.length+1)),{form:true});};
