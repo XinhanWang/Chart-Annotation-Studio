@@ -89,3 +89,7 @@ node tests/edges.mjs --headless
 ## Encoding channel order
 
 Serialize every view and layer with position channels before visual channels: `x → y → xOffset → yOffset → x2 → y2 → theta → theta2 → radius → radius2 → longitude → longitude2 → latitude → latitude2 → color → other channels`. Omit absent channels; preserve the relative order of other channels. For grouped bars this gives `x → y → xOffset/yOffset → color`. Only encoding object key order changes; channel definitions, observations and rendering semantics are preserved.
+
+## Ordinary vertical and horizontal stacks (2026-11-13)
+
+`barv_stack` writes each category bottom-to-top; `barh_stack` writes categories top-to-bottom and segments left-to-right. Segment amounts remain scientific values, with cumulative boundaries preserved by `stack_order` or explicit `start`/`end`. The annotation UI needs N+1 clicks for N segments and shares boundaries through undo, reload, recalibration and edits. New production uses absolute stacks only. See [stack annotation contract](docs/stack-annotation-contract.md).
