@@ -84,3 +84,8 @@ node tests/edges.mjs --headless
 类别按实际轴位置建立对象，系列按图形/图例对象建立对象；同名不会合并。类别位置和系列提供独立改名、上下移动、添加和删除控件，数据表通过对象选择器维护归属；无需输入 ID。工程稳定 key 与 GT 顺序 ID 分离，备份和撤销保留绑定。重名时自动导出 `category_id=C1…` / 离散 `x_id=X1…` / `series_id=S1…`；无重名维度不导出 ID，单系列无图例不导出 series。Renderer 在副本中恢复原标签，GT 不保存表达式。兼容导入历史 `*_instance` 和 version 1/2 工程。详见 [统一契约](docs/gt-identity-contract.md)。
 
 新增测试：`node tests/identity.cjs`；修改 `studio.js` 后必须 `node build.mjs` 同步离线单文件。
+
+
+## Encoding channel order
+
+Serialize every view and layer with position channels before visual channels: `x → y → xOffset → yOffset → x2 → y2 → theta → theta2 → radius → radius2 → longitude → longitude2 → latitude → latitude2 → color → other channels`. Omit absent channels; preserve the relative order of other channels. For grouped bars this gives `x → y → xOffset/yOffset → color`. Only encoding object key order changes; channel definitions, observations and rendering semantics are preserved.

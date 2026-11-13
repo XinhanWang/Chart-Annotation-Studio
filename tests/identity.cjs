@@ -10,6 +10,9 @@ const {defaultProject,makeSpec,importSpec,validate,renderSpec,ensureIdentities,r
 const plain=x=>JSON.parse(JSON.stringify(x));
 let count=0;const check=(name,fn)=>{fn();count++;console.log('PASS '+name);};
 function assertGT(gt){
+ const priority=['x','y','xOffset','yOffset','x2','y2','theta','theta2','radius','radius2','longitude','longitude2','latitude','latitude2','color'];
+ function checkEncoding(v){if(v.encoding){const keys=Object.keys(v.encoding),first=priority.filter(k=>keys.includes(k));assert.deepEqual(keys,[...first,...keys.filter(k=>!first.includes(k))]);}for(const l of v.layer||[])checkEncoding(l);}
+ checkEncoding(gt);
  const keys=['category','category_id','value','x','x_id','y','lower','upper','path_order','stack_order','start','end','series','series_id'];
  for(const r of gt.data.values){assert.deepEqual(Object.keys(r),keys.filter(k=>k in r));assert(!Object.keys(r).some(k=>k.endsWith('_instance')||k.startsWith('_')));}
  assert(!JSON.stringify(gt).includes('labelExpr'));

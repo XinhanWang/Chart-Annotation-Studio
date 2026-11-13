@@ -359,6 +359,13 @@ function validate(p) {
   return out;
 }
 
+// Canonical output order is shared by preview, JSON and ZIP exports.
+function orderEncoding(enc) {
+  const priority=['x','y','xOffset','yOffset','x2','y2','theta','theta2','radius','radius2','longitude','longitude2','latitude','latitude2','color'];
+  const keys=priority.filter(k=>Object.hasOwn(enc,k));
+  return Object.fromEntries([...keys,...Object.keys(enc).filter(k=>!keys.includes(k))].map(k=>[k,enc[k]]));
+}
+
 function makeSpec(p) {
   const errors=validate(p).filter(x=>x.severity==='error');
   if(errors.length) throw Error(errors.map(x=>x.message).join('\n'));
@@ -405,9 +412,9 @@ function makeSpec(p) {
   if(present(p.title))out.title=copy(p.title);
   out.data={values:rows};
   if(bar&&optional.includes('lower')) {
-    out.encoding=enc;
-    out.layer=[{mark:{type:'bar'}},{mark:{type:'errorbar'},encoding:{[val]:{field:'lower',type:'quantitative',...(stack?{stack:null}:{})},[val+'2']:{field:'upper'}}}];
-  } else {out.mark=mark;out.encoding=enc;}
+    out.encoding=orderEncoding(enc);
+    out.layer=[{mark:{type:'bar'}},{mark:{type:'errorbar'},encoding:orderEncoding({[val]:{field:'lower',type:'quantitative',...(stack?{stack:null}:{})},[val+'2']:{field:'upper'}})}];
+  } else {out.mark=mark;out.encoding=orderEncoding(enc);}
   return out;
 }
 
