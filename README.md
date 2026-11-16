@@ -99,3 +99,6 @@ Serialize every view and layer with position channels before visual channels: `x
 ## Ordinary vertical and horizontal stacks (2026-11-13)
 
 `barv_stack` writes each category bottom-to-top; `barh_stack` writes categories top-to-bottom and segments left-to-right. Segment amounts remain scientific values, with cumulative boundaries preserved by `stack_order` or explicit `start`/`end`. The annotation UI needs N+1 clicks for N segments and shares boundaries through undo, reload, recalibration and edits. New production uses absolute stacks only. See [stack annotation contract](docs/stack-annotation-contract.md).
+
+
+2026-11-16：散点导出自动规范化；折线仅在真实路径 X 回退时保留 path_order，重复 X 不触发；逆向数值 X 保留 scale.reverse:true，回退的离散 X 保留显式位置顺序。详见 docs/point-line-contract.md。

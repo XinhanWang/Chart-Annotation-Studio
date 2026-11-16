@@ -102,7 +102,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --></head>
 <body>
-<header><a class="brand" href="./"><span class="brand-icon">▧</span> Chart Studio <small>科学图表标注 · v1.6.1</small></a><span id="saveState" class="muted">浏览器本地工作区</span><div class="header-actions"><button id="help">使用指南</button><button id="openProject">打开工程</button><button id="saveProject">备份工作区</button><button id="batchExport">批量导出 ZIP</button><button id="exportGT" class="primary">导出 GT ↗</button></div></header>
+<header><a class="brand" href="./"><span class="brand-icon">▧</span> Chart Studio <small>科学图表标注 · v1.7.0</small></a><span id="saveState" class="muted">浏览器本地工作区</span><div class="header-actions"><button id="help">使用指南</button><button id="openProject">打开工程</button><button id="saveProject">备份工作区</button><button id="batchExport">批量导出 ZIP</button><button id="exportGT" class="primary">导出 GT ↗</button></div></header>
 <main>
 <aside class="sidebar"><div class="eyebrow">WORKSPACE / 标注工作区</div><h2>图像与结构</h2><section class="project-box"><label>标注项目<select id="projectSelect"><option value="">无项目</option></select></label><div class="project-actions"><button id="newProject">＋ 新建</button><button id="renameProject">改名</button><button id="deleteProject" title="移到无项目，保留所有图像">移除项目</button></div><p id="queueSummary" class="muted"></p></section><label class="upload" for="imageInput"><b>＋ 添加图像</b><span>PNG / JPG / WebP · 可多选</span></label><input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden><div class="import-actions"><label class="button" for="folderInput">导入文件夹</label><button id="removeImage">移除当前图</button></div><input id="folderInput" type="file" accept="image/png,image/jpeg,image/webp" webkitdirectory multiple hidden><div id="queue"></div><label id="moveProjectLabel">当前图像所属项目<select id="moveProject"></select></label>
 <div class="two"><label>图表大类<select id="family"><option value="bar">柱状图</option><option value="line">折线图</option><option value="scatter">散点图</option></select></label><label>图表子类<select id="kind"></select></label></div><p id="orderGuide" class="muted" role="note"></p><label>图表标题<input id="title" placeholder="没有标题则留空"></label><div class="two"><label>X 轴标题<input id="xTitle"></label><label>Y 轴标题<input id="yTitle"></label></div><label id="xTypeLabel">X 轴类型<select id="xType"><option value="quantitative">连续数值</option><option value="ordinal">离散类别</option></select></label><label class="check"><input type="checkbox" id="legend"> 原图中存在可读图例</label>
@@ -265,14 +265,22 @@ function orderedRows(p) {
     if(p.kind.startsWith('scatter'))return sy*(a.y-b.y)||a.__input-b.__input;
     return (series.indexOf(identity(a)))-(series.indexOf(identity(b)))||a.__input-b.__input;
   };
-  source.sort(compare);
-  // Visual table order must not change a nonmonotonic line's original adjacency.
-  if(p.kind.startsWith('line')&&!source.every(r=>present(r.path_order))) {
+  if(p.kind.startsWith('line')) {
+    // Keep actual adjacency; explicit imported ranks describe the same path.
+    const explicit=source.every(r=>present(r.path_order));
     const paths=new Map();
-    for(const r of source){const key=identity(r);if(!paths.has(key))paths.set(key,[]);paths.get(key).push(r.__input);}
-    const needs=[...paths.values()].some(a=>!a.every((v,i)=>!i||v>a[i-1])&&!a.every((v,i)=>!i||v<a[i-1]));
-    if(needs)for(const r of source)r.path_order=r.__input;
-  }
+    for(const id of unique(source.map(identity)))paths.set(id,source.filter(r=>identity(r)===id)
+      .sort((a,b)=>explicit?a.path_order-b.path_order:a.__input-b.__input));
+    source.sort(compare);
+    const used=new Map();
+    for(let i=0;i<source.length;i++){
+      const id=identity(source[i]),n=used.get(id)||0;
+      source[i]=paths.get(id)[n];used.set(id,n+1);
+    }
+    const last=new Map();let retreat=false;
+    for(const r of source){const x=categorical?categories.indexOf(categoryIdentity(r)):sx*r.x;const id=identity(r);if(last.has(id)&&x<last.get(id))retreat=true;last.set(id,x);}
+    const counts=new Map();for(const r of source){delete r.path_order;if(retreat){const id=identity(r),i=counts.get(id)||0;r.path_order=i;counts.set(id,i+1);}}
+  } else source.sort(compare);
   for(const r of source){delete r.__input;delete r.__mid;}
   return source;
 }
@@ -353,8 +361,8 @@ function validate(p) {
   if(bar&&fields.includes('lower')&&p.rows.some(r=>finite(r.lower)&&finite(r.upper)&&(r.value<r.lower||r.value>r.upper))) issue('warning','部分数值位于误差区间外，请核对区间是否为绝对上下界');
   if(line&&!fields.includes('path_order')) {
     const last=new Map();let nonmonotonic=false;
-    for(const r of p.rows){const x=p.xType==='ordinal'?p.categoryObjects.map(c=>c.key).indexOf(categoryIdentity(r)):r.x;const s=identity(r);if(last.has(s)&&x<=last.get(s))nonmonotonic=true;last.set(s,x);}
-    if(nonmonotonic) issue('warning','折线路径包含重复或逆序 x，将按输入行顺序连接；也可填写 path_order');
+    for(const r of p.rows){const x=p.xType==='ordinal'?p.categoryObjects.map(c=>c.key).indexOf(categoryIdentity(r)):r.x;const s=identity(r);if(last.has(s)&&x<last.get(s))nonmonotonic=true;last.set(s,x);}
+    if(nonmonotonic) issue('warning','折线路径包含 X 回退，导出时自动生成 path_order');
   }
   return out;
 }
@@ -372,7 +380,7 @@ function annotationOrder(p) {
   let series,category,records;
   if(stack){series=horizontal?'图例 / 系列按柱段从左到右填写，一行一个系列；不要照图例框的排版顺序。':'图例 / 系列按柱段从下到上填写，一行一个系列；不要照图例框的排版顺序。';category=horizontal?'类别按原图从上到下填写，一行一个类别。':'类别按原图从左到右填写，一行一个类别。';records=horizontal?'每组从左到右：起点 → 各段交界点 → 终点。':'每组从下到上：起点 → 各段交界点 → 终点。';records+='N 段点 N+1 次，每个新类别重新点起点。';}
   else if(bar){series=p.kind.endsWith('_n')?(horizontal?'系列按每组柱子从上到下填写。':'系列按每组柱子从左到右填写。'):'单系列仅填写原图中可读的图例名称；无图例时不填系列名。';category=horizontal?'类别按原图从上到下填写，一行一个类别。':'类别按原图从左到右填写，一行一个类别。';records='GT 先按类别，再按组内柱子的可见顺序记录；误差上下界随对应柱子保存。';}
-  else {series='系列按从左到右扫描原图时首次出现的顺序填写；同一位置按从上到下区分。';category=line&&p.xType==='ordinal'?'离散 X 类别按原图从左到右填写，一行一个位置。':'连续数值轴无需填写类别列表。';records=line?'每条线沿真实路径取点；GT 按可见位置排列，必要时用 path_order 保留连接顺序。':'GT 按点在原图中的位置从左到右、同一 X 从上到下记录。';}
+  else {series='系列按从左到右扫描原图时首次出现的顺序填写；同一位置按从上到下区分。';category=line&&p.xType==='ordinal'?'离散 X 类别按原图从左到右填写，一行一个位置。':'连续数值轴无需填写类别列表。';records=line?'每条线沿真实路径取点；GT 保留路径顺序，仅同一条线发生画面 X 回退时自动输出 path_order。重复 X 不算回退。':'点击和表格录入顺序不限；训练 GT 自动按画面从左到右、同一 X 从上到下排序。';}
   if(p.legend===false&&!p.kind.endsWith('_1'))series+=' 原图无可读图例时，按上述顺序使用 Series 1、Series 2 等，不推测名称。';
   return {series,category,records};
 }
@@ -417,6 +425,8 @@ function makeSpec(p) {
   const cat=horizontal?'y':'x',val=horizontal?'x':'y';
   const enc=bar?{[cat]:axis(cat,repeatedCategory?'category_id':'category','nominal'),[val]:axis(val,'value','quantitative')}:
     {x:axis('x',repeatedCategory?'x_id':'x',p.xType==='ordinal'?'ordinal':'quantitative'),y:axis('y','y','quantitative')};
+  if(line&&p.xType==='quantitative'&&(p.axes.x.reverse||(p.axes.x.calibrated&&(p.axes.x.v2-p.axes.x.v1)/(p.axes.x.p2-p.axes.x.p1)<0)))enc.x.scale={...(enc.x.scale||{}),reverse:true};
+  if(line&&p.xType==='ordinal'&&optional.includes('path_order'))enc.x.sort=p.categoryObjects.filter(c=>categoryKeys.includes(c.key)).map(c=>repeatedCategory?'X'+(categoryKeys.indexOf(c.key)+1):c.name);
   if(withSeries)enc.color={field:rows[0].series_id?'series_id':'series',type:'nominal',sort:null};
   if(['barh_n','barv_n'].includes(p.kind))enc[cat+'Offset']={...enc.color};
   if(stack) {
@@ -426,7 +436,7 @@ function makeSpec(p) {
   let mark={type:bar?'bar':line?'line':'point'};
   if(line&&unique(p.rows.map(identity)).some(id=>p.rows.filter(r=>identity(r)===id).length===1))mark.point=true;
   if(line&&optional.includes('path_order'))enc.order={field:'path_order',type:'quantitative'};
-  else if(line&&validate(p).some(i=>i.message.includes('按输入行顺序'))) mark.order=false;
+  else if(line){const last=new Map();if(ordered.some(r=>{const id=identity(r),x=p.xType==='ordinal'?categoryKeys.indexOf(categoryIdentity(r)):r.x;const same=last.has(id)&&x<=last.get(id);last.set(id,x);return same;}))mark.order=false;}
   const out={};
   if(present(p.title))out.title=copy(p.title);
   out.data={values:rows};
@@ -451,8 +461,10 @@ function importSpec(input) {
   if(!['bar','line','point'].includes(type)||!enc.x||!enc.y)throw Error('仅支持柱、折线、散点图的 x/y 编码');
   if(typeof mark==='object'&&Object.keys(mark).some(k=>!['type','order','point'].includes(k)))throw Error('导入包含额外标记属性，请先转换为精简 GT');
   if(Object.keys(enc).some(k=>!['x','y','x2','y2','color','xOffset','yOffset','order'].includes(k)))throw Error('导入包含当前十类工具尚不支持的视觉编码');
-  for(const def of Object.values(enc)) {
-    if(def.condition||def.aggregate||def.bin||def.timeUnit||def.datum!==undefined||def.value!==undefined||def.sort!=null)throw Error('导入包含条件、聚合、分箱、常数或显式排序编码，不进行有损转换');
+  for(const [channel,def] of Object.entries(enc)) {
+    const lineDomain=type==='line'&&channel==='x'&&enc.order?.field==='path_order'&&Array.isArray(def.sort);
+    if(lineDomain&&(new Set(def.sort).size!==def.sort.length||def.sort.length!==unique(s.data.values.map(r=>r[def.field])).length||s.data.values.some(r=>!def.sort.includes(r[def.field]))))throw Error('折线显式 X 顺序必须恰好覆盖观测位置');
+    if(def.condition||def.aggregate||def.bin||def.timeUnit||def.datum!==undefined||def.value!==undefined||def.sort!=null&&!lineDomain)throw Error('导入包含条件、聚合、分箱、常数或不支持的排序编码，不进行有损转换');
     if(def.axis?.labelExpr||def.legend?.labelExpr)throw Error('请使用当前规范的 category_id / x_id / series_id 身份字段，不导入旧版标签表达式');
   }
   const horizontal=type==='bar'&&['nominal','ordinal'].includes(enc.y.type);
@@ -490,10 +502,14 @@ function importSpec(input) {
     return row;
   });
   p.categories=unique(p.rows.map(r=>type==='bar'?r.category:r.x));delete p.categoryObjects;ensureIdentities(p);
+  if(type==='line'&&p.xType==='ordinal'&&Array.isArray(enc.x.sort)){
+    const refs=new Map(s.data.values.map((r,i)=>[r[enc.x.field],p.rows[i]._categoryKey]));
+    p.categoryObjects.sort((a,b)=>enc.x.sort.findIndex(v=>refs.get(v)===a.key)-enc.x.sort.findIndex(v=>refs.get(v)===b.key));p.categories=p.categoryObjects.map(c=>c.name);
+  }
   if(stacked&&enc[val+'2']&&stackNeedsEndpoints(p))p.stackEndpointMode='explicit';
   // Compact-v4 omits display reversal; its observation table still follows screen order.
   // Recover a descending reading direction from that table for lossless re-export.
-  if(type!=='bar'&&p.xType==='quantitative'&&!enc.x.scale?.reverse) {
+  if(type==='point'&&p.xType==='quantitative'&&!enc.x.scale?.reverse) {
     const xs=unique(p.rows.map(r=>r.x));
     if(xs.length>1&&xs.every((v,i)=>!i||v<xs[i-1]))p.axes.x.reverse=true;
   }
