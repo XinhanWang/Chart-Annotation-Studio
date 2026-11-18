@@ -31,6 +31,20 @@ Browser-based scientific chart annotation with original-pixel calibration, inter
 
 兼容导入历史 `bar + rule` 区间，再次导出会统一转换为 `bar + errorbar`；数据数值、系列与顺序不变。堆叠图仍支持手动误差端点编辑，但不在这次四个连续误差棒子类中。
 
+## 面积图
+
+在「图表大类」选择「面积图」。上传原图后校准 X、Y 轴，再用「取点」依次点击上界和下界。第二次点击沿第一次的 X 位置取值。选中表格中的记录，可用「重取上界」「重取下界」在同一 X 重测，也可拖动已有像素标记或直接编辑数值。工程备份保留校准、像素和待补下界的记录。
+
+| 子类型 | 标注内容 |
+| --- | --- |
+| Single-series Area | 逐 X 记录上界 `y` 和实际下界 `baseline`。 |
+| Multi-series Area | 用「当前系列」切换标注对象，每个系列分别记录 `y` 和 `baseline`。可在系列列表改名，在表格调整记录归属。 |
+| Stacked Area | 每层填写累计上界 `y` 和实际下界 `baseline`，两者之差为该层贡献。在系列列表按底层到顶层排列，使用 ↑ / ↓ 调整 `stack_order`。 |
+
+三个子类型均使用数值 X、Y 和逐行 `baseline`。固定基线也逐行填写。预览和导出共用 `y2.field=baseline` 和 `y.stack=null`。多系列通过 `color.field=series` 分组，堆叠子类额外绑定 `order.field=stack_order`。预览使用 GT 的系列配色，系列列表的颜色用于原图标记。缺少边界或上界低于下界会阻止导出，堆叠层在共同 X 处未接合时会提示核对。
+
+可用目录中的 `Single-series Area.json`、`Multi-series Area.json` 和 `Stacked Area.json` 复查 GT 导入和语义预览。核对后勾选右栏确认即可导出。执行 `node build.mjs` 和 `node tests/area.cjs` 可验证三份样例的往返及实际边界渲染。
+
 ## 开发与验证
 
 Node.js 22+。可编辑源码和发布用离线单文件分开维护：

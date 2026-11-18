@@ -1,0 +1,36 @@
+{
+  "title": "Measurement",
+  "data": {
+    "values": [
+      {"x": 0, "y": 13, "baseline": 10, "series": "S1", "stack_order": 0},
+      {"x": 0, "y": 20, "baseline": 13, "series": "S2", "stack_order": 1},
+      {"x": 1, "y": 16, "baseline": 12, "series": "S1", "stack_order": 0},
+      {"x": 1, "y": 22, "baseline": 16, "series": "S2", "stack_order": 1}
+    ]
+  },
+  "mark": {"type": "area"},
+  "encoding": {
+    "x": {
+      "field": "x",
+      "type": "quantitative",
+      "title": "Time"
+    },
+    "y": {
+      "field": "y",
+      "type": "quantitative",
+      "title": "Value",
+      "stack": null
+    },
+    "y2": {"field": "baseline"},
+    "color": {
+      "field": "series",
+      "type": "nominal",
+      "sort": null
+    },
+    "order": {
+      "field": "stack_order",
+      "type": "quantitative",
+      "sort": "ascending"
+    }
+  }
+}
