@@ -50,7 +50,7 @@
       "y": {"field": "y", "type": "quantitative", "stack": null},
       "y2": {"field": "baseline"},
       "color": {"field": "series", "type": "nominal", "sort": null},
-      "order": {"field": "stack_order", "type": "quantitative", "sort": "ascending"}
+      "order": {"field": "stack_order", "type": "quantitative"}
     }
   }
 }

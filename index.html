@@ -343,10 +343,7 @@ function boxValueAt(pt,p) {
   return Number(pixelToValue(pt[axis],p.axes[axis]).toFixed(2));
 }
 const roundAreaMeasurement=value=>Number(value.toFixed(2));
-function areaYAt(pixel,p){
-  const value=pixelToValue(pixel,p.axes.y);
-  return isNominalArea(p)?roundAreaMeasurement(value):value;
-}
+const areaValueAt=(pixel,axis)=>roundAreaMeasurement(pixelToValue(pixel,axis));
 function valueToPixel(value,axis) {
   if(!finite(value)) throw Error('数值必须为有限数字');
   const {f}=axisTransform(axis);
@@ -661,7 +658,7 @@ function makeAreaSpec(p){
   encoding.y.stack=null;
   encoding.y2={field:'baseline'};
   if(multi)encoding.color={field:'series',type:'nominal',sort:null};
-  if(stacked)encoding.order={field:'stack_order',type:'quantitative',sort:'ascending'};
+  if(stacked)encoding.order={field:'stack_order',type:'quantitative'};
   return {...(present(p.title)?{title:copy(p.title)}:{}),data:{values},mark:{type:'area'},encoding};
 }
 
@@ -683,7 +680,8 @@ function importAreaSpec(s){
       !matches(enc.y,{field:'y',type:'quantitative',stack:null},['title','scale'])||
       !matches(enc.y2,{field:'baseline'})||
       multi&&!matches(enc.color,{field:'series',type:'nominal',sort:null})||
-      stacked&&(!multi||!matches(enc.order,{field:'stack_order',type:'quantitative',sort:'ascending'}))){
+      stacked&&(!multi||!matches(enc.order,{field:'stack_order',type:'quantitative'},['sort'])||
+        enc.order.sort!==undefined&&enc.order.sort!=='ascending')){
     throw Error('面积图 GT 须使用数值 x 或 Nominal category，并绑定 y、y2=baseline、y.stack=null；多系列绑定 series，堆叠顺序绑定 stack_order');
   }
   const p=defaultProject(stacked?'area_stack':multi?'area_n':'area_1');
@@ -836,14 +834,16 @@ function keepOtherAreaMode(p,next){
 }
 function restoreAreaMeasurementPrecision(p){
   if(!isArea(p))return;
-  const nominal=isNominalArea(p)?p:p.areaModes?.nominal;
-  if(!Array.isArray(nominal?.rows))return;
   // Pixel evidence identifies which boundary in an older draft was measured.
-  nominal.rows.forEach((row,i)=>{
-    const e=nominal.evidence?.[i];
-    if(e?.pixel&&finite(row?.y))row.y=roundAreaMeasurement(row.y);
-    if(e?.baselinePixel&&finite(row?.baseline))row.baseline=roundAreaMeasurement(row.baseline);
-  });
+  for(const mode of [p,...Object.values(p.areaModes??{})]){
+    if(!Array.isArray(mode?.rows))continue;
+    mode.rows.forEach((row,i)=>{
+      const e=mode.evidence?.[i];
+      if(finite(e?.xPixel)&&finite(row?.x))row.x=roundAreaMeasurement(row.x);
+      if(e?.pixel&&finite(row?.y))row.y=roundAreaMeasurement(row.y);
+      if(e?.baselinePixel&&finite(row?.baseline))row.baseline=roundAreaMeasurement(row.baseline);
+    });
+  }
 }
 function hasErrors(p){return !!p.errorBars||isBar(p)&&p.rows.some(r=>present(r.lower)||present(r.upper));}
 function crc32(bytes){let crc=0xffffffff;for(const b of bytes){crc^=b;for(let i=0;i<8;i++)crc=(crc>>>1)^((crc&1)?0xedb88320:0);}return (crc^0xffffffff)>>>0;}
@@ -936,7 +936,10 @@ function syncAssist(){
   }$('advancedFieldsLabel').hidden=!p.kind.startsWith('line');$('activeSeries').value=a.series;$('activeCategory').value=a.category;
   $('sequence').value=a.sequence;$('sequenceLabel').hidden=!categorical()||isBox(p);$('nextTarget').hidden=!categorical();$('numericLock').hidden=categorical()||isPie(p);$('categoryLock').hidden=!categorical();
   for(const [id,key]of [['projections','projections'],['magnify','magnify'],['lockX','lockX'],['lockCategory','lockCategory']])$(id).checked=!!a[key];
-  if(document.activeElement!==$('fixedX'))$('fixedX').value=a.fixedXValue??'';$('dragAxis').value=a.dragAxis;
+  if(document.activeElement!==$('fixedX')){
+    $('fixedX').value=isArea(p)&&(tool==='lock-x'||finite(a.fixedXPixel))?'':a.fixedXValue??'';
+  }
+  $('dragAxis').value=a.dragAxis;
   const pairs=categorical()?targetPairs():[],done=pairs.filter(targetComplete).length;
   $('targetHint').textContent=isPie(p)?'Pie：在数据表录入类别及原始数值':isBox(p)?`当前目标：${categoryName(p,a.category)||'请填写类别'} · ${a.boxField}`:categorical()?`当前目标：${categoryName(p,a.category)||'请先填写类别'} · ${seriesName(p,a.series)}`:`当前系列：${seriesName(p,a.series)}${a.lockX?' · 固定 X = '+(a.fixedXValue??'待填写'):''}`;
   if(isArea(p)){
@@ -1080,10 +1083,10 @@ function measureArea(raw){
 function editAreaHandle(i,handle,pt){
   const r=p.rows[i],e=p.evidence[i];
   if(!p.axes.y.calibrated)throw Error('请先校准 Y 轴的两个刻度');
-  const y=areaYAt(pt.y,p);
+  const y=areaValueAt(pt.y,p.axes.y);
   if(!isNominalArea(p)&&handle==='pixel'&&e.pixel&&pt.x!==e.pixel.x){
     if(!p.axes.x.calibrated)throw Error('请先校准 X 轴的两个刻度');
-    r.x=pixelToValue(pt.x,p.axes.x);
+    r.x=areaValueAt(pt.x,p.axes.x);
     e.xPixel=pt.x;
     if(e.baselinePixel)e.baselinePixel.x=pt.x;
   }
@@ -1094,10 +1097,10 @@ function recalculateArea(){
   for(const [i,r] of p.rows.entries()){
     const e=p.evidence?.[i];
     if(!e)continue;
-    if(!isNominalArea(p)&&p.axes.x.calibrated&&finite(e.xPixel))r.x=pixelToValue(e.xPixel,p.axes.x);
+    if(!isNominalArea(p)&&p.axes.x.calibrated&&finite(e.xPixel))r.x=areaValueAt(e.xPixel,p.axes.x);
     if(p.axes.y.calibrated){
-      if(e.pixel)r.y=areaYAt(e.pixel.y,p);
-      if(e.baselinePixel)r.baseline=areaYAt(e.baselinePixel.y,p);
+      if(e.pixel)r.y=areaValueAt(e.pixel.y,p.axes.y);
+      if(e.baselinePixel)r.baseline=areaValueAt(e.baselinePixel.y,p.axes.y);
     }
   }
 }
@@ -1194,14 +1197,26 @@ function calibrated(skipX=false){const axes=requiredAxes(p);for(const a of axes)
 function measureAt(pt,i=null){
   if(isNominalArea(p)){
     calibrated();
-    return {category:i===null?categoryName(p,assist().category):p.rows[i].category,y:areaYAt(pt.y,p)};
+    return {category:i===null?categoryName(p,assist().category):p.rows[i].category,y:areaValueAt(pt.y,p.axes.y)};
   }
-  if(isArea(p)&&i!==null){calibrated(true);return {x:p.rows[i].x,y:pixelToValue(pt.y,p.axes.y)};}
+  if(isArea(p)){
+    const a=assist(),fixed=a.lockX&&finite(a.fixedXValue);
+    calibrated(i!==null||fixed);
+    const x=i!==null?p.rows[i].x:fixed?a.fixedXValue:areaValueAt(pt.x,p.axes.x);
+    return {x,y:areaValueAt(pt.y,p.axes.y)};
+  }
   const a=assist(),e=i===null?null:p.evidence?.[i],fixed=i===null?(!categorical()&&a.lockX?{value:a.fixedXValue}:null):e?.fixedX;calibrated(!!fixed&&Number.isFinite(fixed.value));if(isBox(p))return{category:i===null?categoryName(p,a.category):p.rows[i].category,value:boxValueAt(pt,p)};if(bar())return{category:i===null?categoryName(p,a.category):p.rows[i].category,value:pixelToValue(horizontal()?pt.x:pt.y,p.axes[horizontal()?'x':'y'])};return{x:p.xType==='ordinal'?(i===null?categoryName(p,a.category):p.rows[i].x):fixed&&Number.isFinite(fixed.value)?fixed.value:pixelToValue(pt.x,p.axes.x),y:pixelToValue(pt.y,p.axes.y)};}
 function applyPixel(i,pt){const r=p.rows[i],e=p.evidence[i],data=measureAt(pt,i);if(bar()){r.value=data.value;if(isStack(p)){r.end=data.value;r.value=r.end-r.start;}}else{if(p.xType!=='ordinal')r.x=data.x;r.y=data.y;}e.pixel=pt;if(bar())for(const key of ['lowerPixel','upperPixel'])if(e[key])e[key][horizontal()?'y':'x']=pt[horizontal()?'y':'x'];e.modifiedAt=new Date().toISOString();}
 function recalculate(){if(isArea(p)){recalculateArea();return;}if(isBox(p)){for(let i=0;i<p.rows.length;i++)for(const k of handleKeys(i))editHandle(i,k,p.evidence[i][k]);return;}for(let i=0;i<p.rows.length;i++){const e=p.evidence?.[i];if(!e?.pixel)continue;applyPixel(i,e.pixel);if(e.startPixel){p.rows[i].start=pixelToValue(e.startPixel[horizontal()?'x':'y'],p.axes[horizontal()?'x':'y']);p.rows[i].value=p.rows[i].end-p.rows[i].start;}for(const k of ['lower','upper'])if(e[k+'Pixel'])p.rows[i][k]=pixelToValue(horizontal()?e[k+'Pixel'].x:e[k+'Pixel'].y,p.axes[horizontal()?'x':'y']);}}
 canvas.addEventListener('pointerdown',e=>{if(!image)return;canvas.focus({preventScroll:true});const raw=coords(e);try{
-if(tool==='lock-x'){const a=assist();if(!Number.isFinite(a.fixedXValue)){if(!p.axes.x.calibrated)throw Error('请先在固定 X 输入框填写标签的真实数值');a.fixedXValue=pixelToValue(raw.x,p.axes.x);}a.fixedXPixel=raw.x;a.lockX=true;setTool('point');hover=raw;refresh();toast('X 已固定，沿竖直参考线寻找 Y');return;}
+if(tool==='lock-x'){
+  const a=assist();
+  if(!finite(a.fixedXValue)||isArea(p)&&finite(a.fixedXPixel)){
+    if(!p.axes.x.calibrated)throw Error('请先在固定 X 输入框填写标签的真实数值');
+    a.fixedXValue=isArea(p)?areaValueAt(raw.x,p.axes.x):pixelToValue(raw.x,p.axes.x);
+  }
+  a.fixedXPixel=raw.x;a.lockX=true;setTool('point');hover=raw;refresh();toast('X 已固定，沿竖直参考线寻找 Y');return;
+}
 if(tool==='anchor'){const a=assist();a.categoryPixels[anchorKey()]=horizontal()?raw.y:raw.x;a.lockCategory=true;setTool('point');hover=raw;refresh();toast('当前位置已固定，可直接测数值');return;}
 if(tool==='calibrate'){const a=calTarget[0],n=calTarget[1];change(()=>{p.axes[a]['p'+n]=a==='x'?raw.x:raw.y;p.axes[a]['point'+n]=raw;p.axes[a].calibrated=!!(p.axes[a].point1&&p.axes[a].point2);if(p.axes[a].calibrated)recalculate();},{form:true});toast(`已取 ${calTarget.toUpperCase()}，请填写真实刻度值`);return;}
 if(isArea(p)&&areaTool()){measureArea(raw);return;}

@@ -16,7 +16,12 @@ vm.runInContext(app.split('const $=id=>')[0]+
   'globalThis.api={importSpec,makeSpec,renderSpec,validate,requiredAxes,moveSeries,moveObject,applyObjectNames,switchAreaMode};',ctx);
 const {importSpec,makeSpec,renderSpec,validate,requiredAxes,moveSeries,moveObject,applyObjectNames,switchAreaMode}=ctx.api;
 const plain=value=>JSON.parse(JSON.stringify(value));
-const sample=name=>JSON.parse(fs.readFileSync(path.join(root,name+' Area.json'),'utf8'));
+const rawSample=name=>JSON.parse(fs.readFileSync(path.join(root,name+' Area.json'),'utf8'));
+function sample(name){
+  const gt=rawSample(name);
+  if(gt.encoding.order)delete gt.encoding.order.sort;
+  return gt;
+}
 const nominalSamples=require('./fixtures/area-nominal.json');
 
 async function assertPreview(gt){
@@ -98,6 +103,20 @@ test('Renaming and reordering categories preserves rows and stacked bounds',asyn
     assert.equal(row.stack_order,1-original.stack_order);
   }
   await assertPreview(exported);
+});
+
+test('Stacked area imports legacy ascending order and exports the minimal encoding on both axes',()=>{
+  for(const [legacy,canonical] of [
+    [rawSample('Stacked'),sample('Stacked')],
+    [plain(nominalSamples.Stacked),nominalSamples.Stacked]
+  ]){
+    legacy.encoding.order.sort='ascending';
+    assert.deepEqual(plain(makeSpec(importSpec(legacy))),canonical);
+    assert.deepEqual(plain(makeSpec(importSpec(canonical))).encoding.order,
+      {field:'stack_order',type:'quantitative'});
+    legacy.encoding.order.sort='descending';
+    assert.throws(()=>importSpec(legacy));
+  }
 });
 
 test('Mode changes preserve both datasets through a project JSON round trip',()=>{

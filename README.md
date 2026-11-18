@@ -49,7 +49,7 @@ Browser-based scientific chart annotation with original-pixel calibration, inter
 - **Quantitative** 使用数值 `x`，校准 X 和 Y 后取点。
 - **Nominal** 使用文字 `category`，只校准 Y。按原图从左到右录入类别，在侧栏用 ↑ / ↓ 调整位置，再选择类别和系列取点。「定位当前类别刻度」可让同一类别下的各系列共用 X 像素位置。年份、月份等标签保留原文字。每个类别位置需要唯一标签，每个类别与系列组合对应一条上下界记录。
 
-Nominal 模式中，通过取点、拖动、微调或重新校准计算的上下界保存到小数点后两位。恢复旧工程时，同样处理有对应像素依据的边界。
+通过取点、拖动、微调或重新校准得到的上下界保存到小数点后两位，Quantitative 自动测量的 X 也使用两位精度。恢复旧工程时，同样处理有对应像素依据的数值。Quantitative 使用「在原图定位 X 刻度」时，「已知 X 数值」输入框会清空，固定的 X 显示在当前目标提示中。
 
 两种模式各自保留记录、校准和像素证据，工程备份包含两套数据。首次切换到另一模式时从空表开始。导入同一子类型的 GT 会更新其对应模式，另一模式仍可切回。
 
@@ -59,7 +59,7 @@ Nominal 模式中，通过取点、拖动、微调或重新校准计算的上下
 | Multi-series Area | 用「当前系列」切换标注对象，每个系列分别记录 `y` 和 `baseline`。可在系列列表改名，在表格调整记录归属。 |
 | Stacked Area | 每层填写累计上界 `y` 和实际下界 `baseline`，两者之差为该层贡献。在系列列表按底层到顶层排列，使用 ↑ / ↓ 调整 `stack_order`。 |
 
-三个子类型均使用数值 Y 和逐行 `baseline`。固定基线也逐行填写。Nominal GT 的 X 编码为 `field: "category"`、`type: "nominal"`、`sort: null`，行按类别位置排序，预览沿同一顺序连接。两种模式均使用 `y2.field=baseline` 和 `y.stack=null`。多系列通过 `color.field=series` 分组，堆叠子类额外绑定 `order.field=stack_order`。预览使用 GT 的系列配色，系列列表的颜色用于原图标记。缺少边界或上界低于下界会阻止导出，堆叠层在共同 X 处未接合时会提示核对。
+三个子类型均使用数值 Y 和逐行 `baseline`。固定基线也逐行填写。Nominal GT 的 X 编码为 `field: "category"`、`type: "nominal"`、`sort: null`，行按类别位置排序，预览沿同一顺序连接。两种模式均使用 `y2.field=baseline` 和 `y.stack=null`。多系列通过 `color.field=series` 分组，堆叠子类使用 `"order": {"field": "stack_order", "type": "quantitative"}`，兼容导入带 `"sort": "ascending"` 的旧堆叠 GT。预览使用 GT 的系列配色，系列列表的颜色用于原图标记。缺少边界或上界低于下界会阻止导出，堆叠层在共同 X 处未接合时会提示核对。
 
 可用目录中的三份 `* Area.json` 验证 Quantitative 模式。`tests/fixtures/area-nominal.json` 包含测试用的三份 Nominal GT，三个顶层属性的值各是一份可导入的 GT。执行 `node build.mjs` 和 `node tests/area.cjs` 可验证两种模式的 GT 往返及渲染。安装 Playwright 和浏览器后运行 `node tests/area-browser.cjs` 可验证浏览器交互及下载。
 

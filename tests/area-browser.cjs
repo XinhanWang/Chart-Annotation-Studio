@@ -46,9 +46,11 @@ async function run(){
     };
     const numeric={};
     for(const [name,nominal] of Object.entries(samples)){
-      numeric[name]=JSON.parse(await fs.readFile(path.join(root,name+' Area.json'),'utf8'));
-      for(const [mode,gt] of [['nominal',nominal],['quantitative',numeric[name]]]){
-        await load('#specInput',gt);
+      const input=JSON.parse(await fs.readFile(path.join(root,name+' Area.json'),'utf8'));
+      numeric[name]=structuredClone(input);
+      if(numeric[name].encoding.order)delete numeric[name].encoding.order.sort;
+      for(const [mode,source,gt] of [['nominal',nominal,nominal],['quantitative',input,numeric[name]]]){
+        await load('#specInput',source);
         await waitGT(gt);
         assert.equal(await page.inputValue('#xType'),mode);
         assert.equal(await page.locator('[data-tick="x1"]').count(),mode==='nominal'?0:1);
@@ -208,17 +210,42 @@ async function run(){
       await clickPixel(x,y);
     }
     await page.click('[data-tool="point"]');
-    await clickPixel(128,330);
-    await clickPixel(200,365);
+    await clickPixel(128.3,329.7);
+    await clickPixel(200,364.5);
     const {rows,evidence,axes}=(await snapshot()).project;
     assert.equal(rows.length,1);
     assert.ok(Math.abs(rows[0].x-1)<0.05&&Math.abs(rows[0].y-20)<0.5);
     assert.ok(Math.abs(rows[0].baseline-10)<0.5&&!('category' in rows[0]));
-    assert.equal(rows[0].y,linearValue(evidence[0].pixel.y,axes.y));
-    assert.equal(rows[0].baseline,linearValue(evidence[0].baselinePixel.y,axes.y));
+    const measuredX=linearValue(evidence[0].xPixel,axes.x);
+    assert.equal(rows[0].x,Number(measuredX.toFixed(2)));
+    assertMeasurementPrecision({rows,evidence,axes});
     assert.equal(evidence[0].pixel.x,evidence[0].baselinePixel.x);
+
+    const fixedX=page.locator('#fixedX');
+    await edit(fixedX,'3.125');
+    await page.click('#pickX');
+    assert.equal(await fixedX.inputValue(),'');
+    await clickPixel(230,400);
+    assert.equal(await fixedX.inputValue(),'');
+    await clickPixel(280,250);
+    await clickPixel(280,350);
+    assert.equal((await snapshot()).project.rows[1].x,3.125);
+
+    await page.click('#pickX');
+    await clickPixel(350.5,400);
+    const locked=(await snapshot()).project.assist;
+    const expectedX=Number(linearValue(locked.fixedXPixel,axes.x).toFixed(2));
+    assert.notEqual(expectedX,3.125);
+    assert.equal(locked.fixedXValue,expectedX);
+    assert.equal(await fixedX.inputValue(),'');
+    await clickPixel(490,215);
+    await clickPixel(490,335);
+    const captured=(await snapshot()).project;
+    assert.equal(captured.rows[2].x,expectedX);
+    assert.equal(captured.evidence[2].pixel.x,locked.fixedXPixel);
+    assertMeasurementPrecision(captured);
     assert.deepEqual(errors,[]);
-    console.log('Quantitative browser capture: both axes, numeric X and paired bounds');
+    console.log('Quantitative browser capture: two-decimal measurements and consecutive X anchors');
   }finally{await browser.close();}
 }
 
