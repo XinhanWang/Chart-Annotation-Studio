@@ -1,0 +1,11 @@
+# Compact v4 projection baseline — 2026-11-11
+
+Scope: compact.py, new compact_display.py, new tests/test_compact_semantic_v4.py; this requested baseline is the only documentation write. Workflow, pipeline, adapter and existing tests are owned by main and are unchanged.
+
+Inspected live compact.py before implementation. The checkout was clean. v3 currently emits axis display settings, legend settings/labelExpr, scale.reverse and single-vertex line mark.point. Repeated human labels are replaced by integers and decoded through presentation expressions. Every hidden singleton has anonymous Series 1. Metadata-free normalize blindly copies any input.
+
+V4 contract: inline ordered observation rows, visible human category/x/series labels, *_instance identities for duplicate labels; encodings reference identity fields. Keep semantic titles/units, marks/layers, grouping/offset, stack values/endpoints/order, errors, path order and nonlinear scale parameters. Remove display-only axis/legend/config/size/colors/fonts/reversal and single-point remedy. Hidden singleton drops anonymous series/color; named visible singleton and multiple hidden identities remain. Data values, duplicate observations and reading order must survive.
+
+Public integration API: normalize(full_or_v4), validate_canonical(v4), project_rows(full_or_compact, version=4), semantic_rows(full_or_compact, version=4), compact_display.render_spec(v4). version=3 explicitly requests historical full projection for migration; old compact label-expression decoding remains available via semantic_rows. normalize refuses v3/unsupported metadata-free inputs rather than silently migrating historical targets. Main may serialize render_spec output as .preview.vl.json; this module does no file IO.
+
+Preview is a deep copy with exactly equal data; complete discrete labels, duplicate identity label maps, absent titles set to null and single-point line symbols are derived only there. Actual Vega-Lite compile/run/SVG tests use existing installed dependencies. New tests cover nine kinds, duplicate names/identities, anonymous/named/hidden series, order/path/stack/errors/log, source canonical equality, strict rejection/idempotence, legacy decoding, preview immutability and real rendering. Existing tests may need v3 expectations adjusted by main.

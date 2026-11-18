@@ -1,0 +1,602 @@
+{
+  "directory": "assets/fonts",
+  "font_count": 33,
+  "base_font_count": 16,
+  "fonts": [
+    {
+      "file": "assets/fonts/NimbusSans-Regular.otf",
+      "family": "Nimbus Sans",
+      "weight": 400,
+      "style": "normal",
+      "sha256": "7c25be4d78155523080ab85b10277150657ff7dabbcad7037bdd536c9b6d0d08",
+      "bytes": 82264,
+      "sampling_role": "base",
+      "embedding_license": {
+        "status": "approved",
+        "id": "AGPL-3.0-upstream-source-bundled",
+        "notice": "docs/font-licenses/NimbusSans-Regular.txt",
+        "notice_sha256": "2070cead5847c88adbbffc22d77b359a096acda4b90d47777824e67e1008a7f3",
+        "source_archive": "docs/font-licenses/urw-base35-3c0ba3b-source.tar.gz",
+        "source_sha256": "255d5d60871d8a975d4e1ecfc1c5c55e02a2069aeaa00a5e25020989cd08d586",
+        "upstream_commit": "3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "source_url": "https://github.com/ArtifexSoftware/urw-base35-fonts/tree/3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "mode": "unmodified-font-with-complete-upstream-source"
+      }
+    },
+    {
+      "file": "assets/fonts/NimbusSans-Bold.otf",
+      "family": "Nimbus Sans",
+      "weight": 700,
+      "style": "normal",
+      "sha256": "7f33328e6b4d4cd21b45fa625791928c9407dc702db6780e56b09ca9a3ecaa67",
+      "bytes": 83264,
+      "sampling_role": "base",
+      "embedding_license": {
+        "status": "approved",
+        "id": "AGPL-3.0-upstream-source-bundled",
+        "notice": "docs/font-licenses/NimbusSans-Bold.txt",
+        "notice_sha256": "2070cead5847c88adbbffc22d77b359a096acda4b90d47777824e67e1008a7f3",
+        "source_archive": "docs/font-licenses/urw-base35-3c0ba3b-source.tar.gz",
+        "source_sha256": "255d5d60871d8a975d4e1ecfc1c5c55e02a2069aeaa00a5e25020989cd08d586",
+        "upstream_commit": "3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "source_url": "https://github.com/ArtifexSoftware/urw-base35-fonts/tree/3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "mode": "unmodified-font-with-complete-upstream-source"
+      }
+    },
+    {
+      "file": "assets/fonts/NimbusRoman-Regular.otf",
+      "family": "Nimbus Roman",
+      "weight": 400,
+      "style": "normal",
+      "sha256": "fd41669443616a7ae890c42e53a58f47fa24a940fd1e367acaff665cf5b6e9d8",
+      "bytes": 98200,
+      "sampling_role": "base",
+      "embedding_license": {
+        "status": "approved",
+        "id": "AGPL-3.0-upstream-source-bundled",
+        "notice": "docs/font-licenses/NimbusRoman-Regular.txt",
+        "notice_sha256": "2070cead5847c88adbbffc22d77b359a096acda4b90d47777824e67e1008a7f3",
+        "source_archive": "docs/font-licenses/urw-base35-3c0ba3b-source.tar.gz",
+        "source_sha256": "255d5d60871d8a975d4e1ecfc1c5c55e02a2069aeaa00a5e25020989cd08d586",
+        "upstream_commit": "3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "source_url": "https://github.com/ArtifexSoftware/urw-base35-fonts/tree/3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "mode": "unmodified-font-with-complete-upstream-source"
+      }
+    },
+    {
+      "file": "assets/fonts/NimbusRoman-Bold.otf",
+      "family": "Nimbus Roman",
+      "weight": 700,
+      "style": "normal",
+      "sha256": "e0ad81923bc6d85d5426f796217c87963ca1ae3c65e22c87a25b6c6353de299e",
+      "bytes": 100984,
+      "sampling_role": "base",
+      "embedding_license": {
+        "status": "approved",
+        "id": "AGPL-3.0-upstream-source-bundled",
+        "notice": "docs/font-licenses/NimbusRoman-Bold.txt",
+        "notice_sha256": "2070cead5847c88adbbffc22d77b359a096acda4b90d47777824e67e1008a7f3",
+        "source_archive": "docs/font-licenses/urw-base35-3c0ba3b-source.tar.gz",
+        "source_sha256": "255d5d60871d8a975d4e1ecfc1c5c55e02a2069aeaa00a5e25020989cd08d586",
+        "upstream_commit": "3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "source_url": "https://github.com/ArtifexSoftware/urw-base35-fonts/tree/3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "mode": "unmodified-font-with-complete-upstream-source"
+      }
+    },
+    {
+      "file": "assets/fonts/NimbusMonoPS-Regular.otf",
+      "family": "Nimbus Mono PS",
+      "weight": 400,
+      "style": "normal",
+      "sha256": "4f225ca8e13acb16f733ce741693105e527d5f7a5443901b9ecc190fca4e149b",
+      "bytes": 77936,
+      "sampling_role": "base",
+      "embedding_license": {
+        "status": "approved",
+        "id": "AGPL-3.0-upstream-source-bundled",
+        "notice": "docs/font-licenses/NimbusMonoPS-Regular.txt",
+        "notice_sha256": "2070cead5847c88adbbffc22d77b359a096acda4b90d47777824e67e1008a7f3",
+        "source_archive": "docs/font-licenses/urw-base35-3c0ba3b-source.tar.gz",
+        "source_sha256": "255d5d60871d8a975d4e1ecfc1c5c55e02a2069aeaa00a5e25020989cd08d586",
+        "upstream_commit": "3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "source_url": "https://github.com/ArtifexSoftware/urw-base35-fonts/tree/3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "mode": "unmodified-font-with-complete-upstream-source"
+      }
+    },
+    {
+      "file": "assets/fonts/NimbusMonoPS-Bold.otf",
+      "family": "Nimbus Mono PS",
+      "weight": 700,
+      "style": "normal",
+      "sha256": "f036d05d2168c7f71cb11d31e81d11133f3d09711e24ebde19d08a24842384d5",
+      "bytes": 87520,
+      "sampling_role": "base",
+      "embedding_license": {
+        "status": "approved",
+        "id": "AGPL-3.0-upstream-source-bundled",
+        "notice": "docs/font-licenses/NimbusMonoPS-Bold.txt",
+        "notice_sha256": "2070cead5847c88adbbffc22d77b359a096acda4b90d47777824e67e1008a7f3",
+        "source_archive": "docs/font-licenses/urw-base35-3c0ba3b-source.tar.gz",
+        "source_sha256": "255d5d60871d8a975d4e1ecfc1c5c55e02a2069aeaa00a5e25020989cd08d586",
+        "upstream_commit": "3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "source_url": "https://github.com/ArtifexSoftware/urw-base35-fonts/tree/3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "mode": "unmodified-font-with-complete-upstream-source"
+      }
+    },
+    {
+      "file": "assets/fonts/URWBookman-Demi.otf",
+      "family": "URW Bookman",
+      "weight": 600,
+      "style": "normal",
+      "sha256": "ab8b2fe57cbea9783c6179188dc013c76cfc5717c22cf59bbf3016ef2d7d93ee",
+      "bytes": 97208,
+      "sampling_role": "base",
+      "embedding_license": {
+        "status": "approved",
+        "id": "AGPL-3.0-upstream-source-bundled",
+        "notice": "docs/font-licenses/URWBookman-Demi.txt",
+        "notice_sha256": "2070cead5847c88adbbffc22d77b359a096acda4b90d47777824e67e1008a7f3",
+        "source_archive": "docs/font-licenses/urw-base35-3c0ba3b-source.tar.gz",
+        "source_sha256": "255d5d60871d8a975d4e1ecfc1c5c55e02a2069aeaa00a5e25020989cd08d586",
+        "upstream_commit": "3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "source_url": "https://github.com/ArtifexSoftware/urw-base35-fonts/tree/3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "mode": "unmodified-font-with-complete-upstream-source"
+      }
+    },
+    {
+      "file": "assets/fonts/URWBookman-Light.otf",
+      "family": "URW Bookman",
+      "weight": 300,
+      "style": "normal",
+      "sha256": "7b1bc8e6a16cef53785ce03d4848f8971f3ba38cd9e266e4786a50e08bd9235b",
+      "bytes": 98396,
+      "sampling_role": "base",
+      "embedding_license": {
+        "status": "approved",
+        "id": "AGPL-3.0-upstream-source-bundled",
+        "notice": "docs/font-licenses/URWBookman-Light.txt",
+        "notice_sha256": "2070cead5847c88adbbffc22d77b359a096acda4b90d47777824e67e1008a7f3",
+        "source_archive": "docs/font-licenses/urw-base35-3c0ba3b-source.tar.gz",
+        "source_sha256": "255d5d60871d8a975d4e1ecfc1c5c55e02a2069aeaa00a5e25020989cd08d586",
+        "upstream_commit": "3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "source_url": "https://github.com/ArtifexSoftware/urw-base35-fonts/tree/3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "mode": "unmodified-font-with-complete-upstream-source"
+      }
+    },
+    {
+      "file": "assets/fonts/URWGothic-Book.otf",
+      "family": "URW Gothic",
+      "weight": 400,
+      "style": "normal",
+      "sha256": "04318316cee29950805110c9c8949eea189ef5575132881f4d4d7e03e5299903",
+      "bytes": 82968,
+      "sampling_role": "base",
+      "embedding_license": {
+        "status": "approved",
+        "id": "AGPL-3.0-upstream-source-bundled",
+        "notice": "docs/font-licenses/URWGothic-Book.txt",
+        "notice_sha256": "2070cead5847c88adbbffc22d77b359a096acda4b90d47777824e67e1008a7f3",
+        "source_archive": "docs/font-licenses/urw-base35-3c0ba3b-source.tar.gz",
+        "source_sha256": "255d5d60871d8a975d4e1ecfc1c5c55e02a2069aeaa00a5e25020989cd08d586",
+        "upstream_commit": "3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "source_url": "https://github.com/ArtifexSoftware/urw-base35-fonts/tree/3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "mode": "unmodified-font-with-complete-upstream-source"
+      }
+    },
+    {
+      "file": "assets/fonts/DejaVuSans-Bold.ttf",
+      "family": "DejaVu Sans",
+      "weight": 700,
+      "style": "normal",
+      "sha256": "b184b89e3c1075f22f6b71575b6fc20d4972b3cfd3b23322ca6fd596dcaef167",
+      "bytes": 704128,
+      "sampling_role": "base",
+      "embedding_license": {
+        "status": "approved",
+        "id": "DejaVu-permissive",
+        "notice": "docs/font-licenses/DejaVuSans-Bold.txt",
+        "notice_sha256": "74cdc53c48d2c371d79d55503954482161753559360c4f92c867de743287d07c"
+      }
+    },
+    {
+      "file": "assets/fonts/DejaVuSans.ttf",
+      "family": "DejaVu Sans",
+      "weight": 400,
+      "style": "normal",
+      "sha256": "3fdf69cabf06049ea70a00b5919340e2ce1e6d02b0cc3c4b44fb6801bd1e0d22",
+      "bytes": 756072,
+      "sampling_role": "base",
+      "embedding_license": {
+        "status": "approved",
+        "id": "DejaVu-permissive",
+        "notice": "docs/font-licenses/DejaVuSans.txt",
+        "notice_sha256": "74cdc53c48d2c371d79d55503954482161753559360c4f92c867de743287d07c"
+      }
+    },
+    {
+      "file": "assets/fonts/DejaVuSerif.ttf",
+      "family": "DejaVu Serif",
+      "weight": 400,
+      "style": "normal",
+      "sha256": "107244956e9962b9e96faccdc551825e0ae0898ae13737133e1b921a2fd35ffa",
+      "bytes": 379740,
+      "sampling_role": "base",
+      "embedding_license": {
+        "status": "approved",
+        "id": "DejaVu-permissive",
+        "notice": "docs/font-licenses/DejaVuSerif.txt",
+        "notice_sha256": "b96b530dbfc8d12c29b29b6f839193b55b997031db35f3b18065764d4355051a"
+      }
+    },
+    {
+      "file": "assets/fonts/DejaVuSerif-Bold.ttf",
+      "family": "DejaVu Serif",
+      "weight": 700,
+      "style": "normal",
+      "sha256": "c3753f2ed6bc673f15846dc45addbeb3b9c872f32fb18fd53a21f1bef1ed7676",
+      "bytes": 355692,
+      "sampling_role": "base",
+      "embedding_license": {
+        "status": "approved",
+        "id": "DejaVu-permissive",
+        "notice": "docs/font-licenses/DejaVuSerif-Bold.txt",
+        "notice_sha256": "b96b530dbfc8d12c29b29b6f839193b55b997031db35f3b18065764d4355051a"
+      }
+    },
+    {
+      "file": "assets/fonts/DejaVuSansMono.ttf",
+      "family": "DejaVu Sans Mono",
+      "weight": 400,
+      "style": "normal",
+      "sha256": "602ec86b8948cfcd956482fe64f94c36c867770149ef2f791d4613f443bcecb3",
+      "bytes": 340240,
+      "sampling_role": "base",
+      "embedding_license": {
+        "status": "approved",
+        "id": "DejaVu-permissive",
+        "notice": "docs/font-licenses/DejaVuSansMono.txt",
+        "notice_sha256": "b96b530dbfc8d12c29b29b6f839193b55b997031db35f3b18065764d4355051a"
+      }
+    },
+    {
+      "file": "assets/fonts/DejaVuSansMono-Bold.ttf",
+      "family": "DejaVu Sans Mono",
+      "weight": 700,
+      "style": "normal",
+      "sha256": "baada9a5172fe20886251aff0433fc38461912d5daf07287e7bee56620a8da96",
+      "bytes": 331536,
+      "sampling_role": "base",
+      "embedding_license": {
+        "status": "approved",
+        "id": "DejaVu-permissive",
+        "notice": "docs/font-licenses/DejaVuSansMono-Bold.txt",
+        "notice_sha256": "b96b530dbfc8d12c29b29b6f839193b55b997031db35f3b18065764d4355051a"
+      }
+    },
+    {
+      "file": "assets/fonts/NotoMono-Regular.otf",
+      "family": "Noto Mono",
+      "weight": 400,
+      "style": "normal",
+      "sha256": "b4327dd0044b44b82efd2ca6b7cc3ae6d2ad15e1430e84b014446990a76de2aa",
+      "bytes": 261660,
+      "sampling_role": "base",
+      "embedding_license": {
+        "status": "approved",
+        "id": "OFL-1.1",
+        "notice": "docs/font-licenses/NotoMono-Regular.txt",
+        "notice_sha256": "075f91382875da1c4b491f1facf2586f55448705133264d98ce15cab6211b125"
+      }
+    },
+    {
+      "file": "assets/fonts/NimbusSans-Italic.otf",
+      "family": "Nimbus Sans",
+      "weight": 400,
+      "style": "italic",
+      "sha256": "7b0bef5686aa58c0fd0f0d01beeae56664208490e30ca6a25431281c9a0c6402",
+      "bytes": 95244,
+      "sampling_role": "support_variant",
+      "embedding_license": {
+        "status": "approved",
+        "id": "AGPL-3.0-upstream-source-bundled",
+        "notice": "docs/font-licenses/NimbusSans-Italic.txt",
+        "notice_sha256": "2070cead5847c88adbbffc22d77b359a096acda4b90d47777824e67e1008a7f3",
+        "source_archive": "docs/font-licenses/urw-base35-3c0ba3b-source.tar.gz",
+        "source_sha256": "255d5d60871d8a975d4e1ecfc1c5c55e02a2069aeaa00a5e25020989cd08d586",
+        "upstream_commit": "3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "source_url": "https://github.com/ArtifexSoftware/urw-base35-fonts/tree/3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "mode": "unmodified-font-with-complete-upstream-source"
+      }
+    },
+    {
+      "file": "assets/fonts/NimbusSans-BoldItalic.otf",
+      "family": "Nimbus Sans",
+      "weight": 700,
+      "style": "italic",
+      "sha256": "3f47fb34fcb7de09f8cbc9f305191340ddebf7a068419f4bb5f49287dea59b87",
+      "bytes": 95396,
+      "sampling_role": "support_variant",
+      "embedding_license": {
+        "status": "approved",
+        "id": "AGPL-3.0-upstream-source-bundled",
+        "notice": "docs/font-licenses/NimbusSans-BoldItalic.txt",
+        "notice_sha256": "2070cead5847c88adbbffc22d77b359a096acda4b90d47777824e67e1008a7f3",
+        "source_archive": "docs/font-licenses/urw-base35-3c0ba3b-source.tar.gz",
+        "source_sha256": "255d5d60871d8a975d4e1ecfc1c5c55e02a2069aeaa00a5e25020989cd08d586",
+        "upstream_commit": "3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "source_url": "https://github.com/ArtifexSoftware/urw-base35-fonts/tree/3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "mode": "unmodified-font-with-complete-upstream-source"
+      }
+    },
+    {
+      "file": "assets/fonts/NimbusRoman-Italic.otf",
+      "family": "Nimbus Roman",
+      "weight": 400,
+      "style": "italic",
+      "sha256": "b7c424e6cb79baddfcdcd9a9d87f9fc4fdd06f0e5160066e2b2e47bcd647c7b9",
+      "bytes": 105684,
+      "sampling_role": "support_variant",
+      "embedding_license": {
+        "status": "approved",
+        "id": "AGPL-3.0-upstream-source-bundled",
+        "notice": "docs/font-licenses/NimbusRoman-Italic.txt",
+        "notice_sha256": "2070cead5847c88adbbffc22d77b359a096acda4b90d47777824e67e1008a7f3",
+        "source_archive": "docs/font-licenses/urw-base35-3c0ba3b-source.tar.gz",
+        "source_sha256": "255d5d60871d8a975d4e1ecfc1c5c55e02a2069aeaa00a5e25020989cd08d586",
+        "upstream_commit": "3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "source_url": "https://github.com/ArtifexSoftware/urw-base35-fonts/tree/3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "mode": "unmodified-font-with-complete-upstream-source"
+      }
+    },
+    {
+      "file": "assets/fonts/NimbusRoman-BoldItalic.otf",
+      "family": "Nimbus Roman",
+      "weight": 700,
+      "style": "italic",
+      "sha256": "c84bcb17ab4ee54f16dadad6a3b0b2df37a24f9fc812897c4a59eeca785a5dec",
+      "bytes": 104772,
+      "sampling_role": "support_variant",
+      "embedding_license": {
+        "status": "approved",
+        "id": "AGPL-3.0-upstream-source-bundled",
+        "notice": "docs/font-licenses/NimbusRoman-BoldItalic.txt",
+        "notice_sha256": "2070cead5847c88adbbffc22d77b359a096acda4b90d47777824e67e1008a7f3",
+        "source_archive": "docs/font-licenses/urw-base35-3c0ba3b-source.tar.gz",
+        "source_sha256": "255d5d60871d8a975d4e1ecfc1c5c55e02a2069aeaa00a5e25020989cd08d586",
+        "upstream_commit": "3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "source_url": "https://github.com/ArtifexSoftware/urw-base35-fonts/tree/3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "mode": "unmodified-font-with-complete-upstream-source"
+      }
+    },
+    {
+      "file": "assets/fonts/NimbusMonoPS-Italic.otf",
+      "family": "Nimbus Mono PS",
+      "weight": 400,
+      "style": "italic",
+      "sha256": "7f1f85498027e07befadd3c7592518909b9e8c7f96ee5615e0b21be0c399c4b4",
+      "bytes": 82648,
+      "sampling_role": "support_variant",
+      "embedding_license": {
+        "status": "approved",
+        "id": "AGPL-3.0-upstream-source-bundled",
+        "notice": "docs/font-licenses/NimbusMonoPS-Italic.txt",
+        "notice_sha256": "2070cead5847c88adbbffc22d77b359a096acda4b90d47777824e67e1008a7f3",
+        "source_archive": "docs/font-licenses/urw-base35-3c0ba3b-source.tar.gz",
+        "source_sha256": "255d5d60871d8a975d4e1ecfc1c5c55e02a2069aeaa00a5e25020989cd08d586",
+        "upstream_commit": "3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "source_url": "https://github.com/ArtifexSoftware/urw-base35-fonts/tree/3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "mode": "unmodified-font-with-complete-upstream-source"
+      }
+    },
+    {
+      "file": "assets/fonts/NimbusMonoPS-BoldItalic.otf",
+      "family": "Nimbus Mono PS",
+      "weight": 700,
+      "style": "italic",
+      "sha256": "a67ed9e364c933c79fc3ce88e17a0265334697c184b065407e754d43cbbf6d0a",
+      "bytes": 89580,
+      "sampling_role": "support_variant",
+      "embedding_license": {
+        "status": "approved",
+        "id": "AGPL-3.0-upstream-source-bundled",
+        "notice": "docs/font-licenses/NimbusMonoPS-BoldItalic.txt",
+        "notice_sha256": "2070cead5847c88adbbffc22d77b359a096acda4b90d47777824e67e1008a7f3",
+        "source_archive": "docs/font-licenses/urw-base35-3c0ba3b-source.tar.gz",
+        "source_sha256": "255d5d60871d8a975d4e1ecfc1c5c55e02a2069aeaa00a5e25020989cd08d586",
+        "upstream_commit": "3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "source_url": "https://github.com/ArtifexSoftware/urw-base35-fonts/tree/3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "mode": "unmodified-font-with-complete-upstream-source"
+      }
+    },
+    {
+      "file": "assets/fonts/URWBookman-LightItalic.otf",
+      "family": "URW Bookman",
+      "weight": 300,
+      "style": "italic",
+      "sha256": "ed722e6c2996b08e8516d27a7c017972cfabf5d1736b496b6526da78fd17691a",
+      "bytes": 102764,
+      "sampling_role": "support_variant",
+      "embedding_license": {
+        "status": "approved",
+        "id": "AGPL-3.0-upstream-source-bundled",
+        "notice": "docs/font-licenses/URWBookman-LightItalic.txt",
+        "notice_sha256": "2070cead5847c88adbbffc22d77b359a096acda4b90d47777824e67e1008a7f3",
+        "source_archive": "docs/font-licenses/urw-base35-3c0ba3b-source.tar.gz",
+        "source_sha256": "255d5d60871d8a975d4e1ecfc1c5c55e02a2069aeaa00a5e25020989cd08d586",
+        "upstream_commit": "3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "source_url": "https://github.com/ArtifexSoftware/urw-base35-fonts/tree/3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "mode": "unmodified-font-with-complete-upstream-source"
+      }
+    },
+    {
+      "file": "assets/fonts/URWBookman-DemiItalic.otf",
+      "family": "URW Bookman",
+      "weight": 600,
+      "style": "italic",
+      "sha256": "4d9dbaae8178ffa2f5d557245d09dc968eeac9eed7e453cc2db4cc6a9aacb44d",
+      "bytes": 101584,
+      "sampling_role": "support_variant",
+      "embedding_license": {
+        "status": "approved",
+        "id": "AGPL-3.0-upstream-source-bundled",
+        "notice": "docs/font-licenses/URWBookman-DemiItalic.txt",
+        "notice_sha256": "2070cead5847c88adbbffc22d77b359a096acda4b90d47777824e67e1008a7f3",
+        "source_archive": "docs/font-licenses/urw-base35-3c0ba3b-source.tar.gz",
+        "source_sha256": "255d5d60871d8a975d4e1ecfc1c5c55e02a2069aeaa00a5e25020989cd08d586",
+        "upstream_commit": "3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "source_url": "https://github.com/ArtifexSoftware/urw-base35-fonts/tree/3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "mode": "unmodified-font-with-complete-upstream-source"
+      }
+    },
+    {
+      "file": "assets/fonts/URWGothic-BookOblique.otf",
+      "family": "URW Gothic",
+      "weight": 400,
+      "style": "italic",
+      "sha256": "ec4e947734950fd344918e560bc8ad0c5d8b17d0ab4853988824f13b9f77e53f",
+      "bytes": 85336,
+      "sampling_role": "support_variant",
+      "embedding_license": {
+        "status": "approved",
+        "id": "AGPL-3.0-upstream-source-bundled",
+        "notice": "docs/font-licenses/URWGothic-BookOblique.txt",
+        "notice_sha256": "2070cead5847c88adbbffc22d77b359a096acda4b90d47777824e67e1008a7f3",
+        "source_archive": "docs/font-licenses/urw-base35-3c0ba3b-source.tar.gz",
+        "source_sha256": "255d5d60871d8a975d4e1ecfc1c5c55e02a2069aeaa00a5e25020989cd08d586",
+        "upstream_commit": "3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "source_url": "https://github.com/ArtifexSoftware/urw-base35-fonts/tree/3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "mode": "unmodified-font-with-complete-upstream-source"
+      }
+    },
+    {
+      "file": "assets/fonts/URWGothic-Demi.otf",
+      "family": "URW Gothic",
+      "weight": 600,
+      "style": "normal",
+      "sha256": "5b009410cf5231dcb1e45b155c1afedcfc63d82042fd8c414d0dd7705c9fbbae",
+      "bytes": 83580,
+      "sampling_role": "support_variant",
+      "embedding_license": {
+        "status": "approved",
+        "id": "AGPL-3.0-upstream-source-bundled",
+        "notice": "docs/font-licenses/URWGothic-Demi.txt",
+        "notice_sha256": "2070cead5847c88adbbffc22d77b359a096acda4b90d47777824e67e1008a7f3",
+        "source_archive": "docs/font-licenses/urw-base35-3c0ba3b-source.tar.gz",
+        "source_sha256": "255d5d60871d8a975d4e1ecfc1c5c55e02a2069aeaa00a5e25020989cd08d586",
+        "upstream_commit": "3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "source_url": "https://github.com/ArtifexSoftware/urw-base35-fonts/tree/3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "mode": "unmodified-font-with-complete-upstream-source"
+      }
+    },
+    {
+      "file": "assets/fonts/URWGothic-DemiOblique.otf",
+      "family": "URW Gothic",
+      "weight": 600,
+      "style": "italic",
+      "sha256": "d57abaa6d40718cfbf735ad50080d0b095e7194e451992e02786a7c0113db35c",
+      "bytes": 86232,
+      "sampling_role": "support_variant",
+      "embedding_license": {
+        "status": "approved",
+        "id": "AGPL-3.0-upstream-source-bundled",
+        "notice": "docs/font-licenses/URWGothic-DemiOblique.txt",
+        "notice_sha256": "2070cead5847c88adbbffc22d77b359a096acda4b90d47777824e67e1008a7f3",
+        "source_archive": "docs/font-licenses/urw-base35-3c0ba3b-source.tar.gz",
+        "source_sha256": "255d5d60871d8a975d4e1ecfc1c5c55e02a2069aeaa00a5e25020989cd08d586",
+        "upstream_commit": "3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "source_url": "https://github.com/ArtifexSoftware/urw-base35-fonts/tree/3c0ba3b5687632dfc66526544a4e811fe0ec0cd9",
+        "mode": "unmodified-font-with-complete-upstream-source"
+      }
+    },
+    {
+      "file": "assets/fonts/DejaVuSans-Oblique.ttf",
+      "family": "DejaVu Sans",
+      "weight": 400,
+      "style": "italic",
+      "sha256": "ccdf74b350f11fd3dd5774de50e5e6346a1a5da1f5b7d5fb83590665e97a5213",
+      "bytes": 633840,
+      "sampling_role": "support_variant",
+      "embedding_license": {
+        "status": "approved",
+        "id": "DejaVu-permissive",
+        "notice": "docs/font-licenses/DejaVuSans-Oblique.txt",
+        "notice_sha256": "74cdc53c48d2c371d79d55503954482161753559360c4f92c867de743287d07c"
+      }
+    },
+    {
+      "file": "assets/fonts/DejaVuSans-BoldOblique.ttf",
+      "family": "DejaVu Sans",
+      "weight": 700,
+      "style": "italic",
+      "sha256": "6edf0283160186af451cbee71e7b845f2e4cabf264bb992ce668c83c25465e6f",
+      "bytes": 641720,
+      "sampling_role": "support_variant",
+      "embedding_license": {
+        "status": "approved",
+        "id": "DejaVu-permissive",
+        "notice": "docs/font-licenses/DejaVuSans-BoldOblique.txt",
+        "notice_sha256": "74cdc53c48d2c371d79d55503954482161753559360c4f92c867de743287d07c"
+      }
+    },
+    {
+      "file": "assets/fonts/DejaVuSerif-Italic.ttf",
+      "family": "DejaVu Serif",
+      "weight": 400,
+      "style": "italic",
+      "sha256": "3e7994fbc54fa10ce3352a42d548fadd7d9cadb69cb1109bc9d960f6dac57f04",
+      "bytes": 345612,
+      "sampling_role": "support_variant",
+      "embedding_license": {
+        "status": "approved",
+        "id": "DejaVu-permissive",
+        "notice": "docs/font-licenses/DejaVuSerif-Italic.txt",
+        "notice_sha256": "b96b530dbfc8d12c29b29b6f839193b55b997031db35f3b18065764d4355051a"
+      }
+    },
+    {
+      "file": "assets/fonts/DejaVuSerif-BoldItalic.ttf",
+      "family": "DejaVu Serif",
+      "weight": 700,
+      "style": "italic",
+      "sha256": "d93efec7a9d2e826768d1a2ee95b95870e15e29599a84f3484af1de1cec2e181",
+      "bytes": 347064,
+      "sampling_role": "support_variant",
+      "embedding_license": {
+        "status": "approved",
+        "id": "DejaVu-permissive",
+        "notice": "docs/font-licenses/DejaVuSerif-BoldItalic.txt",
+        "notice_sha256": "b96b530dbfc8d12c29b29b6f839193b55b997031db35f3b18065764d4355051a"
+      }
+    },
+    {
+      "file": "assets/fonts/DejaVuSansMono-Oblique.ttf",
+      "family": "DejaVu Sans Mono",
+      "weight": 400,
+      "style": "italic",
+      "sha256": "28052813f7a709fc89f52d192dc995ef4f0fdc5c3d7b73a49d6849b1916d0cd0",
+      "bytes": 251472,
+      "sampling_role": "support_variant",
+      "embedding_license": {
+        "status": "approved",
+        "id": "DejaVu-permissive",
+        "notice": "docs/font-licenses/DejaVuSansMono-Oblique.txt",
+        "notice_sha256": "b96b530dbfc8d12c29b29b6f839193b55b997031db35f3b18065764d4355051a"
+      }
+    },
+    {
+      "file": "assets/fonts/DejaVuSansMono-BoldOblique.ttf",
+      "family": "DejaVu Sans Mono",
+      "weight": 700,
+      "style": "italic",
+      "sha256": "a69081c15c76c827e0a27a5a7f5c74b6135c843499955495ffa8c20d3a98288b",
+      "bytes": 253116,
+      "sampling_role": "support_variant",
+      "embedding_license": {
+        "status": "approved",
+        "id": "DejaVu-permissive",
+        "notice": "docs/font-licenses/DejaVuSansMono-BoldOblique.txt",
+        "notice_sha256": "b96b530dbfc8d12c29b29b6f839193b55b997031db35f3b18065764d4355051a"
+      }
+    }
+  ]
+}

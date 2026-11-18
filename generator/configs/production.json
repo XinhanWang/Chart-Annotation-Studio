@@ -1,0 +1,19 @@
+{
+  "seed": 20261109,
+  "counts": {
+    "barh_1": 50,
+    "barh_n": 50,
+    "barv_1": 50,
+    "barv_n": 50,
+    "barv_stack": 50,
+    "line_1": 50,
+    "line_n": 50,
+    "scatter_1": 50,
+    "scatter_n": 50,
+    "barline_n": 50
+  },
+  "controls": {},
+  "workers": 4,
+  "target_side": 1036,
+  "notes": "VSR公开gen.sh默认每类50；运行前先smoke，再使用独立输出目录。"
+}

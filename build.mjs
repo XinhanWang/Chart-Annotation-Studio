@@ -1,6 +1,6 @@
 import {readFile,writeFile} from 'node:fs/promises';
 const read=f=>readFile(new URL(f,import.meta.url),'utf8');
-let html=await read('studio.template.html');
+let html=(await read('studio.template.html')).replace(/\r\n/g,'\n');
 const awaitPlaceholder=await read('vendor.bundle.html');
 html=html.replace('<!-- STUDIO_LIBRARIES -->',()=>awaitPlaceholder);
 const app=await read('studio.js');

@@ -1,0 +1,24 @@
+{
+  "seed": 20261110,
+  "counts": {
+    "barline_n": 100
+  },
+  "controls": {
+    "all": {
+      "profile": "publication_clean"
+    },
+    "barline_n": {
+      "category_count": 5,
+      "series_count": 3,
+      "bar_series_count": 2,
+      "line_series_count": 1,
+      "family": "parallel+parallel_trend",
+      "coupling": "proportional",
+      "hatch": null,
+      "show_error": false
+    }
+  },
+  "workers": 2,
+  "target_side": 1036,
+  "notes": "只生成新增复合图 barline_n；counts 的数值即张数。若要强制双 y 轴示例，在 controls.barline_n 加 \"dual_y_axis\": true；不加则约 30% 自然采样到双轴。"
+}

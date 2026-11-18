@@ -4,6 +4,18 @@ Browser-based scientific chart annotation with original-pixel calibration, inter
 
 ## 使用
 
+### Vega-Lite-DG 合成数据
+
+`generator/` 已集成本地 Vega-Lite-DG 源码及字体许可。打开页面后，侧栏「合成数据 / Vega-Lite-DG → 导入生成目录」可将已验证运行中的原图和精简 GT 成对加入当前项目，按平台规范统一误差棒、顺序、重名身份与导出结构。生成来源随工程保留；导入样本均为未核对，不自动标定坐标或伪造人工像素证据。
+
+安装生成器运行环境后，可在仓库根目录执行：
+
+```bash
+npm run generate -- --config generator/configs/studio-smoke.json --output generated/my-run
+```
+
+通过页面「打开工程」选择 `generated/my-run/studio.project.json`，或通过「导入生成目录」追加到当前项目。不支持的柱线复合图、sqrt/symlog、额外变换及缺失文件逐项报告。完整安装、已有数据转换与兼容边界见 [合成数据接入说明](docs/generator-integration.md)。
+
 打开 `index.html` 即可离线使用，无需安装依赖。原图、标注和草稿保存在当前浏览器中；工具不会上传原图。浏览器草稿不代替工程备份，切换浏览器或清除站点数据前请先备份工作区。
 
 ### 这轮交互改进

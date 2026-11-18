@@ -1,0 +1,159 @@
+{
+  "seed": 20261113,
+  "counts": {
+    "barline_n": 60
+  },
+  "controls": {
+    "barline_n": {
+      "category_count": [
+        4,
+        6,
+        12,
+        3,
+        5,
+        10,
+        2,
+        4,
+        8
+      ],
+      "bar_series_count": [
+        1,
+        2,
+        3,
+        1,
+        2,
+        4,
+        2,
+        3,
+        4
+      ],
+      "line_series_count": [
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        3,
+        3,
+        3
+      ],
+      "x_axis_mode": [
+        "visible",
+        "visible",
+        "no_labels",
+        "hidden"
+      ],
+      "y_axis_mode": [
+        "visible",
+        "hidden",
+        "visible",
+        "no_labels",
+        "visible",
+        "hidden",
+        "visible"
+      ],
+      "x_tick_label_type": [
+        "numbers",
+        "dates",
+        "text",
+        "percent",
+        "text"
+      ],
+      "y_tick_label_type": [
+        "numbers",
+        "percent",
+        "numbers",
+        "percent",
+        "numbers",
+        "percent",
+        "numbers",
+        "numbers",
+        "percent",
+        "percent",
+        "numbers"
+      ],
+      "show_markers": [
+        true,
+        false,
+        true,
+        false,
+        false,
+        true,
+        false
+      ],
+      "data_labels": [
+        false,
+        {
+          "bar": false,
+          "line": true
+        },
+        false,
+        {
+          "bar": true,
+          "line": false
+        },
+        false,
+        {
+          "bar": false,
+          "line": true
+        },
+        false,
+        true,
+        false,
+        {
+          "bar": false,
+          "line": true
+        },
+        false
+      ],
+      "coupling": [
+        "independent",
+        "proportional",
+        "residual",
+        "percent_of_bar",
+        "shared_trend",
+        "offset_band",
+        "independent"
+      ],
+      "bar_family": [
+        "parallel",
+        "crossing",
+        "dominant",
+        "mixed_scale",
+        "composition",
+        "sparse",
+        "signed",
+        "alternating",
+        "bimodal",
+        "staircase",
+        "plateau"
+      ],
+      "line_family": [
+        "parallel_trend",
+        "crossing",
+        "oscillating",
+        "piecewise",
+        "random_walk",
+        "spike_event",
+        "decay",
+        "seasonal",
+        "mean_reverting",
+        "logistic",
+        "sawtooth",
+        "seasonal",
+        "piecewise"
+      ],
+      "dual_y_axis": [
+        false,
+        false,
+        true,
+        false,
+        true
+      ]
+    }
+  },
+  "workers": 4,
+  "target_side": 1036,
+  "notes": "仅柱+折线复合图。Q12按柱数+折线顶点数分为8–10/18–24/48–60，每档20张；柱1–4组、折线1–3条。不同长度轮转表降低因素绑定；60张不代表全因子覆盖。hidden隐藏该轴所有侧的刻度、文字、轴标题及网格；no_labels保留刻度。X数字/日期/百分比仍是有序类别标签。Y支持数字、百分比、无标签，暂不支持日期/类别轴。百分比Y值与误差同步转为比例。标注受可读性规则限制，实际覆盖以渲染审计为准。"
+}

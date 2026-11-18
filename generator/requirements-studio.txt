@@ -1,0 +1,6 @@
+# Runtime compatibility for Python 3.10/3.11; original upstream pins remain intact.
+numpy==2.2.5
+Pillow>=9,<12
+fonttools==4.57.0
+jsonschema==4.23.0
+PyYAML==6.0.3

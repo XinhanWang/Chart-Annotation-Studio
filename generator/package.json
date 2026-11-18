@@ -1,0 +1,8 @@
+{
+  "name": "vsr-vega-lite-pipeline-v1",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {"node": ">=22"},
+  "dependencies": {"vega": "6.4.0", "vega-lite": "6.5.0", "@resvg/resvg-js": "2.6.2"}
+}

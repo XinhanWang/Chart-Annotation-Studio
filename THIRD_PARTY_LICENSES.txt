@@ -87,3 +87,13 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+Vega-Lite-DG integration
+=======================
+generator/ contains the user-authorized local source snapshot of
+https://github.com/XinhanWang/Vega-Lite-DG (base commit recorded in
+generator/UPSTREAM.json, with source-file SHA-256 values).
+The upstream VSR Apache-2.0 license is preserved at generator/vendor/VSR/LICENSE.
+Font notices and the original URW source archive remain in
+generator/docs/font-licenses/. Font binaries are prepared locally by bootstrap.py
+and are excluded from source control. See generator/THIRD_PARTY.md.
+

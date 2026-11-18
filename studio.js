@@ -496,6 +496,37 @@ for(const entry of entries){const name=encoder.encode(entry.name),data=encoder.e
 if(entries.length>65535||offset>0xffffffff)throw Error('ZIP 超过容量限制，请拆分项目');const size=directory.reduce((n,b)=>n+b.length,0),end=new Uint8Array(22),e=new DataView(end.buffer);e.setUint32(0,0x06054b50,true);e.setUint16(8,entries.length,true);e.setUint16(10,entries.length,true);e.setUint32(12,size,true);e.setUint32(16,offset,true);const out=new Uint8Array(offset+size+22);let at=0;for(const b of [...parts,...directory,end]){out.set(b,at);at+=b.length;}return out;}
 function safeExportName(name){return String(name||'chart').replace(/\\/g,'/').split('/').filter(v=>v&&v!=='.'&&v!=='..').map(v=>v.replace(/[<>:"|?*\u0000-\u001f]/g,'_')).join('/').replace(/\.[^/.]+$/,'')+'.gt.json';}
 
+// Generated truth is editable source data, never a human review or pixel measurement.
+function generatedProject(spec,source={}) {
+  if(!spec||typeof spec!=='object'||Array.isArray(spec))throw Error('生成 GT 必须为 JSON 对象');
+  const allowed=new Set(['$schema','title','data','mark','encoding','layer']);
+  if(Object.keys(spec).some(k=>!allowed.has(k)))throw Error('生成 GT 含不支持的组合、变换或显示字段；未作有损转换');
+  if(!Array.isArray(spec.data?.values)||!spec.data.values.length)throw Error('生成 GT 必须包含非空 data.values');
+  const fields=new Set([...ROW_FIELDS,'category_instance','x_instance','series_instance',...BOX_FIELDS,'outliers']);
+  if(spec.data.values.some(r=>!r||Array.isArray(r)||typeof r!=='object'||Object.keys(r).some(k=>!fields.has(k))))throw Error('生成 GT 含不支持的数据字段（例如柱线复合角色）；请使用支持此图型的标注流程');
+  const next=importSpec(spec);
+  const consumed=new Set(isStat(next)?['category',...(isPie(next)?['value']:[...BOX_FIELDS,'outliers'])]:[
+    ...(isBar(next)?['category','category_id','category_instance','value','lower','upper',...(isStack(next)?['stack_order','start','end']:[])]:['x','x_id','x_instance','y',...(next.kind.startsWith('line')?['path_order']:[])]),
+    'series','series_id','series_instance'
+  ]);
+  if(spec.data.values.some(row=>Object.keys(row).some(key=>!consumed.has(key))))throw Error('生成 GT 含当前图型无法保留的数据字段，已拒绝导入');
+  const errors=validate(next).filter(i=>i.severity==='error');
+  if(errors.length)throw Error(errors.map(i=>i.message).join('；'));
+  const canonical=makeSpec(next);
+  if(canonical.data.values.length!==spec.data.values.length)throw Error('导入改变了观测数量');
+  next.errorBars=isBar(next)&&next.rows.some(r=>present(r.lower)||present(r.upper));
+  next.evidence=next.rows.map(()=>({role:'transcribed',source:'synthetic_gt'}));
+  next.reviewed=false;
+  next.generatedSource=copy(source);
+  for(const axis of Object.values(next.axes))axis.calibrated=false;
+  return next;
+}
+
+function generatedPath(value) {
+  if(typeof value!=='string'||!value||value.startsWith('/')||value.includes('\\')||value.split('/').some(x=>!x||x==='.'||x==='..')||/^[a-z]+:/i.test(value))throw Error('生成文件路径必须是目录内的相对路径');
+  return value;
+}
+
 const $=id=>document.getElementById(id), clone=x=>structuredClone(x);
 const labels={barh_1:'单系列横向柱图',barh_n:'分组横向柱图',barv_1:'单系列纵向柱图',barv_n:'分组纵向柱图',barv_stack:'堆叠纵向柱图',barh_stack:'堆叠横向柱图',line_1:'单系列折线图',line_n:'多系列折线图',scatter_1:'单系列散点图',scatter_n:'多系列散点图',pie:'Pie / 饼图（含环形）',boxplot_v:'Box Plot Vertical / 纵向',boxplot_h:'Box Plot Horizontal / 横向'};
 for(const kind of ['barh_1','barh_n','barv_1','barv_n'])labels[kind+'_error']=labels[kind]+' · 误差棒';
@@ -756,6 +787,45 @@ async function activate(id){const version=++activationVersion;stash();const q=qu
 async function selectProject(id){stash();const destination=id||null,first=queue.find(q=>(q.projectId??null)===destination);if(first)await activate(first.id);else{currentProjectId=destination;resetCurrent();}}
 async function importImages(files){stash();const supported=[...files].filter(f=>/^image\/(png|jpeg|webp)$/.test(f.type)||/\.(png|jpe?g|webp)$/i.test(f.name)),ordered=supported.sort((a,b)=>(a.webkitRelativePath||a.relativePath||a.name).localeCompare(b.webkitRelativePath||b.relativePath||b.name,'zh-CN',{numeric:true}));let first=null,failed=0;const destination=currentProjectId,kind=p.kind+(hasErrors(p)&&!isStack(p)?'_error':'');for(const f of ordered){try{const data=await readFile(f);await new Promise((resolve,reject)=>{const im=new Image();im.onload=resolve;im.onerror=reject;im.src=data;});const id=crypto.randomUUID();queue.push({id,projectId:destination,name:f.webkitRelativePath||f.relativePath||f.name,image:data,project:fresh(kind)});first??=id;}catch{failed++;}}if(first&&destination===currentProjectId)await activate(first);queueUI();toast('已导入 '+(ordered.length-failed)+' 张图'+(failed?'；'+failed+' 张无法读取':'')+'；跳过 '+(files.length-supported.length)+' 个非支持文件');}
 for(const id of ['imageInput','folderInput'])$(id).onchange=async e=>{try{await importImages([...e.target.files]);}catch(err){toast(err.message);}finally{e.target.value='';}};
+let generatorImportBusy=false,generatorImportReport=null;
+async function importGenerated(files){
+  if(generatorImportBusy)throw Error('生成数据正在导入，请等待完成');
+  generatorImportBusy=true;$('generatedInput').disabled=true;
+  try{
+    const index=new Map();
+    for(const file of files){const key=generatedPath(file.webkitRelativePath||file.relativePath||file.name);if(index.has(key))throw Error('重复文件路径：'+key);index.set(key,file);}
+    const manifests=[...index.keys()].filter(k=>k==='manifest.jsonl'||k.endsWith('/manifest.jsonl'));
+    if(manifests.length!==1)throw Error('请选择一个包含 manifest.jsonl 的完整生成运行目录');
+    const manifestPath=manifests[0],prefix=manifestPath.slice(0,-'manifest.jsonl'.length);
+    const manifest=(await index.get(manifestPath).text()).split(/\r?\n/).filter(s=>s.trim()).map(s=>JSON.parse(s));
+    if(!manifest.length)throw Error('接受清单为空，没有可导入样本');
+    const destination=currentProjectId,pending=[],report=[],ids=new Set();
+    for(const row of manifest){
+      try{
+        if(row.status!=='accepted')throw Error('样本尚未通过生成质量检查');
+        if(typeof row.id!=='string'||!row.id||ids.has(row.id))throw Error('样本 ID 必须非空且唯一');ids.add(row.id);
+        const compact=index.get(prefix+generatedPath(row.compact)),original=index.get(prefix+generatedPath(row.image));
+        if(!compact||!original)throw Error('缺少原始 chart.png 或 compact.vl.json');
+        const spec=JSON.parse(await compact.text());
+        const project=generatedProject(spec,{generator:'Vega-Lite-DG',sampleId:row.id,kind:row.kind,manifest:manifestPath});
+        window.vega.parse(window.vegaLite.compile(renderSpec(makeSpec(project))).spec);
+        if(!/\.png$/i.test(row.image))throw Error('生成原图必须为 PNG');
+        const image=await readFile(original);await decodeImage(image);
+        pending.push({id:crypto.randomUUID(),projectId:destination,name:row.id+'.png',image,project});
+        report.push({id:row.id,status:'imported',kind:project.kind,observations:project.rows.length});
+      }catch(error){report.push({id:row.id??null,status:'skipped',reason:error.message});}
+      $('generatedStatus').textContent=`已检查 ${report.length} / ${manifest.length} 个样本`;
+    }
+    generatorImportReport={format:'chart-studio-generator-import',version:1,imported:pending.length,skipped:report.filter(r=>r.status==='skipped').length,samples:report};
+    $('generatedReport').hidden=false;
+    if(pending.length){stash();queue.push(...pending);if(destination===currentProjectId)await activate(pending[0].id);queueUI();refresh();}
+    $('generatedStatus').textContent=`已导入 ${pending.length} 张待核对图表；跳过 ${generatorImportReport.skipped} 张，详情可下载报告。`;
+    toast($('generatedStatus').textContent);
+  }finally{generatorImportBusy=false;$('generatedInput').disabled=false;}
+}
+$('generatedInput').onchange=async e=>{try{await importGenerated([...e.target.files]);}catch(error){$('generatedStatus').textContent=error.message;toast(error.message);}finally{e.target.value='';}};
+$('generatedReport').onclick=()=>{if(generatorImportReport)download('generator-import-report.json',generatorImportReport);};
+$('generatorHelp').onclick=()=>$('generatorDialog').showModal();
 $('projectSelect').onchange=()=>selectProject($('projectSelect').value).catch(e=>toast(e.message));
 $('newProject').onclick=async()=>{const name=prompt('新标注项目名称');if(!name?.trim())return;const id=crypto.randomUUID();projects.push({id,name:name.trim()});await selectProject(id);};
 $('renameProject').onclick=()=>{const q=projects.find(q=>q.id===currentProjectId);if(!q)return;const name=prompt('项目新名称',q.name);if(name?.trim()){q.name=name.trim();queueUI();refresh();}};

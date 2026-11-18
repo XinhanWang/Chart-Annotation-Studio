@@ -1,0 +1,21 @@
+{
+  "seed": 20261118,
+  "counts": {
+    "barh_1": 1,
+    "barh_n": 1,
+    "barv_1": 1,
+    "barv_n": 1,
+    "barv_stack": 1,
+    "line_1": 1,
+    "line_n": 1,
+    "scatter_1": 1,
+    "scatter_n": 1
+  },
+  "controls": {
+    "all": {
+      "show_legend": true
+    }
+  },
+  "workers": 1,
+  "target_side": 1036
+}

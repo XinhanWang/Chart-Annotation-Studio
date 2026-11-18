@@ -1,4 +1,12 @@
 node_modules/
+generator/node_modules
+generator/assets/
+generator/runs/
+generator/diagnostics/
+**/__pycache__/
+**/*.py[cod]
+generated/
+.venv/
 
 !/docs/
 !/docs/*.md

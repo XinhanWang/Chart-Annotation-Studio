@@ -1,0 +1,1374 @@
+{
+  "source": "Bundled Vega-Lite-DG studio-smoke configuration, seed 20261118",
+  "cases": [
+    {
+      "id": "barh_1-000000",
+      "kind": "barh_1",
+      "spec": {
+        "title": "Burel",
+        "data": {
+          "values": [
+            {
+              "category": "Unhospitable 49",
+              "value": 0.58,
+              "series": "None"
+            },
+            {
+              "category": "996",
+              "value": 0.61,
+              "series": "None"
+            },
+            {
+              "category": "multiprocess_archenteric",
+              "value": 0.64,
+              "series": "None"
+            },
+            {
+              "category": "Upside Amoks Scorpionfly Sunglows",
+              "value": 0.68,
+              "series": "None"
+            },
+            {
+              "category": "2025",
+              "value": 232,
+              "series": "None"
+            },
+            {
+              "category": "2016",
+              "value": 240,
+              "series": "None"
+            },
+            {
+              "category": "nobbled",
+              "value": 256,
+              "series": "None"
+            },
+            {
+              "category": "caracols-karoline",
+              "value": 300,
+              "series": "None"
+            }
+          ]
+        },
+        "mark": {
+          "type": "bar"
+        },
+        "encoding": {
+          "y": {
+            "field": "category",
+            "type": "nominal",
+            "title": "Bin (MB)",
+            "sort": null
+          },
+          "x": {
+            "field": "value",
+            "type": "quantitative",
+            "title": "Magnitude (km)"
+          },
+          "color": {
+            "field": "series",
+            "type": "nominal",
+            "sort": null
+          }
+        }
+      }
+    },
+    {
+      "id": "barh_n-000000",
+      "kind": "barh_n",
+      "spec": {
+        "title": "2019-26",
+        "data": {
+          "values": [
+            {
+              "category": "Inopine 29",
+              "value": 0.52,
+              "series": "PIGGLE_2"
+            },
+            {
+              "category": "Inopine 29",
+              "value": 0.85,
+              "series": "Layer 1"
+            },
+            {
+              "category": "I45",
+              "value": 0.69,
+              "series": "PIGGLE_2"
+            },
+            {
+              "category": "I45",
+              "value": 0.78,
+              "series": "Layer 1"
+            },
+            {
+              "category": "Q2 2025",
+              "value": 0.82,
+              "series": "PIGGLE_2"
+            },
+            {
+              "category": "Q2 2025",
+              "value": 1.0,
+              "series": "Layer 1"
+            },
+            {
+              "category": "86",
+              "value": 0.825,
+              "series": "PIGGLE_2"
+            },
+            {
+              "category": "86",
+              "value": 1.2,
+              "series": "Layer 1"
+            },
+            {
+              "category": "jackey",
+              "value": 0.978,
+              "series": "PIGGLE_2"
+            },
+            {
+              "category": "jackey",
+              "value": 1.26,
+              "series": "Layer 1"
+            },
+            {
+              "category": "679",
+              "value": 1.04,
+              "series": "PIGGLE_2"
+            },
+            {
+              "category": "679",
+              "value": 2,
+              "series": "Layer 1"
+            },
+            {
+              "category": "Pinnate Donoho Displeasures Reed-grown",
+              "value": 1.2,
+              "series": "PIGGLE_2"
+            },
+            {
+              "category": "Pinnate Donoho Displeasures Reed-grown",
+              "value": 1.4,
+              "series": "Layer 1"
+            },
+            {
+              "category": "Incendiarist 82",
+              "value": 1.2,
+              "series": "PIGGLE_2"
+            },
+            {
+              "category": "Incendiarist 82",
+              "value": 2,
+              "series": "Layer 1"
+            },
+            {
+              "category": "Deputised Broddle",
+              "value": 1,
+              "series": "PIGGLE_2"
+            },
+            {
+              "category": "Deputised Broddle",
+              "value": 2,
+              "series": "Layer 1"
+            },
+            {
+              "category": "Oct-24",
+              "value": 1.4,
+              "series": "PIGGLE_2"
+            },
+            {
+              "category": "Oct-24",
+              "value": 2,
+              "series": "Layer 1"
+            },
+            {
+              "category": "May",
+              "value": 1.31,
+              "series": "PIGGLE_2"
+            },
+            {
+              "category": "May",
+              "value": 2,
+              "series": "Layer 1"
+            },
+            {
+              "category": "Q4 2021",
+              "value": 1.58,
+              "series": "PIGGLE_2"
+            },
+            {
+              "category": "Q4 2021",
+              "value": 2.0,
+              "series": "Layer 1"
+            }
+          ]
+        },
+        "mark": {
+          "type": "bar"
+        },
+        "encoding": {
+          "y": {
+            "field": "category",
+            "type": "nominal",
+            "title": "Phase (k)",
+            "sort": null
+          },
+          "x": {
+            "field": "value",
+            "type": "quantitative",
+            "title": "Target (req/s)"
+          },
+          "color": {
+            "field": "series",
+            "type": "nominal",
+            "sort": null
+          },
+          "yOffset": {
+            "field": "series",
+            "type": "nominal",
+            "sort": null
+          }
+        }
+      }
+    },
+    {
+      "id": "barv_1-000000",
+      "kind": "barv_1",
+      "spec": {
+        "title": "2017",
+        "data": {
+          "values": [
+            {
+              "category": "equates",
+              "value": 3.66,
+              "series": "None"
+            },
+            {
+              "category": "F41",
+              "value": 4,
+              "series": "None"
+            },
+            {
+              "category": "Euphemie Hiring Tops",
+              "value": 3,
+              "series": "None"
+            },
+            {
+              "category": "Q2 2025",
+              "value": 4.9,
+              "series": "None"
+            },
+            {
+              "category": "Liberalizing 24",
+              "value": 2.81,
+              "series": "None"
+            },
+            {
+              "category": "Undulatance 70",
+              "value": 2.4,
+              "series": "None"
+            },
+            {
+              "category": "Nov-22",
+              "value": 4.8,
+              "series": "None"
+            },
+            {
+              "category": "Roxane / Philol",
+              "value": 6,
+              "series": "None"
+            }
+          ]
+        },
+        "mark": {
+          "type": "bar"
+        },
+        "encoding": {
+          "x": {
+            "field": "category",
+            "type": "nominal",
+            "title": "Bucket (events)",
+            "sort": null
+          },
+          "y": {
+            "field": "value",
+            "type": "quantitative",
+            "title": "Density (samples)"
+          },
+          "color": {
+            "field": "series",
+            "type": "nominal",
+            "sort": null
+          }
+        }
+      }
+    },
+    {
+      "id": "barv_n-000000",
+      "kind": "barv_n",
+      "spec": {
+        "title": "Langur Spermalist Sissier Phimotic",
+        "data": {
+          "values": [
+            {
+              "category": "2018",
+              "value": -0.07,
+              "series": "Prosperus 1"
+            },
+            {
+              "category": "2018",
+              "value": -0.42,
+              "series": "Malodorant-Errantly"
+            },
+            {
+              "category": "Q3 2026",
+              "value": 0.01,
+              "series": "Prosperus 1"
+            },
+            {
+              "category": "Q3 2026",
+              "value": -0.628,
+              "series": "Malodorant-Errantly"
+            },
+            {
+              "category": "MCM",
+              "value": 0.2,
+              "series": "Prosperus 1"
+            },
+            {
+              "category": "MCM",
+              "value": -0.55,
+              "series": "Malodorant-Errantly"
+            },
+            {
+              "category": "Baghla Farmyard",
+              "value": 3.29,
+              "series": "Prosperus 1"
+            },
+            {
+              "category": "Baghla Farmyard",
+              "value": 1.6,
+              "series": "Malodorant-Errantly"
+            },
+            {
+              "category": "Gunboats 76",
+              "value": 22.4,
+              "series": "Prosperus 1"
+            },
+            {
+              "category": "Gunboats 76",
+              "value": 7.5,
+              "series": "Malodorant-Errantly"
+            },
+            {
+              "category": "coincline",
+              "value": 42.6,
+              "series": "Prosperus 1"
+            },
+            {
+              "category": "coincline",
+              "value": 12.7,
+              "series": "Malodorant-Errantly"
+            },
+            {
+              "category": "14th",
+              "value": 24,
+              "series": "Prosperus 1"
+            },
+            {
+              "category": "14th",
+              "value": 8.0,
+              "series": "Malodorant-Errantly"
+            },
+            {
+              "category": "23rd",
+              "value": 4,
+              "series": "Prosperus 1"
+            },
+            {
+              "category": "23rd",
+              "value": 0.55,
+              "series": "Malodorant-Errantly"
+            }
+          ]
+        },
+        "mark": {
+          "type": "bar"
+        },
+        "encoding": {
+          "x": {
+            "field": "category",
+            "type": "nominal",
+            "title": "Region (km)",
+            "sort": null
+          },
+          "y": {
+            "field": "value",
+            "type": "quantitative",
+            "title": "Change (ms)"
+          },
+          "color": {
+            "field": "series",
+            "type": "nominal",
+            "sort": null
+          },
+          "xOffset": {
+            "field": "series",
+            "type": "nominal",
+            "sort": null
+          }
+        }
+      }
+    },
+    {
+      "id": "barv_stack-000000",
+      "kind": "barv_stack",
+      "spec": {
+        "title": "Askewness III",
+        "data": {
+          "values": [
+            {
+              "category": "Jan",
+              "value": 0.048,
+              "series": "Group 4",
+              "stack_order": 3
+            },
+            {
+              "category": "Jan",
+              "value": 0,
+              "series": "Palladianism / Npn",
+              "stack_order": 2
+            },
+            {
+              "category": "Jan",
+              "value": 2.6,
+              "series": "B",
+              "stack_order": 1
+            },
+            {
+              "category": "Jan",
+              "value": 1.4,
+              "series": "Bowdlerize 1",
+              "stack_order": 0
+            },
+            {
+              "category": "Turgencies",
+              "value": 1.6,
+              "series": "Group 4",
+              "stack_order": 3
+            },
+            {
+              "category": "Turgencies",
+              "value": 1.9,
+              "series": "Palladianism / Npn",
+              "stack_order": 2
+            },
+            {
+              "category": "Turgencies",
+              "value": 0.07,
+              "series": "B",
+              "stack_order": 1
+            },
+            {
+              "category": "Turgencies",
+              "value": 0.33,
+              "series": "Bowdlerize 1",
+              "stack_order": 0
+            },
+            {
+              "category": "Undipped Three-valved",
+              "value": 1.5,
+              "series": "Group 4",
+              "stack_order": 3
+            },
+            {
+              "category": "Undipped Three-valved",
+              "value": 0,
+              "series": "Palladianism / Npn",
+              "stack_order": 2
+            },
+            {
+              "category": "Undipped Three-valved",
+              "value": 0.47,
+              "series": "B",
+              "stack_order": 1
+            },
+            {
+              "category": "Undipped Three-valved",
+              "value": 1.55,
+              "series": "Bowdlerize 1",
+              "stack_order": 0
+            },
+            {
+              "category": "Foreknows",
+              "value": 1.6,
+              "series": "Group 4",
+              "stack_order": 3
+            },
+            {
+              "category": "Foreknows",
+              "value": 1.21,
+              "series": "Palladianism / Npn",
+              "stack_order": 2
+            },
+            {
+              "category": "Foreknows",
+              "value": 0.04,
+              "series": "B",
+              "stack_order": 1
+            },
+            {
+              "category": "Foreknows",
+              "value": 0.53,
+              "series": "Bowdlerize 1",
+              "stack_order": 0
+            },
+            {
+              "category": "Unhealthier",
+              "value": 0.43,
+              "series": "Group 4",
+              "stack_order": 3
+            },
+            {
+              "category": "Unhealthier",
+              "value": 0.748,
+              "series": "Palladianism / Npn",
+              "stack_order": 2
+            },
+            {
+              "category": "Unhealthier",
+              "value": 1.5,
+              "series": "B",
+              "stack_order": 1
+            },
+            {
+              "category": "Unhealthier",
+              "value": 0.49,
+              "series": "Bowdlerize 1",
+              "stack_order": 0
+            },
+            {
+              "category": "Cripps Rattler Aquasco Diazobenzene",
+              "value": 0.12,
+              "series": "Group 4",
+              "stack_order": 3
+            },
+            {
+              "category": "Cripps Rattler Aquasco Diazobenzene",
+              "value": 0,
+              "series": "Palladianism / Npn",
+              "stack_order": 2
+            },
+            {
+              "category": "Cripps Rattler Aquasco Diazobenzene",
+              "value": 2.4,
+              "series": "B",
+              "stack_order": 1
+            },
+            {
+              "category": "Cripps Rattler Aquasco Diazobenzene",
+              "value": 0.4,
+              "series": "Bowdlerize 1",
+              "stack_order": 0
+            },
+            {
+              "category": "indagate",
+              "value": 0.26,
+              "series": "Group 4",
+              "stack_order": 3
+            },
+            {
+              "category": "indagate",
+              "value": 2.4,
+              "series": "Palladianism / Npn",
+              "stack_order": 2
+            },
+            {
+              "category": "indagate",
+              "value": 0,
+              "series": "Bowdlerize 1",
+              "stack_order": 0
+            },
+            {
+              "category": "indagate",
+              "value": 0,
+              "series": "B",
+              "stack_order": 1
+            },
+            {
+              "category": "Reidsville Unrenderable Ravigotes",
+              "value": 0.01,
+              "series": "Group 4",
+              "stack_order": 3
+            },
+            {
+              "category": "Reidsville Unrenderable Ravigotes",
+              "value": 2.37,
+              "series": "Palladianism / Npn",
+              "stack_order": 2
+            },
+            {
+              "category": "Reidsville Unrenderable Ravigotes",
+              "value": 0,
+              "series": "Bowdlerize 1",
+              "stack_order": 0
+            },
+            {
+              "category": "Reidsville Unrenderable Ravigotes",
+              "value": 0,
+              "series": "B",
+              "stack_order": 1
+            },
+            {
+              "category": "Mar-23",
+              "value": 0.29,
+              "series": "Group 4",
+              "stack_order": 3
+            },
+            {
+              "category": "Mar-23",
+              "value": 0.12,
+              "series": "Palladianism / Npn",
+              "stack_order": 2
+            },
+            {
+              "category": "Mar-23",
+              "value": 0,
+              "series": "B",
+              "stack_order": 1
+            },
+            {
+              "category": "Mar-23",
+              "value": 1.7,
+              "series": "Bowdlerize 1",
+              "stack_order": 0
+            },
+            {
+              "category": "Oct-25",
+              "value": 1.2,
+              "series": "Group 4",
+              "stack_order": 3
+            },
+            {
+              "category": "Oct-25",
+              "value": 0.323,
+              "series": "Palladianism / Npn",
+              "stack_order": 2
+            },
+            {
+              "category": "Oct-25",
+              "value": 0.16,
+              "series": "B",
+              "stack_order": 1
+            },
+            {
+              "category": "Oct-25",
+              "value": 0.1,
+              "series": "Bowdlerize 1",
+              "stack_order": 0
+            }
+          ]
+        },
+        "mark": {
+          "type": "bar"
+        },
+        "encoding": {
+          "x": {
+            "field": "category",
+            "type": "nominal",
+            "title": "Stage (km)",
+            "sort": null
+          },
+          "y": {
+            "field": "value",
+            "type": "quantitative",
+            "title": "Count (km)",
+            "stack": "zero"
+          },
+          "color": {
+            "field": "series",
+            "type": "nominal",
+            "sort": null
+          },
+          "order": {
+            "field": "stack_order",
+            "type": "quantitative"
+          }
+        }
+      }
+    },
+    {
+      "id": "line_1-000000",
+      "kind": "line_1",
+      "spec": {
+        "title": "Hesse-nassau subaveragely lollipop Shift",
+        "data": {
+          "values": [
+            {
+              "x": 68.0,
+              "y": 2,
+              "series": "Nocardiosis"
+            },
+            {
+              "x": 70.8,
+              "y": 2.1,
+              "series": "Nocardiosis"
+            },
+            {
+              "x": 73.4,
+              "y": 2,
+              "series": "Nocardiosis"
+            },
+            {
+              "x": 75.6,
+              "y": -0.68,
+              "series": "Nocardiosis"
+            },
+            {
+              "x": 77,
+              "y": 3.5,
+              "series": "Nocardiosis"
+            },
+            {
+              "x": 80,
+              "y": 4.6,
+              "series": "Nocardiosis"
+            },
+            {
+              "x": 82.0,
+              "y": 8.82,
+              "series": "Nocardiosis"
+            },
+            {
+              "x": 84,
+              "y": 8,
+              "series": "Nocardiosis"
+            },
+            {
+              "x": 86,
+              "y": 9.99,
+              "series": "Nocardiosis"
+            }
+          ]
+        },
+        "mark": {
+          "type": "line"
+        },
+        "encoding": {
+          "x": {
+            "field": "x",
+            "type": "quantitative",
+            "title": "Type (%)"
+          },
+          "y": {
+            "field": "y",
+            "type": "quantitative",
+            "title": "Value (USD)"
+          },
+          "color": {
+            "field": "series",
+            "type": "nominal",
+            "sort": null
+          }
+        }
+      }
+    },
+    {
+      "id": "line_n-000000",
+      "kind": "line_n",
+      "spec": {
+        "title": "Nonane ram-rod indiv View",
+        "data": {
+          "values": [
+            {
+              "x": "Feb 2020",
+              "y": 6.5,
+              "series": "Group 1"
+            },
+            {
+              "x": "Feb 2020",
+              "y": 2.9,
+              "series": "Kuki-chin / Deaminizing"
+            },
+            {
+              "x": "Feb 2020",
+              "y": -0.562,
+              "series": "C"
+            },
+            {
+              "x": "Feb 2020",
+              "y": 24.4,
+              "series": "Derwentwater-Urient"
+            },
+            {
+              "x": "Feb 2020",
+              "y": -3.5,
+              "series": "Skerret / Barco"
+            },
+            {
+              "x": "Mar 2020",
+              "y": 0.99,
+              "series": "Group 1"
+            },
+            {
+              "x": "Mar 2020",
+              "y": -4.7,
+              "series": "Kuki-chin / Deaminizing"
+            },
+            {
+              "x": "Mar 2020",
+              "y": -3.6,
+              "series": "C"
+            },
+            {
+              "x": "Mar 2020",
+              "y": -22,
+              "series": "Derwentwater-Urient"
+            },
+            {
+              "x": "Mar 2020",
+              "y": -3.6,
+              "series": "Skerret / Barco"
+            },
+            {
+              "x": "Apr 2020",
+              "y": -6.4,
+              "series": "Group 1"
+            },
+            {
+              "x": "Apr 2020",
+              "y": -4.58,
+              "series": "Kuki-chin / Deaminizing"
+            },
+            {
+              "x": "Apr 2020",
+              "y": -0.1,
+              "series": "C"
+            },
+            {
+              "x": "Apr 2020",
+              "y": -42,
+              "series": "Derwentwater-Urient"
+            },
+            {
+              "x": "Apr 2020",
+              "y": -0.16,
+              "series": "Skerret / Barco"
+            },
+            {
+              "x": "May 2020",
+              "y": -4,
+              "series": "Group 1"
+            },
+            {
+              "x": "May 2020",
+              "y": 3.3,
+              "series": "Kuki-chin / Deaminizing"
+            },
+            {
+              "x": "May 2020",
+              "y": 3.8,
+              "series": "C"
+            },
+            {
+              "x": "May 2020",
+              "y": -10,
+              "series": "Derwentwater-Urient"
+            },
+            {
+              "x": "May 2020",
+              "y": 2.9,
+              "series": "Skerret / Barco"
+            },
+            {
+              "x": "Jun 2020",
+              "y": 3.9,
+              "series": "Group 1"
+            },
+            {
+              "x": "Jun 2020",
+              "y": 5.5,
+              "series": "Kuki-chin / Deaminizing"
+            },
+            {
+              "x": "Jun 2020",
+              "y": 1.5,
+              "series": "C"
+            },
+            {
+              "x": "Jun 2020",
+              "y": 32,
+              "series": "Derwentwater-Urient"
+            },
+            {
+              "x": "Jun 2020",
+              "y": 2.8,
+              "series": "Skerret / Barco"
+            },
+            {
+              "x": "Jul 2020",
+              "y": 7,
+              "series": "Group 1"
+            },
+            {
+              "x": "Jul 2020",
+              "y": -1.8,
+              "series": "Kuki-chin / Deaminizing"
+            },
+            {
+              "x": "Jul 2020",
+              "y": -3.08,
+              "series": "C"
+            },
+            {
+              "x": "Jul 2020",
+              "y": 32.7,
+              "series": "Derwentwater-Urient"
+            },
+            {
+              "x": "Jul 2020",
+              "y": -0.28,
+              "series": "Skerret / Barco"
+            },
+            {
+              "x": "Aug 2020",
+              "y": -0.21,
+              "series": "Group 1"
+            },
+            {
+              "x": "Aug 2020",
+              "y": -5.8,
+              "series": "Kuki-chin / Deaminizing"
+            },
+            {
+              "x": "Aug 2020",
+              "y": -2,
+              "series": "C"
+            },
+            {
+              "x": "Aug 2020",
+              "y": -2.73,
+              "series": "Derwentwater-Urient"
+            },
+            {
+              "x": "Aug 2020",
+              "y": -2.9,
+              "series": "Skerret / Barco"
+            },
+            {
+              "x": "Sep 2020",
+              "y": -6.9,
+              "series": "Group 1"
+            },
+            {
+              "x": "Sep 2020",
+              "y": 0.5,
+              "series": "Kuki-chin / Deaminizing"
+            },
+            {
+              "x": "Sep 2020",
+              "y": 2.77,
+              "series": "C"
+            },
+            {
+              "x": "Sep 2020",
+              "y": -36,
+              "series": "Derwentwater-Urient"
+            },
+            {
+              "x": "Sep 2020",
+              "y": -2.3,
+              "series": "Skerret / Barco"
+            },
+            {
+              "x": "Oct 2020",
+              "y": -2.8,
+              "series": "Group 1"
+            },
+            {
+              "x": "Oct 2020",
+              "y": 6.11,
+              "series": "Kuki-chin / Deaminizing"
+            },
+            {
+              "x": "Oct 2020",
+              "y": 3,
+              "series": "C"
+            },
+            {
+              "x": "Oct 2020",
+              "y": -26,
+              "series": "Derwentwater-Urient"
+            },
+            {
+              "x": "Oct 2020",
+              "y": 0.86,
+              "series": "Skerret / Barco"
+            },
+            {
+              "x": "Nov 2020",
+              "y": 5.2,
+              "series": "Group 1"
+            },
+            {
+              "x": "Nov 2020",
+              "y": 1.46,
+              "series": "Kuki-chin / Deaminizing"
+            },
+            {
+              "x": "Nov 2020",
+              "y": -1.8,
+              "series": "C"
+            },
+            {
+              "x": "Nov 2020",
+              "y": 24,
+              "series": "Derwentwater-Urient"
+            },
+            {
+              "x": "Nov 2020",
+              "y": 3.78,
+              "series": "Skerret / Barco"
+            }
+          ]
+        },
+        "mark": {
+          "type": "line"
+        },
+        "encoding": {
+          "x": {
+            "field": "x",
+            "type": "ordinal",
+            "title": "Stage (GB)",
+            "sort": null
+          },
+          "y": {
+            "field": "y",
+            "type": "quantitative",
+            "title": "Load (ms)"
+          },
+          "color": {
+            "field": "series",
+            "type": "nominal",
+            "sort": null
+          }
+        }
+      }
+    },
+    {
+      "id": "scatter_1-000000",
+      "kind": "scatter_1",
+      "spec": {
+        "title": "DBHZ 53",
+        "data": {
+          "values": [
+            {
+              "x": -2.0,
+              "y": -0.7,
+              "series": "None"
+            },
+            {
+              "x": -2.0,
+              "y": -0.7,
+              "series": "None"
+            },
+            {
+              "x": -2.0,
+              "y": -0.84,
+              "series": "None"
+            },
+            {
+              "x": -1.9,
+              "y": -1.2,
+              "series": "None"
+            },
+            {
+              "x": -1.6,
+              "y": -0.94,
+              "series": "None"
+            },
+            {
+              "x": -1.6,
+              "y": -1.2,
+              "series": "None"
+            },
+            {
+              "x": -1.4,
+              "y": -1.2,
+              "series": "None"
+            },
+            {
+              "x": -1.2,
+              "y": -0.84,
+              "series": "None"
+            },
+            {
+              "x": -1.1,
+              "y": 2.4,
+              "series": "None"
+            },
+            {
+              "x": -0.918,
+              "y": 2.16,
+              "series": "None"
+            },
+            {
+              "x": -0.9,
+              "y": 2.0,
+              "series": "None"
+            },
+            {
+              "x": -0.758,
+              "y": 2.4,
+              "series": "None"
+            },
+            {
+              "x": -0.66,
+              "y": 2.23,
+              "series": "None"
+            },
+            {
+              "x": -0.66,
+              "y": -0.687,
+              "series": "None"
+            },
+            {
+              "x": -0.62,
+              "y": 2.2,
+              "series": "None"
+            },
+            {
+              "x": -0.57,
+              "y": 2.5,
+              "series": "None"
+            },
+            {
+              "x": -0.544,
+              "y": 2.8,
+              "series": "None"
+            },
+            {
+              "x": -0.52,
+              "y": 2.2,
+              "series": "None"
+            },
+            {
+              "x": -0.48,
+              "y": 2.0,
+              "series": "None"
+            },
+            {
+              "x": -0.471,
+              "y": -0.68,
+              "series": "None"
+            },
+            {
+              "x": -0.38,
+              "y": -0.54,
+              "series": "None"
+            },
+            {
+              "x": -0.37,
+              "y": -0.72,
+              "series": "None"
+            },
+            {
+              "x": -0.359,
+              "y": -0.66,
+              "series": "None"
+            },
+            {
+              "x": -0.32,
+              "y": -0.77,
+              "series": "None"
+            },
+            {
+              "x": -0.3,
+              "y": 2.0,
+              "series": "None"
+            },
+            {
+              "x": -0.18,
+              "y": -0.75,
+              "series": "None"
+            },
+            {
+              "x": -0.04,
+              "y": -0.97,
+              "series": "None"
+            },
+            {
+              "x": 0.24,
+              "y": -1.1,
+              "series": "None"
+            },
+            {
+              "x": 0.69,
+              "y": -0.2,
+              "series": "None"
+            },
+            {
+              "x": 0.83,
+              "y": 0.22,
+              "series": "None"
+            },
+            {
+              "x": 0.84,
+              "y": 0.07,
+              "series": "None"
+            }
+          ]
+        },
+        "mark": {
+          "type": "point"
+        },
+        "encoding": {
+          "x": {
+            "field": "x",
+            "type": "quantitative",
+            "title": "Phase (°C)"
+          },
+          "y": {
+            "field": "y",
+            "type": "quantitative",
+            "title": "Utilization (dB)"
+          },
+          "color": {
+            "field": "series",
+            "type": "nominal",
+            "sort": null
+          }
+        }
+      }
+    },
+    {
+      "id": "scatter_n-000000",
+      "kind": "scatter_n",
+      "spec": {
+        "title": "Pageos In-laws Stridulous Tryptamine",
+        "data": {
+          "values": [
+            {
+              "x": -29.0,
+              "y": 0.168,
+              "series": "Sycees-Skinball"
+            },
+            {
+              "x": -29.0,
+              "y": -0.91,
+              "series": "Sycees-Skinball"
+            },
+            {
+              "x": -28.0,
+              "y": -1.1,
+              "series": "Sycees-Skinball"
+            },
+            {
+              "x": -27.0,
+              "y": -2.0,
+              "series": "Sycees-Skinball"
+            },
+            {
+              "x": -26.0,
+              "y": 0.29,
+              "series": "Sycees-Skinball"
+            },
+            {
+              "x": -23.0,
+              "y": 3.1,
+              "series": "Sycees-Skinball"
+            },
+            {
+              "x": -4.2,
+              "y": -7.8,
+              "series": "Trial 1"
+            },
+            {
+              "x": -3.2,
+              "y": -6.95,
+              "series": "Trial 1"
+            },
+            {
+              "x": -0.417,
+              "y": 1.0,
+              "series": "Batch 2"
+            },
+            {
+              "x": -0.09,
+              "y": 0.79,
+              "series": "Batch 2"
+            },
+            {
+              "x": -0.04,
+              "y": 0.82,
+              "series": "Batch 2"
+            },
+            {
+              "x": 0.06,
+              "y": 0.81,
+              "series": "Batch 2"
+            },
+            {
+              "x": 0.2,
+              "y": -0.896,
+              "series": "D"
+            },
+            {
+              "x": 0.24,
+              "y": 0.66,
+              "series": "Batch 2"
+            },
+            {
+              "x": 2.6,
+              "y": -1.13,
+              "series": "D"
+            },
+            {
+              "x": 2.9,
+              "y": -7.6,
+              "series": "Trial 1"
+            },
+            {
+              "x": 3.2,
+              "y": -1.01,
+              "series": "D"
+            },
+            {
+              "x": 4.8,
+              "y": -6.4,
+              "series": "Trial 1"
+            },
+            {
+              "x": 6.0,
+              "y": -2.07,
+              "series": "D"
+            },
+            {
+              "x": 6.9,
+              "y": -6.0,
+              "series": "Trial 1"
+            }
+          ]
+        },
+        "mark": {
+          "type": "point"
+        },
+        "encoding": {
+          "x": {
+            "field": "x",
+            "type": "quantitative"
+          },
+          "y": {
+            "field": "y",
+            "type": "quantitative",
+            "title": "Frequency (events)"
+          },
+          "color": {
+            "field": "series",
+            "type": "nominal",
+            "sort": null
+          }
+        }
+      }
+    }
+  ]
+}

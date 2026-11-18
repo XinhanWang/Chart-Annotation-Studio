@@ -1,0 +1,185 @@
+{
+  "generator_version": "vega-lite-native/1.0",
+  "kind": "barv_1",
+  "family": "clustered",
+  "n_series": 1,
+  "font_path": "/mnt/shared-storage-user/mineru2-shared/users/wangxinhan/proj/data_generation/vsr_v1/assets/fonts/URWGothic-Book.otf",
+  "style": {
+    "palette": {
+      "theme": "earth",
+      "series": [
+        "#36b749",
+        "#8c2c3a",
+        "#19529b",
+        "#9dc82c",
+        "#b726ba",
+        "#2d8b6e"
+      ],
+      "face": "#ffffff",
+      "axes": "#ffffff",
+      "text": "#27313a",
+      "grid": "#c6cdd4"
+    },
+    "font_path": "/mnt/shared-storage-user/mineru2-shared/users/wangxinhan/proj/data_generation/vsr_v1/assets/fonts/URWGothic-Book.otf",
+    "figsize": [
+      9.625701665481575,
+      6.78355340255478
+    ],
+    "dpi": 150,
+    "profile": "chromatic",
+    "style_family": "chromatic",
+    "color_mode": "categorical",
+    "facecolor": "#ffffff",
+    "axes_face": "#ffffff",
+    "text_color": "#27313a",
+    "grid_color": "#c6cdd4",
+    "series_colors": [
+      "#36b749",
+      "#8c2c3a",
+      "#19529b",
+      "#9dc82c",
+      "#b726ba",
+      "#2d8b6e"
+    ],
+    "title_size": 18,
+    "label_size": 12,
+    "tick_size": 10,
+    "legend_size": 12,
+    "label_pad": 5.103581444329267,
+    "tick_pad": 3.207654812211761,
+    "grid_visible": true,
+    "grid_axis": "both",
+    "grid_style": "-",
+    "grid_width": 0.5652903050466871,
+    "grid_alpha": 0.5440319257943946,
+    "legend_loc": "best",
+    "legend_outside": false,
+    "legend_frame": true,
+    "legend_shadow": false,
+    "legend_ncol": 1,
+    "legend_borderpad": 0.6640316392019494,
+    "legend_borderaxespad": 0.11659729805118442,
+    "legend_handlelength": 1.730278576353225,
+    "legend_handletextpad": 0.75182127308276,
+    "legend_columnspacing": 0.8503874194089597,
+    "legend_labelspacing": 0.5209566391902325,
+    "legend_framealpha": 0.8199067013185536,
+    "legend_bbox_to_anchor": null,
+    "layout_rect": null,
+    "spine_visible": true,
+    "spine_width": 0.9139955151270596,
+    "spine_color": "#27313a",
+    "title_pad": 14.515879492280147
+  },
+  "show_legend": true,
+  "series_names": [
+    "Quality"
+  ],
+  "series_name": "Quality",
+  "title": "Quality Comparison",
+  "x_title": "Group",
+  "y_title": "Quality (%)",
+  "title_loc": "left",
+  "title_weight": "bold",
+  "title_style": "normal",
+  "labels": [
+    "T01",
+    "R02",
+    "B03",
+    "B04",
+    "A05",
+    "R06",
+    "A07",
+    "B08",
+    "R09",
+    "B10",
+    "R11",
+    "T12",
+    "A13",
+    "A14",
+    "B15",
+    "B16",
+    "A17",
+    "A18"
+  ],
+  "linewidth": 1.434413320517815,
+  "grid_axis": "y",
+  "bar_width": 0.7182287075275697,
+  "ylim": [
+    0,
+    0.9078832000000001
+  ],
+  "xlim": [
+    -0.65,
+    17.65
+  ],
+  "x_rotation": 0,
+  "x_ha": "right",
+  "show_error": false,
+  "yerr": null,
+  "ecolor": "#27313a",
+  "capsize": 2,
+  "error_kw": null,
+  "values": [
+    0.12089,
+    0.11651,
+    0.12962,
+    0.12053,
+    0.10967,
+    0.12489,
+    0.36142,
+    0.35537,
+    0.32736,
+    0.31783,
+    0.32873,
+    0.34,
+    0.77488,
+    0.81061,
+    0.79318,
+    0.8019,
+    0.80509,
+    0.80895
+  ],
+  "bar_color": "#36b749",
+  "edgecolor": "#27313a",
+  "alpha": 0.9741383826508699,
+  "hatch": null,
+  "_render_axes": {
+    "presentation_version": 3,
+    "source": "native_sampling",
+    "aspect": "auto",
+    "xlim": [
+      -0.65,
+      17.65
+    ],
+    "xscale": "linear",
+    "x_inverted": false,
+    "ylim": [
+      0,
+      0.9078832000000001
+    ],
+    "yscale": "linear",
+    "y_inverted": false,
+    "reference_lines": [],
+    "grid_visible": {
+      "x": false,
+      "y": true
+    },
+    "tick_styles": {
+      "x": {
+        "direction": "out",
+        "length": 5.3109074759337425,
+        "width": 0.6613912878343292,
+        "color": "#27313a",
+        "visible": true
+      },
+      "y": {
+        "direction": "out",
+        "length": 4.3617999129332645,
+        "width": 1.067951327785551,
+        "color": "#27313a",
+        "visible": true
+      }
+    }
+  }
+}
