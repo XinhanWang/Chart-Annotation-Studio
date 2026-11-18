@@ -342,6 +342,11 @@ function boxValueAt(pt,p) {
   const axis=valueAxis(p);
   return Number(pixelToValue(pt[axis],p.axes[axis]).toFixed(2));
 }
+const roundAreaMeasurement=value=>Number(value.toFixed(2));
+function areaYAt(pixel,p){
+  const value=pixelToValue(pixel,p.axes.y);
+  return isNominalArea(p)?roundAreaMeasurement(value):value;
+}
 function valueToPixel(value,axis) {
   if(!finite(value)) throw Error('数值必须为有限数字');
   const {f}=axisTransform(axis);
@@ -829,6 +834,17 @@ function keepOtherAreaMode(p,next){
   if(!isArea(next)||next.kind!==p.kind)return;
   next.areaModes=areaMode(next)===areaMode(p)?p.areaModes:{[areaMode(p)]:areaModeData(p)};
 }
+function restoreAreaMeasurementPrecision(p){
+  if(!isArea(p))return;
+  const nominal=isNominalArea(p)?p:p.areaModes?.nominal;
+  if(!Array.isArray(nominal?.rows))return;
+  // Pixel evidence identifies which boundary in an older draft was measured.
+  nominal.rows.forEach((row,i)=>{
+    const e=nominal.evidence?.[i];
+    if(e?.pixel&&finite(row?.y))row.y=roundAreaMeasurement(row.y);
+    if(e?.baselinePixel&&finite(row?.baseline))row.baseline=roundAreaMeasurement(row.baseline);
+  });
+}
 function hasErrors(p){return !!p.errorBars||isBar(p)&&p.rows.some(r=>present(r.lower)||present(r.upper));}
 function crc32(bytes){let crc=0xffffffff;for(const b of bytes){crc^=b;for(let i=0;i<8;i++)crc=(crc>>>1)^((crc&1)?0xedb88320:0);}return (crc^0xffffffff)>>>0;}
 // ZIP stored entries with UTF-8 names: a single download, no runtime dependencies.
@@ -1064,7 +1080,7 @@ function measureArea(raw){
 function editAreaHandle(i,handle,pt){
   const r=p.rows[i],e=p.evidence[i];
   if(!p.axes.y.calibrated)throw Error('请先校准 Y 轴的两个刻度');
-  const y=pixelToValue(pt.y,p.axes.y);
+  const y=areaYAt(pt.y,p);
   if(!isNominalArea(p)&&handle==='pixel'&&e.pixel&&pt.x!==e.pixel.x){
     if(!p.axes.x.calibrated)throw Error('请先校准 X 轴的两个刻度');
     r.x=pixelToValue(pt.x,p.axes.x);
@@ -1080,8 +1096,8 @@ function recalculateArea(){
     if(!e)continue;
     if(!isNominalArea(p)&&p.axes.x.calibrated&&finite(e.xPixel))r.x=pixelToValue(e.xPixel,p.axes.x);
     if(p.axes.y.calibrated){
-      if(e.pixel)r.y=pixelToValue(e.pixel.y,p.axes.y);
-      if(e.baselinePixel)r.baseline=pixelToValue(e.baselinePixel.y,p.axes.y);
+      if(e.pixel)r.y=areaYAt(e.pixel.y,p);
+      if(e.baselinePixel)r.baseline=areaYAt(e.baselinePixel.y,p);
     }
   }
 }
@@ -1178,7 +1194,7 @@ function calibrated(skipX=false){const axes=requiredAxes(p);for(const a of axes)
 function measureAt(pt,i=null){
   if(isNominalArea(p)){
     calibrated();
-    return {category:i===null?categoryName(p,assist().category):p.rows[i].category,y:pixelToValue(pt.y,p.axes.y)};
+    return {category:i===null?categoryName(p,assist().category):p.rows[i].category,y:areaYAt(pt.y,p)};
   }
   if(isArea(p)&&i!==null){calibrated(true);return {x:p.rows[i].x,y:pixelToValue(pt.y,p.axes.y)};}
   const a=assist(),e=i===null?null:p.evidence?.[i],fixed=i===null?(!categorical()&&a.lockX?{value:a.fixedXValue}:null):e?.fixedX;calibrated(!!fixed&&Number.isFinite(fixed.value));if(isBox(p))return{category:i===null?categoryName(p,a.category):p.rows[i].category,value:boxValueAt(pt,p)};if(bar())return{category:i===null?categoryName(p,a.category):p.rows[i].category,value:pixelToValue(horizontal()?pt.x:pt.y,p.axes[horizontal()?'x':'y'])};return{x:p.xType==='ordinal'?(i===null?categoryName(p,a.category):p.rows[i].x):fixed&&Number.isFinite(fixed.value)?fixed.value:pixelToValue(pt.x,p.axes.x),y:pixelToValue(pt.y,p.axes.y)};}
@@ -1288,7 +1304,7 @@ $('exportGT').onclick=async()=>{await render();const errors=validate(p).filter(i
 $('batchExport').onclick=async()=>{stash();const items=visibleQueue();if(!items.length){toast('当前项目还没有图像');return;}const report=[],entries=[],names=new Set();for(const q of items){let reason='',spec;try{if(!q.project.reviewed)throw Error('尚未核对');spec=makeSpec(q.project);window.vega.parse(window.vegaLite.compile(spec).spec);}catch(e){reason=e.message;}let name=safeExportName(q.name);for(let n=2;names.has(name);n++)name=safeExportName(q.name).replace(/\.gt\.json$/,'-'+n+'.gt.json');if(!reason){names.add(name);if($('withSchema').checked)spec.$schema='https://vega.github.io/schema/vega-lite/v6.json';entries.push({name:'gt/'+name,text:JSON.stringify(spec,null,2)});}report.push({image:q.name,id:q.id,status:reason?'skipped':'exported',file:reason?null:'gt/'+name,reason:reason||null});}entries.push({name:'export-report.json',text:JSON.stringify({project:projectName(),exported:entries.length,skipped:report.filter(q=>q.status==='skipped').length,images:report},null,2)});downloadBlob(projectName().replace(/[<>:"/\\|?*]/g,'_')+'.gt.zip',new Blob([zipBytes(entries)],{type:'application/zip'}));toast('批量导出 '+(entries.length-1)+' 张；跳过 '+report.filter(q=>q.status==='skipped').length+' 张（原因见 ZIP 内清单）');queueUI();};
 $('copyGT').onclick=async()=>{if(!lastSpec){toast('暂无有效 GT');return;}try{await navigator.clipboard.writeText(JSON.stringify(lastSpec,null,2));toast('JSON 已复制');}catch{toast('无法访问剪贴板，请使用导出 GT');}};
 $('openProject').onclick=()=>$('projectInput').click();$('importSpec').onclick=()=>$('specInput').click();
-async function restore(data){if(data.format!=='chart-studio-project'||![1,2].includes(data.version)||!data.current?.project||!Array.isArray(data.queue))throw Error('不是受支持的 Chart Studio 工程');const all=[data.current.project,...data.queue.map(q=>q.project)];for(const item of all){if(!labels[item.kind]||!Array.isArray(item.rows)||!item.axes?.x||!item.axes?.y||!Array.isArray(item.series))throw Error('工程结构不完整');}const nextProjects=data.version===2?data.projects||[]:[];if(!Array.isArray(nextProjects)||nextProjects.some(q=>!q.id||typeof q.name!=='string')||new Set(nextProjects.map(q=>q.id)).size!==nextProjects.length)throw Error('项目列表无效');if(new Set(data.queue.map(q=>q.id)).size!==data.queue.length||data.queue.some(q=>typeof q.id!=='string'))throw Error('图像列表 ID 无效');const projectIds=new Set(nextProjects.map(q=>q.id));const active=data.queue.find(q=>q.id===data.activeId);if(data.activeId&&!active)throw Error('当前图像 ID 不存在');if(data.version===2&&active&&(active.projectId??null)!==(data.currentProjectId||null))throw Error('当前图像与所选项目不一致');if(data.version===2&&(data.currentProjectId&&!projectIds.has(data.currentProjectId)||data.queue.some(q=>q.projectId&&!projectIds.has(q.projectId))))throw Error('图像所属项目不存在');if(data.current.image)await new Promise((resolve,reject)=>{const im=new Image();im.onload=resolve;im.onerror=()=>reject(Error('工程原图无法读取'));im.src=data.current.image;});activationVersion++;queue=clone(data.queue);for(const q of queue)ensureIdentities(q.project);projects=clone(nextProjects);currentProjectId=data.version===2?data.currentProjectId||null:null;activeId=data.activeId;p=ensureIdentities(clone(data.current.project));p.errorBars=hasErrors(p);imageData=data.current.image;fileName=data.current.name||'';image=null;hover=null;pendingStart=null;drag=null;history=[];future=[];selected=-1;if(imageData)await loadImage(imageData);else{$('empty').style.display='flex';$('magnifier').hidden=true;draw();}$('fileName').textContent=fileName||'未命名工程';queueUI();refresh(true);setTool('select');}
+async function restore(data){if(data.format!=='chart-studio-project'||![1,2].includes(data.version)||!data.current?.project||!Array.isArray(data.queue))throw Error('不是受支持的 Chart Studio 工程');const all=[data.current.project,...data.queue.map(q=>q.project)];for(const item of all){if(!labels[item.kind]||!Array.isArray(item.rows)||!item.axes?.x||!item.axes?.y||!Array.isArray(item.series))throw Error('工程结构不完整');}const nextProjects=data.version===2?data.projects||[]:[];if(!Array.isArray(nextProjects)||nextProjects.some(q=>!q.id||typeof q.name!=='string')||new Set(nextProjects.map(q=>q.id)).size!==nextProjects.length)throw Error('项目列表无效');if(new Set(data.queue.map(q=>q.id)).size!==data.queue.length||data.queue.some(q=>typeof q.id!=='string'))throw Error('图像列表 ID 无效');const projectIds=new Set(nextProjects.map(q=>q.id));const active=data.queue.find(q=>q.id===data.activeId);if(data.activeId&&!active)throw Error('当前图像 ID 不存在');if(data.version===2&&active&&(active.projectId??null)!==(data.currentProjectId||null))throw Error('当前图像与所选项目不一致');if(data.version===2&&(data.currentProjectId&&!projectIds.has(data.currentProjectId)||data.queue.some(q=>q.projectId&&!projectIds.has(q.projectId))))throw Error('图像所属项目不存在');if(data.current.image)await new Promise((resolve,reject)=>{const im=new Image();im.onload=resolve;im.onerror=()=>reject(Error('工程原图无法读取'));im.src=data.current.image;});activationVersion++;queue=clone(data.queue);for(const q of queue){ensureIdentities(q.project);restoreAreaMeasurementPrecision(q.project);}projects=clone(nextProjects);currentProjectId=data.version===2?data.currentProjectId||null:null;activeId=data.activeId;p=ensureIdentities(clone(data.current.project));restoreAreaMeasurementPrecision(p);p.errorBars=hasErrors(p);imageData=data.current.image;fileName=data.current.name||'';image=null;hover=null;pendingStart=null;drag=null;history=[];future=[];selected=-1;if(imageData)await loadImage(imageData);else{$('empty').style.display='flex';$('magnifier').hidden=true;draw();}$('fileName').textContent=fileName||'未命名工程';queueUI();refresh(true);setTool('select');}
 $('projectInput').onchange=async e=>{try{await restore(JSON.parse(await e.target.files[0].text()));toast('工程已恢复');}catch(err){toast('打开失败：'+err.message);}e.target.value='';};
 $('specInput').onchange=async e=>{try{const next=importSpec(JSON.parse(await e.target.files[0].text()));next.errorBars=hasErrors(next);change(()=>{keepOtherAreaMode(p,next);p={...next,evidence:next.rows.map(()=>({role:'transcribed',source:'imported_gt'})),reviewed:false};for(const a of Object.values(p.axes))a.calibrated=false;selected=-1;},{form:true});setTool('select');toast('GT 已导入；像素证据需重新标注');}catch(err){toast('导入失败：'+err.message);}e.target.value='';};
 function db(){return new Promise((resolve,reject)=>{const r=indexedDB.open('chart-studio',1);r.onupgradeneeded=()=>r.result.createObjectStore('drafts');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});}

@@ -6,6 +6,20 @@ const {chromium}=require('playwright');
 const samples=require('./fixtures/area-nominal.json');
 
 const root=path.resolve(__dirname,'..');
+const linearValue=(pixel,axis)=>axis.v1+(pixel-axis.p1)/(axis.p2-axis.p1)*(axis.v2-axis.v1);
+const measuredFields=[['y','pixel'],['baseline','baselinePixel']];
+
+function assertMeasurementPrecision(project){
+  let hadExtraDecimals=false;
+  for(const [i,row] of project.rows.entries()){
+    for(const [field,handle] of measuredFields){
+      const original=linearValue(project.evidence[i][handle].y,project.axes.y);
+      assert.equal(row[field],Number(original.toFixed(2)));
+      hadExtraDecimals||=row[field]!==original;
+    }
+  }
+  assert.ok(hadExtraDecimals);
+}
 
 async function run(){
   const browser=await chromium.launch({
@@ -87,12 +101,27 @@ async function run(){
     await clickPixel(490,312.5);
     await page.waitForFunction(()=>window.chartStudio.snapshot().renderOk);
 
+    const measuredBeforeEdit=(await snapshot()).project;
+    assertMeasurementPrecision(measuredBeforeEdit);
+    await page.click('[data-tool="select"]');
+    await page.locator('#tableBody tr[data-row="0"] td').first().click();
+    await page.locator('#canvas').press('ArrowUp');
+    assert.equal((await snapshot()).project.evidence[0].pixel.y,measuredBeforeEdit.evidence[0].pixel.y-1);
+    assertMeasurementPrecision((await snapshot()).project);
+    await page.click('[data-tool="area-baseline"]');
+    await clickPixel(260,363.5);
+    assertMeasurementPrecision((await snapshot()).project);
+    const yMax=page.locator('[data-axis="y"][data-field="v2"]');
+    await yMax.fill('101.234');
+    await yMax.press('Tab');
     const measured=(await snapshot()).project;
+    assert.equal(measured.axes.y.v2,101.234);
+    assertMeasurementPrecision(measured);
     assert.deepEqual(measured.rows.map(r=>r.category),['2024','2024','2021','2021']);
     assert.deepEqual(measured.rows.map(r=>r.series),['S1','S2','S1','S2']);
     assert.ok(measured.evidence.every(e=>e.pixel.x===e.baselinePixel.x));
     assert.equal(measured.evidence[0].pixel.x,measured.evidence[1].pixel.x);
-    for(const [row,y,baseline] of measured.rows.map((r,i)=>[r,...[[20,10],[40,20],[25,12],[45,25]][i]])){
+    for(const [row,y,baseline] of measuredBeforeEdit.rows.map((r,i)=>[r,...[[20,10],[40,20],[25,12],[45,25]][i]])){
       assert.ok(Math.abs(row.y-y)<0.5&&Math.abs(row.baseline-baseline)<0.5);
     }
     await page.locator('[data-move-category][data-delta="-1"]').nth(1).click();
@@ -108,11 +137,36 @@ async function run(){
       assert.equal(r.y,original.y);
       assert.equal(r.baseline,original.baseline);
     }
+    await page.waitForFunction(expected=>new Promise(resolve=>{
+      const open=indexedDB.open('chart-studio',1);
+      open.onerror=()=>resolve(false);
+      open.onsuccess=()=>{
+        const db=open.result;
+        const read=db.transaction('drafts').objectStore('drafts').get('workspace');
+        read.onerror=()=>{db.close();resolve(false);};
+        read.onsuccess=()=>{
+          const draft=read.result?.current.project;
+          db.close();
+          resolve(draft?.xType==='nominal'&&JSON.stringify(draft.rows)===expected);
+        };
+      };
+    }),JSON.stringify(measured.rows),{timeout:5000});
+    await page.check('#reviewed');
+    assert.deepEqual(await download('#exportGT'),nominalGT);
 
     const project=await download('#saveProject');
+    assertMeasurementPrecision(project.current.project);
+    const legacy=structuredClone(project);
+    for(const old of [legacy.current.project,legacy.queue.find(item=>item.id===legacy.activeId).project]){
+      for(const [i,row] of old.rows.entries()){
+        for(const [field,handle] of measuredFields){
+          row[field]=linearValue(old.evidence[i][handle].y,old.axes.y);
+        }
+      }
+    }
     await page.selectOption('#xType','quantitative');
     await waitGT(numeric.Stacked);
-    await load('#projectInput',project);
+    await load('#projectInput',legacy);
     await waitGT(nominalGT);
     assert.deepEqual((await snapshot()).project.evidence,measured.evidence);
     await page.selectOption('#xType','quantitative');
@@ -137,10 +191,10 @@ async function run(){
     await edit(page.locator('#categoryObjects input[data-category]').last(),'2020');
     await page.selectOption('#activeCategory',added);
     await page.click('#addRow');
-    await edit(page.locator('[data-key="y"][data-i="3"]'),'8');
-    await edit(page.locator('[data-key="baseline"][data-i="3"]'),'-2');
+    await edit(page.locator('[data-key="y"][data-i="3"]'),'8.12345');
+    await edit(page.locator('[data-key="baseline"][data-i="3"]'),'-2.12345');
     const withManual=structuredClone(samples['Single-series']);
-    withManual.data.values.push({category:'2020',y:8,baseline:-2});
+    withManual.data.values.push({category:'2020',y:8.12345,baseline:-2.12345});
     await waitGT(withManual);
     await page.locator('#tableBody tr[data-row="3"] td').first().click();
     await page.click('#deleteRow');
@@ -156,10 +210,12 @@ async function run(){
     await page.click('[data-tool="point"]');
     await clickPixel(128,330);
     await clickPixel(200,365);
-    const {rows,evidence}= (await snapshot()).project;
+    const {rows,evidence,axes}=(await snapshot()).project;
     assert.equal(rows.length,1);
     assert.ok(Math.abs(rows[0].x-1)<0.05&&Math.abs(rows[0].y-20)<0.5);
     assert.ok(Math.abs(rows[0].baseline-10)<0.5&&!('category' in rows[0]));
+    assert.equal(rows[0].y,linearValue(evidence[0].pixel.y,axes.y));
+    assert.equal(rows[0].baseline,linearValue(evidence[0].baselinePixel.y,axes.y));
     assert.equal(evidence[0].pixel.x,evidence[0].baselinePixel.x);
     assert.deepEqual(errors,[]);
     console.log('Quantitative browser capture: both axes, numeric X and paired bounds');
