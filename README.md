@@ -44,7 +44,12 @@ Browser-based scientific chart annotation with original-pixel calibration, inter
 普通堆叠的精简 GT、单图导出和 ZIP 导出使用同一规范化结果：每段记录 `category → value → stack_order → series`（重名时按规范插入身份字段），数值轴为 `value`、`stack: "zero"`，`order` 绑定 `stack_order`。下方数据记录及工程备份保留测量用的 `start/end`。旧版普通堆叠端点 GT 再次导出时自动转换为此形式；确实需要非零起点或非累计区间时才使用规范允许的显式端点形式。
 ## 面积图
 
-在「图表大类」选择「面积图」。上传原图后校准 X、Y 轴，再用「取点」依次点击上界和下界。第二次点击沿第一次的 X 位置取值。选中表格中的记录，可用「重取上界」「重取下界」在同一 X 重测，也可拖动已有像素标记或直接编辑数值。工程备份保留校准、像素和待补下界的记录。
+在「图表大类」选择「面积图」，再选择子类型和 X 轴模式。用「取点」依次点击上界和下界，第二次点击沿第一次的 X 位置取值。选中表格中的记录，可用「重取上界」「重取下界」重测，也可拖动已有像素标记或直接编辑数值。
+
+- **Quantitative** 使用数值 `x`，校准 X 和 Y 后取点。
+- **Nominal** 使用文字 `category`，只校准 Y。按原图从左到右录入类别，在侧栏用 ↑ / ↓ 调整位置，再选择类别和系列取点。「定位当前类别刻度」可让同一类别下的各系列共用 X 像素位置。年份、月份等标签保留原文字。每个类别位置需要唯一标签，每个类别与系列组合对应一条上下界记录。
+
+两种模式各自保留记录、校准和像素证据，工程备份包含两套数据。首次切换到另一模式时从空表开始。导入同一子类型的 GT 会更新其对应模式，另一模式仍可切回。
 
 | 子类型 | 标注内容 |
 | --- | --- |
@@ -52,9 +57,9 @@ Browser-based scientific chart annotation with original-pixel calibration, inter
 | Multi-series Area | 用「当前系列」切换标注对象，每个系列分别记录 `y` 和 `baseline`。可在系列列表改名，在表格调整记录归属。 |
 | Stacked Area | 每层填写累计上界 `y` 和实际下界 `baseline`，两者之差为该层贡献。在系列列表按底层到顶层排列，使用 ↑ / ↓ 调整 `stack_order`。 |
 
-三个子类型均使用数值 X、Y 和逐行 `baseline`。固定基线也逐行填写。预览和导出共用 `y2.field=baseline` 和 `y.stack=null`。多系列通过 `color.field=series` 分组，堆叠子类额外绑定 `order.field=stack_order`。预览使用 GT 的系列配色，系列列表的颜色用于原图标记。缺少边界或上界低于下界会阻止导出，堆叠层在共同 X 处未接合时会提示核对。
+三个子类型均使用数值 Y 和逐行 `baseline`。固定基线也逐行填写。Nominal GT 的 X 编码为 `field: "category"`、`type: "nominal"`、`sort: null`，行按类别位置排序，预览沿同一顺序连接。两种模式均使用 `y2.field=baseline` 和 `y.stack=null`。多系列通过 `color.field=series` 分组，堆叠子类额外绑定 `order.field=stack_order`。预览使用 GT 的系列配色，系列列表的颜色用于原图标记。缺少边界或上界低于下界会阻止导出，堆叠层在共同 X 处未接合时会提示核对。
 
-可用目录中的 `Single-series Area.json`、`Multi-series Area.json` 和 `Stacked Area.json` 复查 GT 导入和语义预览。核对后勾选右栏确认即可导出。执行 `node build.mjs` 和 `node tests/area.cjs` 可验证三份样例的往返及实际边界渲染。
+可用目录中的三份 `* Area.json` 验证 Quantitative 模式。`tests/fixtures/area-nominal.json` 包含测试用的三份 Nominal GT，三个顶层属性的值各是一份可导入的 GT。执行 `node build.mjs` 和 `node tests/area.cjs` 可验证两种模式的 GT 往返及渲染。安装 Playwright 和浏览器后运行 `node tests/area-browser.cjs` 可验证浏览器交互及下载。
 
 ## 开发与验证
 
