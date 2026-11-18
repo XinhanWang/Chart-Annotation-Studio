@@ -515,7 +515,10 @@ function makeAreaSpec(p){
     }
     const def=encoding[axis]={field:axis,type:'quantitative'};
     if(present(title))def.title=copy(title);
-    const {type,reverse}=p.axes[axis];
+    const {type,reverse:importedReverse,calibrated,p1,p2,v1,v2}=p.axes[axis];
+    // Calibration takes precedence over the axis direction from an imported GT.
+    const slope=(v2-v1)/(p2-p1);
+    const reverse=calibrated?(axis==='x'?slope<0:slope>0):importedReverse;
     if(type==='log'||reverse)def.scale={...(type==='log'?{type}:{}),...(reverse?{reverse:true}:{})};
   }
   encoding.y.stack=null;

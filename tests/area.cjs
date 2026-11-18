@@ -24,6 +24,26 @@ function sample(name){
 }
 const nominalSamples=require('./fixtures/area-nominal.json');
 
+test('Calibrated area axes preserve original screen direction',async()=>{
+  const x={p1:10,p2:110,v1:20,v2:1,type:'log',calibrated:true};
+  const y={p1:20,p2:200,v1:1,v2:20,type:'linear',calibrated:true};
+  for(const gt of [sample('Single-series'),sample('Stacked'),nominalSamples['Multi-series']]){
+    const p=importSpec(gt);
+    if(p.xType!=='nominal')for(const row of p.rows)row.x+=1;
+    p.axes.x=x;
+    p.axes.y=y;
+    const exported=plain(makeSpec(p));
+    if(p.xType==='nominal')assert.equal(exported.encoding.x.scale,undefined);
+    else assert.deepEqual(exported.encoding.x.scale,{type:'log',reverse:true});
+    assert.deepEqual(exported.encoding.y.scale,{reverse:true});
+    await assertPreview(exported);
+    const manual=importSpec(exported);
+    assert.deepEqual(plain(makeSpec(manual)),exported);
+    manual.axes.y={...y,v1:20,v2:1};
+    assert.equal(makeSpec(manual).encoding.y.scale,undefined);
+  }
+});
+
 async function assertPreview(gt){
   const expected=gt.data.values;
   const xField=gt.encoding.x.field;
