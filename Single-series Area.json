@@ -1,0 +1,25 @@
+{
+  "title": "Measurement",
+  "data": {
+    "values": [
+      {"x": 0, "y": 2, "baseline": 0},
+      {"x": 1, "y": 5, "baseline": 0},
+      {"x": 2, "y": 3, "baseline": 0}
+    ]
+  },
+  "mark": {"type": "area"},
+  "encoding": {
+    "x": {
+      "field": "x",
+      "type": "quantitative",
+      "title": "Time (s)"
+    },
+    "y": {
+      "field": "y",
+      "type": "quantitative",
+      "title": "Amount (mg)",
+      "stack": null
+    },
+    "y2": {"field": "baseline"}
+  }
+}
