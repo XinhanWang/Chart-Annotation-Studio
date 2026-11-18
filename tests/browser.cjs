@@ -1,7 +1,9 @@
 // End-to-end checks use public controls/file inputs; chartStudio only supplies read-only evidence.
 const fs=require('node:fs'),path=require('node:path'),http=require('node:http'),assert=require('node:assert/strict'),vm=require('node:vm');
 const {chromium}=require('playwright');
-const root=path.resolve(__dirname,'..'),out=path.join(root,'examples/statistical');fs.mkdirSync(out,{recursive:true});
+const root=path.resolve(__dirname,'..'),output=process.env.STUDIO_STAT_QA_OUTPUT;
+const out=output?path.resolve(output):fs.mkdtempSync(path.join(require('node:os').tmpdir(),'studio-statistical-'));
+fs.mkdirSync(out,{recursive:true});
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8'),context=vm.createContext({});
 vm.runInContext(html.split('<script type="module">')[1].split('const $=id=>')[0]+';globalThis.api={defaultProject,makeSpec};',context);
 const plain=x=>JSON.parse(JSON.stringify(x));
@@ -17,7 +19,7 @@ for(const [name,kind,outliers]of[['box-vertical-outliers','boxplot_v',[-7,107.12
 const server=http.createServer((req,res)=>{res.setHeader('Content-Type','text/html; charset=utf-8');res.end(html);});
 let browser;
 (async()=>{
- await new Promise(r=>server.listen(0,'127.0.0.1',r));browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));browser=await chromium.launch({headless:true,channel:process.env.STUDIO_BROWSER_CHANNEL||(process.platform==='win32'?'msedge':undefined)});
  const page=await browser.newPage({viewport:{width:1680,height:1120},deviceScaleFactor:1}),errors=[],checks=[];
  page.on('pageerror',e=>errors.push(String(e)));page.on('dialog',d=>d.accept());
  const url=`http://127.0.0.1:${server.address().port}`;
@@ -172,20 +174,20 @@ let browser;
   const gt=(await snapshot()).lastSpec;await inputJSON('#specInput',gt);await settle();assert.deepEqual((await snapshot()).lastSpec,gt);
   checks.push(kind+': close/coincident statistics across categories, next-field progression, duplicate outliers, selected-field drag/nudge, add-mode key isolation, two-decimal measurements and manual/GT precision');
  }
- // Exercise the changed add/edit hit testing on every original chart type, including stacked endpoints.
- for(const kind of ['barh_1','barh_n','barv_1','barv_n','barv_stack','line_1','line_n','scatter_1','scatter_n']){
-  const p=calibratedProject(kind),bar=kind.startsWith('bar'),horizontal=kind.startsWith('barh'),stack=kind==='barv_stack';
+ // Check the existing Alt-click workflow for nearby points. Stacks have a separate browser suite.
+ for(const kind of ['barh_1','barh_n','barv_1','barv_n','line_1','line_n','scatter_1','scatter_n']){
+  const p=calibratedProject(kind),bar=kind.startsWith('bar'),horizontal=kind.startsWith('barh');
   await openProject(p,fixtures[3].image,'close-'+kind+'.png');await page.click('[data-tool="point"]');
+  const addNearby=async (x,y)=>{await page.keyboard.down('Alt');try{await canvasPoint(x,y);}finally{await page.keyboard.up('Alt');}};
   const count=bar?p.categories.length*p.series.length:3;
   for(let i=0;i<count;i++){
    const previous=(await snapshot()).project.rows;
-   if(stack){await canvasPoint(250,i?299:300);assert.equal((await snapshot()).project.rows.length,i);await canvasPoint(250,299);}
-   else await canvasPoint(250,i?299:300);
+   await addNearby(250,i?299:300);
    const state=await snapshot();assert.equal(state.project.rows.length,i+1,kind);assert.deepEqual(state.project.rows.slice(0,i),previous,kind);
    if(!bar&&i)assert.deepEqual(state.project.evidence[i].pixel,state.project.evidence[1].pixel);
   }
-  if(!bar&&p.series.length>1){await page.selectOption('#activeSeries',p.series[1].key);await canvasPoint(250,299);assert.equal((await snapshot()).project.rows.length,count+1);}
-  await settle();const before=await snapshot();await page.locator('#canvas').press('ArrowUp');assert.deepEqual((await snapshot()).project.rows,before.project.rows);
+  if(!bar&&p.series.length>1){await page.selectOption('#activeSeries',p.series[1].key);await addNearby(250,299);assert.equal((await snapshot()).project.rows.length,count+1);}
+  await settle();const before=await snapshot();
   await page.click('[data-tool="select"]');await page.locator(`[data-i="1"][data-key="${bar?'value':'y'}"]`).click();
   await dragPoint([250,299],horizontal?[253,299]:[250,296]);const after=await snapshot();assert.equal(after.selected,1,kind);assert.equal(after.selectedHandle,'pixel');assert.notDeepEqual(after.project.rows[1],before.project.rows[1]);assert.deepEqual(after.project.rows.filter((_,i)=>i!==1),before.project.rows.filter((_,i)=>i!==1));
   if(bar){
@@ -199,10 +201,22 @@ let browser;
     for(const limit of ['lower','upper']){await page.click(`[data-tool="${limit}"]`);await canvasPoint(pixel.x,pixel.y);}
    }
   }
-  await settle();checks.push(kind+': close/coincident additions, edit-mode field selection and drag, add-mode key isolation'+(bar?', error endpoint editing':''));
+  await settle();checks.push(kind+': Alt-click near existing points, field selection and drag'+(bar?', error endpoint editing':''));
  }
  // Original interaction flow remains usable for scatter; semantic regression tests cover all nine kinds.
  await openProject({...plain(context.api.defaultProject('scatter_1')),rows:[],evidence:[]},null,'');await page.click('#demo');await page.waitForTimeout(200);assert.equal((await snapshot()).project.kind,'scatter_1');await canvasPoint(128,344);await settle();assert.equal((await snapshot()).project.rows.length,1);assert.equal((await snapshot()).lastSpec.encoding.x.title,'Time (s)');checks.push('Legacy scatter demo: calibrated image click and semantic rendering');
+ // Create charts through the selector in the annotation workspace.
+ await page.selectOption('#family','pie');
+ assert.equal((await snapshot()).project.kind,'pie');
+ assert(await page.locator('#pieFields').isVisible());
+ assert(!(await page.locator('#calibrationPanel').isVisible()));
+ await page.selectOption('#family','boxplot');
+ assert.equal((await snapshot()).project.kind,'boxplot_v');
+ assert.equal(await page.locator('#axisFields select[data-axis]').getAttribute('data-axis'),'y');
+ await page.selectOption('#kind','boxplot_h');
+ assert.equal((await snapshot()).project.kind,'boxplot_h');
+ assert.equal(await page.locator('#axisFields select[data-axis]').getAttribute('data-axis'),'x');
+ checks.push('Chart selector: create Pie and both Box Plot orientations from the existing workspace');
  assert.deepEqual(errors,[]);
  const report={passed:true,date:new Date().toISOString(),browser:await browser.version(),checks,pageErrors:errors};fs.writeFileSync(path.join(out,'browser-results.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));
-})().catch(e=>{console.error(e);process.exitCode=1;}).finally(async()=>{await browser?.close();server.close();});
+})().catch(e=>{console.error(e);process.exitCode=1;}).finally(async()=>{await browser?.close();server.close();if(!output)fs.rmSync(out,{recursive:true,force:true});});

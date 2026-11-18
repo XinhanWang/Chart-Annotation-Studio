@@ -32,16 +32,16 @@
         ]
       },
       "encoding": {
+        "x": {
+          "field": "value",
+          "type": "quantitative",
+          "title": "Sample / time (s)"
+        },
         "y": {
           "field": "category_id",
           "type": "nominal",
           "title": "Response (mg)",
           "sort": null
-        },
-        "x": {
-          "field": "value",
-          "type": "quantitative",
-          "title": "Sample / time (s)"
         },
         "color": {
           "field": "series",
@@ -135,23 +135,23 @@
         ]
       },
       "encoding": {
+        "x": {
+          "field": "value",
+          "type": "quantitative",
+          "title": "Sample / time (s)"
+        },
         "y": {
           "field": "category_id",
           "type": "nominal",
           "title": "Response (mg)",
           "sort": null
         },
-        "x": {
-          "field": "value",
-          "type": "quantitative",
-          "title": "Sample / time (s)"
-        },
-        "color": {
+        "yOffset": {
           "field": "series_id",
           "type": "nominal",
           "sort": null
         },
-        "yOffset": {
+        "color": {
           "field": "series_id",
           "type": "nominal",
           "sort": null
@@ -327,12 +327,12 @@
           "type": "quantitative",
           "title": "Response (mg)"
         },
-        "color": {
+        "xOffset": {
           "field": "series_id",
           "type": "nominal",
           "sort": null
         },
-        "xOffset": {
+        "color": {
           "field": "series_id",
           "type": "nominal",
           "sort": null
@@ -370,29 +370,20 @@
           {
             "category": "repeat",
             "category_id": "C1",
-            "value": 4,
-            "start": 1,
-            "end": 5,
+            "value": 1,
+            "start": 0,
+            "end": 1,
             "series": "repeat",
             "series_id": "S1"
           },
           {
             "category": "repeat",
             "category_id": "C1",
-            "value": 1,
-            "start": 0,
-            "end": 1,
+            "value": 4,
+            "start": 1,
+            "end": 5,
             "series": "repeat",
             "series_id": "S2"
-          },
-          {
-            "category": "repeat",
-            "category_id": "C2",
-            "value": 5,
-            "start": -3,
-            "end": 2,
-            "series": "repeat",
-            "series_id": "S1"
           },
           {
             "category": "repeat",
@@ -401,16 +392,16 @@
             "start": 0,
             "end": -3,
             "series": "repeat",
-            "series_id": "S2"
+            "series_id": "S1"
           },
           {
-            "category": "Z",
-            "category_id": "C3",
-            "value": 2,
-            "start": 0,
+            "category": "repeat",
+            "category_id": "C2",
+            "value": 5,
+            "start": -3,
             "end": 2,
             "series": "repeat",
-            "series_id": "S1"
+            "series_id": "S2"
           },
           {
             "category": "Z",
@@ -418,6 +409,15 @@
             "value": 0,
             "start": 0,
             "end": 0,
+            "series": "repeat",
+            "series_id": "S1"
+          },
+          {
+            "category": "Z",
+            "category_id": "C3",
+            "value": 2,
+            "start": 0,
+            "end": 2,
             "series": "repeat",
             "series_id": "S2"
           }
@@ -439,13 +439,13 @@
           "title": "Response (mg)",
           "stack": null
         },
+        "y2": {
+          "field": "start"
+        },
         "color": {
           "field": "series_id",
           "type": "nominal",
           "sort": null
-        },
-        "y2": {
-          "field": "start"
         }
       }
     }
@@ -481,55 +481,6 @@
           "field": "x",
           "type": "quantitative",
           "title": "Sample / time (s)"
-        },
-        "y": {
-          "field": "y",
-          "type": "quantitative",
-          "title": "Response (mg)"
-        },
-        "color": {
-          "field": "series",
-          "type": "nominal",
-          "sort": null
-        }
-      }
-    }
-  },
-  {
-    "name": "line_1_ordinal",
-    "gt": {
-      "title": "Test count (%)",
-      "data": {
-        "values": [
-          {
-            "x": "A",
-            "x_id": "X1",
-            "y": 1,
-            "series": "repeat"
-          },
-          {
-            "x": "A",
-            "x_id": "X2",
-            "y": -2,
-            "series": "repeat"
-          },
-          {
-            "x": "B",
-            "x_id": "X3",
-            "y": 3,
-            "series": "repeat"
-          }
-        ]
-      },
-      "mark": {
-        "type": "line"
-      },
-      "encoding": {
-        "x": {
-          "field": "x_id",
-          "type": "ordinal",
-          "title": "Sample / time (s)",
-          "sort": null
         },
         "y": {
           "field": "y",
@@ -596,79 +547,6 @@
           "field": "x",
           "type": "quantitative",
           "title": "Sample / time (s)"
-        },
-        "y": {
-          "field": "y",
-          "type": "quantitative",
-          "title": "Response (mg)"
-        },
-        "color": {
-          "field": "series_id",
-          "type": "nominal",
-          "sort": null
-        }
-      }
-    }
-  },
-  {
-    "name": "line_n_ordinal",
-    "gt": {
-      "title": "Test count (%)",
-      "data": {
-        "values": [
-          {
-            "x": "A",
-            "x_id": "X1",
-            "y": 1,
-            "series": "repeat",
-            "series_id": "S1"
-          },
-          {
-            "x": "A",
-            "x_id": "X1",
-            "y": 4,
-            "series": "repeat",
-            "series_id": "S2"
-          },
-          {
-            "x": "A",
-            "x_id": "X2",
-            "y": -2,
-            "series": "repeat",
-            "series_id": "S1"
-          },
-          {
-            "x": "A",
-            "x_id": "X2",
-            "y": 5,
-            "series": "repeat",
-            "series_id": "S2"
-          },
-          {
-            "x": "B",
-            "x_id": "X3",
-            "y": 3,
-            "series": "repeat",
-            "series_id": "S1"
-          },
-          {
-            "x": "B",
-            "x_id": "X3",
-            "y": 6,
-            "series": "repeat",
-            "series_id": "S2"
-          }
-        ]
-      },
-      "mark": {
-        "type": "line"
-      },
-      "encoding": {
-        "x": {
-          "field": "x_id",
-          "type": "ordinal",
-          "title": "Sample / time (s)",
-          "sort": null
         },
         "y": {
           "field": "y",
@@ -778,6 +656,95 @@
           "field": "y",
           "type": "quantitative",
           "title": "Response (mg)"
+        },
+        "color": {
+          "field": "series_id",
+          "type": "nominal",
+          "sort": null
+        }
+      }
+    }
+  },
+  {
+    "name": "barh_stack",
+    "gt": {
+      "title": "Test count (%)",
+      "data": {
+        "values": [
+          {
+            "category": "Z",
+            "category_id": "C1",
+            "value": 0,
+            "start": 0,
+            "end": 0,
+            "series": "repeat",
+            "series_id": "S1"
+          },
+          {
+            "category": "Z",
+            "category_id": "C1",
+            "value": 2,
+            "start": 0,
+            "end": 2,
+            "series": "repeat",
+            "series_id": "S2"
+          },
+          {
+            "category": "repeat",
+            "category_id": "C2",
+            "value": -3,
+            "start": 0,
+            "end": -3,
+            "series": "repeat",
+            "series_id": "S1"
+          },
+          {
+            "category": "repeat",
+            "category_id": "C2",
+            "value": 5,
+            "start": -3,
+            "end": 2,
+            "series": "repeat",
+            "series_id": "S2"
+          },
+          {
+            "category": "repeat",
+            "category_id": "C3",
+            "value": 1,
+            "start": 0,
+            "end": 1,
+            "series": "repeat",
+            "series_id": "S1"
+          },
+          {
+            "category": "repeat",
+            "category_id": "C3",
+            "value": 4,
+            "start": 1,
+            "end": 5,
+            "series": "repeat",
+            "series_id": "S2"
+          }
+        ]
+      },
+      "mark": {
+        "type": "bar"
+      },
+      "encoding": {
+        "x": {
+          "field": "end",
+          "type": "quantitative",
+          "title": "Sample / time (s)",
+          "stack": null
+        },
+        "y": {
+          "field": "category_id",
+          "type": "nominal",
+          "title": "Response (mg)",
+          "sort": null
+        },
+        "x2": {
+          "field": "start"
         },
         "color": {
           "field": "series_id",

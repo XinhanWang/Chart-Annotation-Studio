@@ -1,5 +1,5 @@
 {
-  "commit": "9c909f5ceae586bf8cc0724d519e2f003f33c344",
+  "commit": "a368c9cc16c9eace9f802f18cfef73e6c4f2e357",
   "cases": [
     {
       "name": "barh_1",
@@ -102,14 +102,14 @@
           "type": "bar"
         },
         "encoding": {
+          "x": {
+            "field": "value",
+            "type": "quantitative"
+          },
           "y": {
             "field": "category",
             "type": "nominal",
             "sort": null
-          },
-          "x": {
-            "field": "value",
-            "type": "quantitative"
           }
         }
       },
@@ -135,14 +135,14 @@
           "type": "bar"
         },
         "encoding": {
+          "x": {
+            "field": "value",
+            "type": "quantitative"
+          },
           "y": {
             "field": "category",
             "type": "nominal",
             "sort": null
-          },
-          "x": {
-            "field": "value",
-            "type": "quantitative"
           }
         }
       }
@@ -257,14 +257,14 @@
           ]
         },
         "encoding": {
+          "x": {
+            "field": "value",
+            "type": "quantitative"
+          },
           "y": {
             "field": "category",
             "type": "nominal",
             "sort": null
-          },
-          "x": {
-            "field": "value",
-            "type": "quantitative"
           }
         },
         "layer": [
@@ -314,14 +314,14 @@
           ]
         },
         "encoding": {
+          "x": {
+            "field": "value",
+            "type": "quantitative"
+          },
           "y": {
             "field": "category",
             "type": "nominal",
             "sort": null
-          },
-          "x": {
-            "field": "value",
-            "type": "quantitative"
           }
         },
         "layer": [
@@ -492,21 +492,21 @@
           "type": "bar"
         },
         "encoding": {
+          "x": {
+            "field": "value",
+            "type": "quantitative"
+          },
           "y": {
             "field": "category",
             "type": "nominal",
             "sort": null
           },
-          "x": {
-            "field": "value",
-            "type": "quantitative"
-          },
-          "color": {
+          "yOffset": {
             "field": "series",
             "type": "nominal",
             "sort": null
           },
-          "yOffset": {
+          "color": {
             "field": "series",
             "type": "nominal",
             "sort": null
@@ -553,21 +553,21 @@
           "type": "bar"
         },
         "encoding": {
+          "x": {
+            "field": "value",
+            "type": "quantitative"
+          },
           "y": {
             "field": "category",
             "type": "nominal",
             "sort": null
           },
-          "x": {
-            "field": "value",
-            "type": "quantitative"
-          },
-          "color": {
+          "yOffset": {
             "field": "series",
             "type": "nominal",
             "sort": null
           },
-          "yOffset": {
+          "color": {
             "field": "series",
             "type": "nominal",
             "sort": null
@@ -741,21 +741,21 @@
           ]
         },
         "encoding": {
+          "x": {
+            "field": "value",
+            "type": "quantitative"
+          },
           "y": {
             "field": "category",
             "type": "nominal",
             "sort": null
           },
-          "x": {
-            "field": "value",
-            "type": "quantitative"
-          },
-          "color": {
+          "yOffset": {
             "field": "series",
             "type": "nominal",
             "sort": null
           },
-          "yOffset": {
+          "color": {
             "field": "series",
             "type": "nominal",
             "sort": null
@@ -832,21 +832,21 @@
           ]
         },
         "encoding": {
+          "x": {
+            "field": "value",
+            "type": "quantitative"
+          },
           "y": {
             "field": "category",
             "type": "nominal",
             "sort": null
           },
-          "x": {
-            "field": "value",
-            "type": "quantitative"
-          },
-          "color": {
+          "yOffset": {
             "field": "series",
             "type": "nominal",
             "sort": null
           },
-          "yOffset": {
+          "color": {
             "field": "series",
             "type": "nominal",
             "sort": null
@@ -1375,12 +1375,12 @@
             "field": "value",
             "type": "quantitative"
           },
-          "color": {
+          "xOffset": {
             "field": "series",
             "type": "nominal",
             "sort": null
           },
-          "xOffset": {
+          "color": {
             "field": "series",
             "type": "nominal",
             "sort": null
@@ -1436,12 +1436,12 @@
             "field": "value",
             "type": "quantitative"
           },
-          "color": {
+          "xOffset": {
             "field": "series",
             "type": "nominal",
             "sort": null
           },
-          "xOffset": {
+          "color": {
             "field": "series",
             "type": "nominal",
             "sort": null
@@ -1624,12 +1624,12 @@
             "field": "value",
             "type": "quantitative"
           },
-          "color": {
+          "xOffset": {
             "field": "series",
             "type": "nominal",
             "sort": null
           },
-          "xOffset": {
+          "color": {
             "field": "series",
             "type": "nominal",
             "sort": null
@@ -1715,12 +1715,12 @@
             "field": "value",
             "type": "quantitative"
           },
-          "color": {
+          "xOffset": {
             "field": "series",
             "type": "nominal",
             "sort": null
           },
-          "xOffset": {
+          "color": {
             "field": "series",
             "type": "nominal",
             "sort": null
@@ -1866,19 +1866,13 @@
           "values": [
             {
               "category": "A",
-              "value": 30,
-              "stack_order": 1,
-              "series": "Series 2"
-            },
-            {
-              "category": "A",
               "value": 20,
               "stack_order": 0,
               "series": "Series 1"
             },
             {
-              "category": "B",
-              "value": 45,
+              "category": "A",
+              "value": 30,
               "stack_order": 1,
               "series": "Series 2"
             },
@@ -1889,8 +1883,8 @@
               "series": "Series 1"
             },
             {
-              "category": "C",
-              "value": 60,
+              "category": "B",
+              "value": 45,
               "stack_order": 1,
               "series": "Series 2"
             },
@@ -1899,6 +1893,12 @@
               "value": 50,
               "stack_order": 0,
               "series": "Series 1"
+            },
+            {
+              "category": "C",
+              "value": 60,
+              "stack_order": 1,
+              "series": "Series 2"
             }
           ]
         },
@@ -1933,19 +1933,13 @@
           "values": [
             {
               "category": "A",
-              "value": 30,
-              "stack_order": 1,
-              "series": "Series 2"
-            },
-            {
-              "category": "A",
               "value": 20,
               "stack_order": 0,
               "series": "Series 1"
             },
             {
-              "category": "B",
-              "value": 45,
+              "category": "A",
+              "value": 30,
               "stack_order": 1,
               "series": "Series 2"
             },
@@ -1956,8 +1950,8 @@
               "series": "Series 1"
             },
             {
-              "category": "C",
-              "value": 60,
+              "category": "B",
+              "value": 45,
               "stack_order": 1,
               "series": "Series 2"
             },
@@ -1966,6 +1960,12 @@
               "value": 50,
               "stack_order": 0,
               "series": "Series 1"
+            },
+            {
+              "category": "C",
+              "value": 60,
+              "stack_order": 1,
+              "series": "Series 2"
             }
           ]
         },
@@ -2124,14 +2124,6 @@
           "values": [
             {
               "category": "A",
-              "value": 30,
-              "lower": 28,
-              "upper": 33,
-              "stack_order": 1,
-              "series": "Series 2"
-            },
-            {
-              "category": "A",
               "value": 20,
               "lower": 18,
               "upper": 23,
@@ -2139,10 +2131,10 @@
               "series": "Series 1"
             },
             {
-              "category": "B",
-              "value": 45,
-              "lower": 43,
-              "upper": 48,
+              "category": "A",
+              "value": 30,
+              "lower": 28,
+              "upper": 33,
               "stack_order": 1,
               "series": "Series 2"
             },
@@ -2155,10 +2147,10 @@
               "series": "Series 1"
             },
             {
-              "category": "C",
-              "value": 60,
-              "lower": 58,
-              "upper": 63,
+              "category": "B",
+              "value": 45,
+              "lower": 43,
+              "upper": 48,
               "stack_order": 1,
               "series": "Series 2"
             },
@@ -2169,6 +2161,14 @@
               "upper": 53,
               "stack_order": 0,
               "series": "Series 1"
+            },
+            {
+              "category": "C",
+              "value": 60,
+              "lower": 58,
+              "upper": 63,
+              "stack_order": 1,
+              "series": "Series 2"
             }
           ]
         },
@@ -2222,14 +2222,6 @@
           "values": [
             {
               "category": "A",
-              "value": 30,
-              "lower": 28,
-              "upper": 33,
-              "stack_order": 1,
-              "series": "Series 2"
-            },
-            {
-              "category": "A",
               "value": 20,
               "lower": 18,
               "upper": 23,
@@ -2237,10 +2229,10 @@
               "series": "Series 1"
             },
             {
-              "category": "B",
-              "value": 45,
-              "lower": 43,
-              "upper": 48,
+              "category": "A",
+              "value": 30,
+              "lower": 28,
+              "upper": 33,
               "stack_order": 1,
               "series": "Series 2"
             },
@@ -2253,10 +2245,10 @@
               "series": "Series 1"
             },
             {
-              "category": "C",
-              "value": 60,
-              "lower": 58,
-              "upper": 63,
+              "category": "B",
+              "value": 45,
+              "lower": 43,
+              "upper": 48,
               "stack_order": 1,
               "series": "Series 2"
             },
@@ -2267,6 +2259,14 @@
               "upper": 53,
               "stack_order": 0,
               "series": "Series 1"
+            },
+            {
+              "category": "C",
+              "value": 60,
+              "lower": 58,
+              "upper": 63,
+              "stack_order": 1,
+              "series": "Series 2"
             }
           ]
         },
@@ -3099,14 +3099,14 @@
           "type": "bar"
         },
         "encoding": {
+          "x": {
+            "field": "value",
+            "type": "quantitative"
+          },
           "y": {
             "field": "category",
             "type": "nominal",
             "sort": null
-          },
-          "x": {
-            "field": "value",
-            "type": "quantitative"
           },
           "color": {
             "field": "series",
@@ -3140,14 +3140,14 @@
           "type": "bar"
         },
         "encoding": {
+          "x": {
+            "field": "value",
+            "type": "quantitative"
+          },
           "y": {
             "field": "category",
             "type": "nominal",
             "sort": null
-          },
-          "x": {
-            "field": "value",
-            "type": "quantitative"
           },
           "color": {
             "field": "series",
@@ -3288,14 +3288,14 @@
           ]
         },
         "encoding": {
+          "x": {
+            "field": "value",
+            "type": "quantitative"
+          },
           "y": {
             "field": "category",
             "type": "nominal",
             "sort": null
-          },
-          "x": {
-            "field": "value",
-            "type": "quantitative"
           },
           "color": {
             "field": "series",
@@ -3353,14 +3353,14 @@
           ]
         },
         "encoding": {
+          "x": {
+            "field": "value",
+            "type": "quantitative"
+          },
           "y": {
             "field": "category",
             "type": "nominal",
             "sort": null
-          },
-          "x": {
-            "field": "value",
-            "type": "quantitative"
           },
           "color": {
             "field": "series",
@@ -3571,21 +3571,21 @@
           "type": "bar"
         },
         "encoding": {
+          "x": {
+            "field": "value",
+            "type": "quantitative"
+          },
           "y": {
             "field": "category",
             "type": "nominal",
             "sort": null
           },
-          "x": {
-            "field": "value",
-            "type": "quantitative"
-          },
-          "color": {
+          "yOffset": {
             "field": "series",
             "type": "nominal",
             "sort": null
           },
-          "yOffset": {
+          "color": {
             "field": "series",
             "type": "nominal",
             "sort": null
@@ -3632,21 +3632,21 @@
           "type": "bar"
         },
         "encoding": {
+          "x": {
+            "field": "value",
+            "type": "quantitative"
+          },
           "y": {
             "field": "category",
             "type": "nominal",
             "sort": null
           },
-          "x": {
-            "field": "value",
-            "type": "quantitative"
-          },
-          "color": {
+          "yOffset": {
             "field": "series",
             "type": "nominal",
             "sort": null
           },
-          "yOffset": {
+          "color": {
             "field": "series",
             "type": "nominal",
             "sort": null
@@ -3851,21 +3851,21 @@
           ]
         },
         "encoding": {
+          "x": {
+            "field": "value",
+            "type": "quantitative"
+          },
           "y": {
             "field": "category",
             "type": "nominal",
             "sort": null
           },
-          "x": {
-            "field": "value",
-            "type": "quantitative"
-          },
-          "color": {
+          "yOffset": {
             "field": "series",
             "type": "nominal",
             "sort": null
           },
-          "yOffset": {
+          "color": {
             "field": "series",
             "type": "nominal",
             "sort": null
@@ -3942,21 +3942,21 @@
           ]
         },
         "encoding": {
+          "x": {
+            "field": "value",
+            "type": "quantitative"
+          },
           "y": {
             "field": "category",
             "type": "nominal",
             "sort": null
           },
-          "x": {
-            "field": "value",
-            "type": "quantitative"
-          },
-          "color": {
+          "yOffset": {
             "field": "series",
             "type": "nominal",
             "sort": null
           },
-          "yOffset": {
+          "color": {
             "field": "series",
             "type": "nominal",
             "sort": null
@@ -4638,12 +4638,12 @@
             "field": "value",
             "type": "quantitative"
           },
-          "color": {
+          "xOffset": {
             "field": "series",
             "type": "nominal",
             "sort": null
           },
-          "xOffset": {
+          "color": {
             "field": "series",
             "type": "nominal",
             "sort": null
@@ -4699,12 +4699,12 @@
             "field": "value",
             "type": "quantitative"
           },
-          "color": {
+          "xOffset": {
             "field": "series",
             "type": "nominal",
             "sort": null
           },
-          "xOffset": {
+          "color": {
             "field": "series",
             "type": "nominal",
             "sort": null
@@ -4918,12 +4918,12 @@
             "field": "value",
             "type": "quantitative"
           },
-          "color": {
+          "xOffset": {
             "field": "series",
             "type": "nominal",
             "sort": null
           },
-          "xOffset": {
+          "color": {
             "field": "series",
             "type": "nominal",
             "sort": null
@@ -5009,12 +5009,12 @@
             "field": "value",
             "type": "quantitative"
           },
-          "color": {
+          "xOffset": {
             "field": "series",
             "type": "nominal",
             "sort": null
           },
-          "xOffset": {
+          "color": {
             "field": "series",
             "type": "nominal",
             "sort": null
@@ -5221,19 +5221,13 @@
           "values": [
             {
               "category": "A",
-              "value": 30,
-              "stack_order": 1,
-              "series": "Series 2"
-            },
-            {
-              "category": "A",
               "value": 20,
               "stack_order": 0,
               "series": "Series 1"
             },
             {
-              "category": "B",
-              "value": 45,
+              "category": "A",
+              "value": 30,
               "stack_order": 1,
               "series": "Series 2"
             },
@@ -5244,8 +5238,8 @@
               "series": "Series 1"
             },
             {
-              "category": "C",
-              "value": 60,
+              "category": "B",
+              "value": 45,
               "stack_order": 1,
               "series": "Series 2"
             },
@@ -5254,6 +5248,12 @@
               "value": 50,
               "stack_order": 0,
               "series": "Series 1"
+            },
+            {
+              "category": "C",
+              "value": 60,
+              "stack_order": 1,
+              "series": "Series 2"
             }
           ]
         },
@@ -5288,19 +5288,13 @@
           "values": [
             {
               "category": "A",
-              "value": 30,
-              "stack_order": 1,
-              "series": "Series 2"
-            },
-            {
-              "category": "A",
               "value": 20,
               "stack_order": 0,
               "series": "Series 1"
             },
             {
-              "category": "B",
-              "value": 45,
+              "category": "A",
+              "value": 30,
               "stack_order": 1,
               "series": "Series 2"
             },
@@ -5311,8 +5305,8 @@
               "series": "Series 1"
             },
             {
-              "category": "C",
-              "value": 60,
+              "category": "B",
+              "value": 45,
               "stack_order": 1,
               "series": "Series 2"
             },
@@ -5321,6 +5315,12 @@
               "value": 50,
               "stack_order": 0,
               "series": "Series 1"
+            },
+            {
+              "category": "C",
+              "value": 60,
+              "stack_order": 1,
+              "series": "Series 2"
             }
           ]
         },
@@ -5516,14 +5516,6 @@
           "values": [
             {
               "category": "A",
-              "value": 30,
-              "lower": 28,
-              "upper": 33,
-              "stack_order": 1,
-              "series": "Series 2"
-            },
-            {
-              "category": "A",
               "value": 20,
               "lower": 18,
               "upper": 23,
@@ -5531,10 +5523,10 @@
               "series": "Series 1"
             },
             {
-              "category": "B",
-              "value": 45,
-              "lower": 43,
-              "upper": 48,
+              "category": "A",
+              "value": 30,
+              "lower": 28,
+              "upper": 33,
               "stack_order": 1,
               "series": "Series 2"
             },
@@ -5547,10 +5539,10 @@
               "series": "Series 1"
             },
             {
-              "category": "C",
-              "value": 60,
-              "lower": 58,
-              "upper": 63,
+              "category": "B",
+              "value": 45,
+              "lower": 43,
+              "upper": 48,
               "stack_order": 1,
               "series": "Series 2"
             },
@@ -5561,6 +5553,14 @@
               "upper": 53,
               "stack_order": 0,
               "series": "Series 1"
+            },
+            {
+              "category": "C",
+              "value": 60,
+              "lower": 58,
+              "upper": 63,
+              "stack_order": 1,
+              "series": "Series 2"
             }
           ]
         },
@@ -5614,14 +5614,6 @@
           "values": [
             {
               "category": "A",
-              "value": 30,
-              "lower": 28,
-              "upper": 33,
-              "stack_order": 1,
-              "series": "Series 2"
-            },
-            {
-              "category": "A",
               "value": 20,
               "lower": 18,
               "upper": 23,
@@ -5629,10 +5621,10 @@
               "series": "Series 1"
             },
             {
-              "category": "B",
-              "value": 45,
-              "lower": 43,
-              "upper": 48,
+              "category": "A",
+              "value": 30,
+              "lower": 28,
+              "upper": 33,
               "stack_order": 1,
               "series": "Series 2"
             },
@@ -5645,10 +5637,10 @@
               "series": "Series 1"
             },
             {
-              "category": "C",
-              "value": 60,
-              "lower": 58,
-              "upper": 63,
+              "category": "B",
+              "value": 45,
+              "lower": 43,
+              "upper": 48,
               "stack_order": 1,
               "series": "Series 2"
             },
@@ -5659,6 +5651,14 @@
               "upper": 53,
               "stack_order": 0,
               "series": "Series 1"
+            },
+            {
+              "category": "C",
+              "value": 60,
+              "lower": 58,
+              "upper": 63,
+              "stack_order": 1,
+              "series": "Series 2"
             }
           ]
         },

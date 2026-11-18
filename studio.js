@@ -1,10 +1,11 @@
 /** Compact-v4 semantic GT. Image geometry and review evidence stay in project files. */
-const KINDS = ['barh_1','barh_n','barv_1','barv_n','barv_stack','line_1','line_n','scatter_1','scatter_n','pie','boxplot_v','boxplot_h','area_1','area_n','area_stack'];
+const KINDS = ['barh_1','barh_n','barv_1','barv_n','barv_stack','barh_stack','line_1','line_n','scatter_1','scatter_n','pie','boxplot_v','boxplot_h','area_1','area_n','area_stack'];
 const copy = value => JSON.parse(JSON.stringify(value));
 const finite = n => typeof n === 'number' && Number.isFinite(n);
 const present = n => n !== undefined && n !== null && n !== '';
 const unique = values => [...new Set(values)];
 const isBar = p => p.kind.startsWith('bar');
+const isStack = p => ['barv_stack','barh_stack'].includes(p.kind);
 const isHorizontal = p => p.kind.startsWith('barh')||p.kind==='boxplot_h';
 const isPie = p => p.kind==='pie';
 const isBox = p => p.kind.startsWith('boxplot_');
@@ -14,6 +15,22 @@ const stackRank = (series,index) => series.stackOrder??index;
 const BOX_FIELDS = ['lower','q1','median','q3','upper'];
 const valueAxis = p => isHorizontal(p)?'x':'y';
 
+// Choose unused, contrasting colors first; generate new hues after the palette is exhausted.
+const SERIES_COLORS=['#4263eb','#e8590c','#2f9e44','#9c36b5','#0891b2','#d6336c','#795548','#f59f00','#5c940d','#6741d9','#0c8599','#c92a2a','#364fc7','#a61e4d','#087f5b','#7048e8','#cc5de8','#1098ad','#e67700','#66a80f','#845ef7','#f06595','#5f7c8a','#b67932'];
+function hslHex(h,s,l){
+  const a=s*Math.min(l,1-l),channel=n=>{const k=(n+h/30)%12;return Math.round(255*(l-a*Math.max(-1,Math.min(k-3,9-k,1)))).toString(16).padStart(2,'0');};
+  return '#'+channel(0)+channel(8)+channel(4);
+}
+function nextSeriesColor(series,random=Math.random){
+  const used=new Set(series.map(s=>s.color?.toLowerCase()).filter(Boolean)),available=SERIES_COLORS.filter(c=>!used.has(c));
+  if(available.length)return available[Math.floor(random()*available.length)];
+  const seed=random()*360;
+  // Golden-angle hue spacing prevents short color cycles, even with a fixed RNG.
+  for(let i=0;i<=used.size;i++){const color=hslHex((seed+i*137.508)%360,.62+(i%3)*.08,.42+(i%4)*.04);if(!used.has(color))return color;}
+  // A bounded exact-color fallback also handles unusually large imported palettes.
+  let rgb=Math.floor(random()*0xffffff);while(used.has('#'+rgb.toString(16).padStart(6,'0')))rgb=(rgb+1)%0x1000000;
+  return '#'+rgb.toString(16).padStart(6,'0');
+}
 // Stable project keys are opaque and survive renames/reorders; GT IDs are a projection.
 let keyCounter=0;
 const newKey=prefix=>prefix+':'+(globalThis.crypto?.randomUUID?.()??Date.now().toString(36)+':'+(++keyCounter));
@@ -71,8 +88,23 @@ function moveSeries(p,index,delta){
   }
   moveObject(p,'series',series.key,delta);
 }
-function addObject(p,kind,name){ensureIdentities(p);const obj={key:newKey(kind),name,...(kind==='series'?{color:'#e8590c'}:{})};(kind==='series'?p.series:p.categoryObjects).push(obj);p.categories=p.categoryObjects.map(c=>c.name);return obj;}
+function addObject(p,kind,name){ensureIdentities(p);const obj={key:newKey(kind),name,...(kind==='series'?{color:nextSeriesColor(p.series)}:{})};(kind==='series'?p.series:p.categoryObjects).push(obj);p.categories=p.categoryObjects.map(c=>c.name);return obj;}
 function removeObject(p,kind,key){ensureIdentities(p);const list=kind==='series'?p.series:p.categoryObjects;if(kind==='series'&&list.length===1)throw Error('至少保留一个系列');const ref=kind==='series'?'_seriesKey':'_categoryKey',keep=p.rows.map((r,i)=>r[ref]===key?-1:i).filter(i=>i>=0);p.rows=keep.map(i=>p.rows[i]);if(p.evidence)p.evidence=keep.map(i=>p.evidence[i]);list.splice(list.findIndex(o=>o.key===key),1);p.categories=p.categoryObjects.map(c=>c.name);}
+function parseObjectNames(text){return text.split(/\r\n?|\n/).map(name=>name.trim()).filter(Boolean);}
+function applyObjectNames(p,kind,text){
+  const names=parseObjectNames(text);if(!names.length)throw Error('请至少输入一个名称');
+  if(kind==='series'&&p.kind.endsWith('_1')&&names.length>1)throw Error('单系列类型只允许一个系列，请先选择多系列图表');
+  ensureIdentities(p);const list=kind==='series'?p.series:p.categoryObjects;
+  // Match by visible position, never by name: duplicate labels remain distinct objects.
+  const removed=new Set(list.slice(names.length).map(o=>o.key)),ref=kind==='series'?'_seriesKey':'_categoryKey';
+  const keep=p.rows.map((r,i)=>removed.has(r[ref])?-1:i).filter(i=>i>=0);
+  p.rows=keep.map(i=>p.rows[i]);if(p.evidence)p.evidence=keep.map(i=>p.evidence[i]);
+  list.splice(names.length);
+  names.forEach((name,i)=>{if(list[i])list[i].name=name;else list.push({key:newKey(kind),name,...(kind==='series'?{color:nextSeriesColor(list)}:{})});});
+  const byKey=new Map(list.map(o=>[o.key,o.name])),field=kind==='series'?'series':isBar(p)?'category':'x';
+  for(const r of p.rows)r[field]=byKey.get(r[ref]);
+  p.categories=p.categoryObjects.map(c=>c.name);return names.length;
+}
 function renderSpec(gt){
   const out=copy(gt),rows=out.data.values;
   function view(node){for(const [channel,d] of Object.entries(node.encoding||{})){
@@ -99,7 +131,7 @@ function orderedRows(p) {
   const yReverse=!!p.axes?.y?.reverse||(p.axes?.y?.calibrated&&(p.axes.y.v2-p.axes.y.v1)/(p.axes.y.p2-p.axes.y.p1)>0);
   const sx=xReverse?-1:1, sy=yReverse?1:-1;
   const totals=new Map();
-  if(p.kind==='barv_stack')for(const r of [...source].sort((a,b)=>(a.stack_order??series.indexOf(identity(a)))-(b.stack_order??series.indexOf(identity(b)))||a.__input-b.__input)) {
+  if(isStack(p))for(const r of [...source].sort((a,b)=>(a.stack_order??series.indexOf(identity(a)))-(b.stack_order??series.indexOf(identity(b)))||a.__input-b.__input)) {
     const key=JSON.stringify([categoryIdentity(r),r.value<0]);
     const start=present(r.start)?r.start:(totals.get(key)||0);
     const end=present(r.end)?r.end:start+r.value;
@@ -109,18 +141,26 @@ function orderedRows(p) {
     const ac=categorical?(categories.indexOf(categoryIdentity(a))):sx*a.x;
     const bc=categorical?(categories.indexOf(categoryIdentity(b))):sx*b.x;
     if(ac!==bc)return ac-bc;
-    if(p.kind==='barv_stack')return sy*(a.__mid-b.__mid)||a.__input-b.__input;
+    if(isStack(p))return (isHorizontal(p)?sx:-sy)*(a.__mid-b.__mid)||a.__input-b.__input;
     if(p.kind.startsWith('scatter'))return sy*(a.y-b.y)||a.__input-b.__input;
     return (series.indexOf(identity(a)))-(series.indexOf(identity(b)))||a.__input-b.__input;
   };
-  source.sort(compare);
-  // Visual table order must not change a nonmonotonic line's original adjacency.
-  if(p.kind.startsWith('line')&&!source.every(r=>present(r.path_order))) {
+  if(p.kind.startsWith('line')) {
+    // Keep actual adjacency; explicit imported ranks describe the same path.
+    const explicit=source.every(r=>present(r.path_order));
     const paths=new Map();
-    for(const r of source){const key=identity(r);if(!paths.has(key))paths.set(key,[]);paths.get(key).push(r.__input);}
-    const needs=[...paths.values()].some(a=>!a.every((v,i)=>!i||v>a[i-1])&&!a.every((v,i)=>!i||v<a[i-1]));
-    if(needs)for(const r of source)r.path_order=r.__input;
-  }
+    for(const id of unique(source.map(identity)))paths.set(id,source.filter(r=>identity(r)===id)
+      .sort((a,b)=>explicit?a.path_order-b.path_order:a.__input-b.__input));
+    source.sort(compare);
+    const used=new Map();
+    for(let i=0;i<source.length;i++){
+      const id=identity(source[i]),n=used.get(id)||0;
+      source[i]=paths.get(id)[n];used.set(id,n+1);
+    }
+    const last=new Map();let retreat=false;
+    for(const r of source){const x=categorical?categories.indexOf(categoryIdentity(r)):sx*r.x;const id=identity(r);if(last.has(id)&&x<last.get(id))retreat=true;last.set(id,x);}
+    const counts=new Map();for(const r of source){delete r.path_order;if(retreat){const id=identity(r),i=counts.get(id)||0;r.path_order=i;counts.set(id,i+1);}}
+  } else source.sort(compare);
   for(const r of source){delete r.__input;delete r.__mid;}
   return source;
 }
@@ -128,13 +168,13 @@ function orderedRows(p) {
 function defaultProject(kind='scatter_1') {
   if (!KINDS.includes(kind.replace(/_error$/,'')) || kind.endsWith('_error')&&!['barh_1','barh_n','barv_1','barv_n'].includes(kind.slice(0,-6))) throw Error('未知图表类型');
   const errorBars=kind.endsWith('_error');if(errorBars)kind=kind.slice(0,-6);
-  const multi=kind.endsWith('_n')||kind==='barv_stack'||kind==='area_stack';
+  const multi=kind.endsWith('_n')||isStack({kind})||kind==='area_stack';
   const series=[{name:'Series 1',color:'#4263eb'},...(multi?[{name:'Series 2',color:'#e8590c'}]:[])];
   if(kind==='area_stack')series.forEach((s,i)=>s.stackOrder=i);
   const categories=isPie({kind})||isArea({kind})?[]:['A','B','C'];
   return ensureIdentities({kind,title:'',xTitle:'',yTitle:'',xType:'quantitative',legend:multi,errorBars,...(isPie({kind})?{valueMode:'percent',valueTitle:'Share (%)',donut:false}:{}),
     rows:isStat({kind})?[]:series.flatMap((s,j)=>categories.map((category,i)=>isBar({kind})?
-      {category,value:20+i*15+j*10,series:s.name,...(kind==='barv_stack'?{stack_order:j}:{})}:
+      {category,value:20+i*15+j*10,series:s.name,...(isStack({kind})?{stack_order:j}:{})}:
       {x:i*4+1,y:20+i*15+j*10,series:s.name})),
     axes:{x:{p1:80,p2:560,v1:0,v2:10,type:'linear',reverse:false,calibrated:false},y:{p1:400,p2:50,v1:0,v2:100,type:'linear',reverse:false,calibrated:false}},categories,series});
 }
@@ -177,7 +217,7 @@ function validate(p) {
   if(!Array.isArray(p.rows)||!p.rows.length) return [{severity:'error',message:'至少需要一行观测数据'}];
   if(p.rows.some(r=>!r||typeof r!=='object'||Array.isArray(r)))return [{severity:'error',message:'每一行必须为观测对象'}];
   if(isStat(p))return validateStat(p);
-  const bar=isBar(p), stack=p.kind==='barv_stack', line=p.kind.startsWith('line');
+  const bar=isBar(p), stack=isStack(p), line=p.kind.startsWith('line');
   for(const key of ['title','xTitle','yTitle'])if(present(p[key])&&!(typeof p[key]==='string'||Array.isArray(p[key])&&p[key].length&&p[key].every(v=>typeof v==='string')))issue('error',`${key} 需要文字或非空文字数组`);
   if(isArea(p)){validateArea(p,issue);validateAxes(p,issue);return out;}
   const fields=unique(p.rows.flatMap(r=>Object.keys(r).filter(k=>present(r[k]))));
@@ -212,14 +252,40 @@ function validate(p) {
   });
   if(p.errorBars&&(!bar||p.rows.some(r=>!finite(r.lower)||!finite(r.upper))))issue('error','误差棒柱图需为每条记录填写数值下界和上界');
   validateAxes(p,issue);
-  if(stack&&fields.includes('start')&&fields.includes('stack_order')) issue('error','堆叠端点和 stack_order 二选一');
   if(bar&&fields.includes('lower')&&p.rows.some(r=>finite(r.lower)&&finite(r.upper)&&(r.value<r.lower||r.value>r.upper))) issue('warning','部分数值位于误差区间外，请核对区间是否为绝对上下界');
   if(line&&!fields.includes('path_order')) {
     const last=new Map();let nonmonotonic=false;
-    for(const r of p.rows){const x=p.xType==='ordinal'?p.categoryObjects.map(c=>c.key).indexOf(categoryIdentity(r)):r.x;const s=identity(r);if(last.has(s)&&x<=last.get(s))nonmonotonic=true;last.set(s,x);}
-    if(nonmonotonic) issue('warning','折线路径包含重复或逆序 x，将按输入行顺序连接；也可填写 path_order');
+    for(const r of p.rows){const x=p.xType==='ordinal'?p.categoryObjects.map(c=>c.key).indexOf(categoryIdentity(r)):r.x;const s=identity(r);if(last.has(s)&&x<last.get(s))nonmonotonic=true;last.set(s,x);}
+    if(nonmonotonic) issue('warning','折线路径包含 X 回退，导出时自动生成 path_order');
   }
   return out;
+}
+
+// Boundaries are measurement evidence. Ordinary zero-based stacks export segment values.
+function stackNeedsEndpoints(p) {
+  if(!isStack(p)||!p.rows.every(r=>present(r.start)&&present(r.end)))return false;
+  const series=p.series.map(s=>s.key),totals=new Map(),near=(a,b)=>Math.abs(a-b)<=1e-9*Math.max(1,Math.abs(a),Math.abs(b));
+  const rows=[...p.rows].sort((a,b)=>(a.stack_order??series.indexOf(identity(a)))-(b.stack_order??series.indexOf(identity(b))));
+  for(const r of rows){const key=JSON.stringify([categoryIdentity(r),r.value<0]),start=totals.get(key)||0,end=start+r.value;if(!near(r.start,start)||!near(r.end,end))return true;totals.set(key,end);}
+  return false;
+}
+function annotationOrder(p) {
+  const stack=isStack(p),horizontal=isHorizontal(p),bar=isBar(p),line=p.kind.startsWith('line');
+  let series,category,records;
+  if(isPie(p))return {series:'',category:'',records:'按原图扇区顺序录入类别与数值，可用表格行首箭头调整。'};
+  if(isBox(p))return {series:'',category:horizontal?'类别按原图从上到下填写，一行一个类别。':'类别按原图从左到右填写，一行一个类别。',records:'校准数值轴后，依次测量下须、Q1、中位数、Q3、上须；异常值可连续取点。'};
+  if(stack){series=horizontal?'图例 / 系列按柱段从左到右填写，一行一个系列；不要照图例框的排版顺序。':'图例 / 系列按柱段从下到上填写，一行一个系列；不要照图例框的排版顺序。';category=horizontal?'类别按原图从上到下填写，一行一个类别。':'类别按原图从左到右填写，一行一个类别。';records=horizontal?'每组从左到右：起点 → 各段交界点 → 终点。':'每组从下到上：起点 → 各段交界点 → 终点。';records+='N 段点 N+1 次，每个新类别重新点起点。';}
+  else if(bar){series=p.kind.endsWith('_n')?(horizontal?'系列按每组柱子从上到下填写。':'系列按每组柱子从左到右填写。'):'单系列仅填写原图中可读的图例名称；无图例时不填系列名。';category=horizontal?'类别按原图从上到下填写，一行一个类别。':'类别按原图从左到右填写，一行一个类别。';records='GT 先按类别，再按组内柱子的可见顺序记录；误差上下界随对应柱子保存。';}
+  else {series='系列按从左到右扫描原图时首次出现的顺序填写；同一位置按从上到下区分。';category=line&&p.xType==='ordinal'?'离散 X 类别按原图从左到右填写，一行一个位置。':'连续数值轴无需填写类别列表。';records=line?'每条线沿真实路径取点；GT 保留路径顺序，仅同一条线发生画面 X 回退时自动输出 path_order。重复 X 不算回退。':'点击和表格录入顺序不限；训练 GT 自动按画面从左到右、同一 X 从上到下排序。';}
+  if(p.legend===false&&!p.kind.endsWith('_1'))series+=' 原图无可读图例时，按上述顺序使用 Series 1、Series 2 等，不推测名称。';
+  return {series,category,records};
+}
+
+// Canonical output order is shared by preview, JSON and ZIP exports.
+function orderEncoding(enc) {
+  const priority=['x','y','xOffset','yOffset','x2','y2','theta','theta2','radius','radius2','longitude','longitude2','latitude','latitude2','color'];
+  const keys=priority.filter(k=>Object.hasOwn(enc,k));
+  return Object.fromEntries([...keys,...Object.keys(enc).filter(k=>!keys.includes(k))].map(k=>[k,enc[k]]));
 }
 
 function makeSpec(p) {
@@ -227,7 +293,7 @@ function makeSpec(p) {
   if(errors.length) throw Error(errors.map(x=>x.message).join('\n'));
   if(isStat(p))return makeStatSpec(p);
   if(isArea(p))return makeAreaSpec(ensureIdentities(copy(p)));
-  const bar=isBar(p),stack=p.kind==='barv_stack',horizontal=isHorizontal(p),line=p.kind.startsWith('line');
+  const bar=isBar(p),stack=isStack(p),horizontal=isHorizontal(p),line=p.kind.startsWith('line');
   p=ensureIdentities(copy(p));
   const ordered=orderedRows(p),categoryField=bar?'category':'x';
   const seriesKeys=unique(ordered.map(identity)),categoryKeys=unique(ordered.map(categoryIdentity));
@@ -235,7 +301,8 @@ function makeSpec(p) {
   const repeatedSeries=unique(seriesKeys.map(k=>seriesName(p,k))).length<seriesKeys.length;
   const repeatedCategory=(bar||p.xType==='ordinal')&&unique(categoryKeys.map(k=>categoryName(p,k))).length<categoryKeys.length;
   const categoryID=bar?'category_id':'x_id';
-  const optional=['lower','upper','start','end','path_order','stack_order'].filter(k=>ordered.every(r=>present(r[k])));
+  const endpoints=stack&&p.stackEndpointMode==='explicit'&&stackNeedsEndpoints(p);
+  const optional=['lower','upper','start','end','path_order','stack_order'].filter(k=>ordered.every(r=>present(r[k]))&&(!stack||(['start','end'].includes(k)?endpoints:k==='stack_order'?!endpoints:true)));
   const stackKeys=p.series.map(s=>s.key);
   const rows=ordered.map(r=>{
     const out=bar?{category:r.category,value:r.value}:{x:r.x,y:r.y};
@@ -256,6 +323,8 @@ function makeSpec(p) {
   const cat=horizontal?'y':'x',val=horizontal?'x':'y';
   const enc=bar?{[cat]:axis(cat,repeatedCategory?'category_id':'category','nominal'),[val]:axis(val,'value','quantitative')}:
     {x:axis('x',repeatedCategory?'x_id':'x',p.xType==='ordinal'?'ordinal':'quantitative'),y:axis('y','y','quantitative')};
+  if(line&&p.xType==='quantitative'&&(p.axes.x.reverse||(p.axes.x.calibrated&&(p.axes.x.v2-p.axes.x.v1)/(p.axes.x.p2-p.axes.x.p1)<0)))enc.x.scale={...(enc.x.scale||{}),reverse:true};
+  if(line&&p.xType==='ordinal'&&optional.includes('path_order'))enc.x.sort=p.categoryObjects.filter(c=>categoryKeys.includes(c.key)).map(c=>repeatedCategory?'X'+(categoryKeys.indexOf(c.key)+1):c.name);
   if(withSeries)enc.color={field:rows[0].series_id?'series_id':'series',type:'nominal',sort:null};
   if(['barh_n','barv_n'].includes(p.kind))enc[cat+'Offset']={...enc.color};
   if(stack) {
@@ -265,14 +334,14 @@ function makeSpec(p) {
   let mark={type:bar?'bar':line?'line':'point'};
   if(line&&unique(p.rows.map(identity)).some(id=>p.rows.filter(r=>identity(r)===id).length===1))mark.point=true;
   if(line&&optional.includes('path_order'))enc.order={field:'path_order',type:'quantitative'};
-  else if(line&&validate(p).some(i=>i.message.includes('按输入行顺序'))) mark.order=false;
+  else if(line){const last=new Map();if(ordered.some(r=>{const id=identity(r),x=p.xType==='ordinal'?categoryKeys.indexOf(categoryIdentity(r)):r.x;const same=last.has(id)&&x<=last.get(id);last.set(id,x);return same;}))mark.order=false;}
   const out={};
   if(present(p.title))out.title=copy(p.title);
   out.data={values:rows};
   if(bar&&optional.includes('lower')) {
-    out.encoding=enc;
-    out.layer=[{mark:{type:'bar'}},{mark:{type:'errorbar'},encoding:{[val]:{field:'lower',type:'quantitative',...(stack?{stack:null}:{})},[val+'2']:{field:'upper'}}}];
-  } else {out.mark=mark;out.encoding=enc;}
+    out.encoding=orderEncoding(enc);
+    out.layer=[{mark:{type:'bar'}},{mark:{type:'errorbar'},encoding:orderEncoding({[val]:{field:'lower',type:'quantitative',...(stack?{stack:null}:{})},[val+'2']:{field:'upper'}})}];
+  } else {out.mark=mark;out.encoding=orderEncoding(enc);}
   return out;
 }
 
@@ -282,7 +351,7 @@ function importSpec(input) {
   if(!s.data||!Array.isArray(s.data.values)||!s.data.values.length)throw Error('只支持包含 data.values 的非空内联 Vega-Lite 图表');
   if(markType(s.mark)==='area')return importAreaSpec(s);
   if(markType(s.mark)==='arc'||Array.isArray(s.layer)&&s.layer.some(l=>markType(l.mark)==='tick'))return importStatSpec(s);
-  if(s.transform||s.concat||s.hconcat||s.vconcat||s.facet||s.repeat)throw Error('当前九类工具不支持变换或组合图表导入');
+  if(s.transform||s.concat||s.hconcat||s.vconcat||s.facet||s.repeat)throw Error('当前工具不支持变换或组合图表导入');
   if(s.usermeta?.semantic)throw Error('请导入合成数据的精简 GT，而不是包含 plot_* 布局字段的完整渲染 spec');
   if(s.layer&&(!Array.isArray(s.layer)||s.layer.some(l=>l.transform||l.data||l.layer||l.resolve)))throw Error('不支持带独立数据、变换或嵌套结构的图层');
   const primary=s.layer?.find(l=>['bar','line','point'].includes(typeof l.mark==='string'?l.mark:l.mark?.type));
@@ -291,9 +360,11 @@ function importSpec(input) {
   const type=typeof mark==='string'?mark:mark?.type;
   if(!['bar','line','point'].includes(type)||!enc.x||!enc.y)throw Error('仅支持柱、折线、散点图的 x/y 编码');
   if(typeof mark==='object'&&Object.keys(mark).some(k=>!['type','order','point'].includes(k)))throw Error('导入包含额外标记属性，请先转换为精简 GT');
-  if(Object.keys(enc).some(k=>!['x','y','x2','y2','color','xOffset','yOffset','order'].includes(k)))throw Error('导入包含当前九类工具尚不支持的视觉编码');
-  for(const def of Object.values(enc)) {
-    if(def.condition||def.aggregate||def.bin||def.timeUnit||def.datum!==undefined||def.value!==undefined||def.sort!=null)throw Error('导入包含条件、聚合、分箱、常数或显式排序编码，不进行有损转换');
+  if(Object.keys(enc).some(k=>!['x','y','x2','y2','color','xOffset','yOffset','order'].includes(k)))throw Error('导入包含当前十类工具尚不支持的视觉编码');
+  for(const [channel,def] of Object.entries(enc)) {
+    const lineDomain=type==='line'&&channel==='x'&&enc.order?.field==='path_order'&&Array.isArray(def.sort);
+    if(lineDomain&&(new Set(def.sort).size!==def.sort.length||def.sort.length!==unique(s.data.values.map(r=>r[def.field])).length||s.data.values.some(r=>!def.sort.includes(r[def.field]))))throw Error('折线显式 X 顺序必须恰好覆盖观测位置');
+    if(def.condition||def.aggregate||def.bin||def.timeUnit||def.datum!==undefined||def.value!==undefined||def.sort!=null&&!lineDomain)throw Error('导入包含条件、聚合、分箱、常数或不支持的排序编码，不进行有损转换');
     if(def.axis?.labelExpr||def.legend?.labelExpr)throw Error('请使用当前规范的 category_id / x_id / series_id 身份字段，不导入旧版标签表达式');
   }
   const horizontal=type==='bar'&&['nominal','ordinal'].includes(enc.y.type);
@@ -301,9 +372,9 @@ function importSpec(input) {
   const seriesField=enc.color?.field;
   const ids=unique(s.data.values.map(r=>seriesField?r[seriesField]:'Series 1'));
   const stacked=type==='bar'&&(present(enc[val].stack)&&enc[val].stack!==null||enc[val+'2']||enc.order?.field==='stack_order');
-  if(stacked&&horizontal)throw Error('当前只支持纵向堆叠图');
+
   if(enc[val].stack&&!['zero'].includes(enc[val].stack))throw Error('当前规范仅支持 zero 堆叠；百分比图需直接标注图中归一化数值');
-  const kind=type==='bar'?(stacked?'barv_stack':`bar${horizontal?'h':'v'}_${ids.length>1||enc[cat+'Offset']?'n':'1'}`):`${type==='line'?'line':'scatter'}_${ids.length>1?'n':'1'}`;
+  const kind=type==='bar'?(stacked?`bar${horizontal?'h':'v'}_stack`:`bar${horizontal?'h':'v'}_${ids.length>1||enc[cat+'Offset']?'n':'1'}`):`${type==='line'?'line':'scatter'}_${ids.length>1?'n':'1'}`;
   const p=defaultProject(kind);
   p.title=typeof s.title==='object'&&!Array.isArray(s.title)?s.title.text??'':s.title??'';
   p.xTitle=enc.x.title??enc.x.axis?.title??'';p.yTitle=enc.y.title??enc.y.axis?.title??'';
@@ -331,9 +402,14 @@ function importSpec(input) {
     return row;
   });
   p.categories=unique(p.rows.map(r=>type==='bar'?r.category:r.x));delete p.categoryObjects;ensureIdentities(p);
+  if(type==='line'&&p.xType==='ordinal'&&Array.isArray(enc.x.sort)){
+    const refs=new Map(s.data.values.map((r,i)=>[r[enc.x.field],p.rows[i]._categoryKey]));
+    p.categoryObjects.sort((a,b)=>enc.x.sort.findIndex(v=>refs.get(v)===a.key)-enc.x.sort.findIndex(v=>refs.get(v)===b.key));p.categories=p.categoryObjects.map(c=>c.name);
+  }
+  if(stacked&&enc[val+'2']&&stackNeedsEndpoints(p))p.stackEndpointMode='explicit';
   // Compact-v4 omits display reversal; its observation table still follows screen order.
   // Recover a descending reading direction from that table for lossless re-export.
-  if(type!=='bar'&&p.xType==='quantitative'&&!enc.x.scale?.reverse) {
+  if(type==='point'&&p.xType==='quantitative'&&!enc.x.scale?.reverse) {
     const xs=unique(p.rows.map(r=>r.x));
     if(xs.length>1&&xs.every((v,i)=>!i||v<xs[i-1]))p.axes.x.reverse=true;
   }
@@ -341,16 +417,7 @@ function importSpec(input) {
     const tie=p.rows.findIndex((r,i)=>i>0&&r.x===p.rows[i-1].x&&r.y!==p.rows[i-1].y);
     if(tie>0)p.axes.y.reverse=p.rows[tie].y>p.rows[tie-1].y;
   }
-  if(stacked&&p.rows.length>1&&!enc.y.scale?.reverse) {
-    const totals=new Map(),mids=new Map();
-    for(const r of [...p.rows].sort((a,b)=>(a.stack_order??0)-(b.stack_order??0))) {
-      const key=JSON.stringify([categoryIdentity(r),r.value<0]);
-      const start=present(r.start)?r.start:(totals.get(key)||0),end=present(r.end)?r.end:start+r.value;
-      mids.set(r,(start+end)/2);totals.set(key,end);
-    }
-    const r0=p.rows[0],r1=p.rows.find(r=>categoryIdentity(r)===categoryIdentity(r0)&&identity(r)!==identity(r0));
-    if(r1)p.axes.y.reverse=mids.get(r1)>mids.get(r0);
-  }
+
   return p;
 }
 
@@ -570,13 +637,13 @@ if(entries.length>65535||offset>0xffffffff)throw Error('ZIP 超过容量限制�
 function safeExportName(name){return String(name||'chart').replace(/\\/g,'/').split('/').filter(v=>v&&v!=='.'&&v!=='..').map(v=>v.replace(/[<>:"|?*\u0000-\u001f]/g,'_')).join('/').replace(/\.[^/.]+$/,'')+'.gt.json';}
 
 const $=id=>document.getElementById(id), clone=x=>structuredClone(x);
-const labels={barh_1:'单系列横向柱图',barh_n:'分组横向柱图',barv_1:'单系列纵向柱图',barv_n:'分组纵向柱图',barv_stack:'堆叠纵向柱图',line_1:'单系列折线图',line_n:'多系列折线图',scatter_1:'单系列散点图',scatter_n:'多系列散点图',area_1:'Single-series Area / 单系列',area_n:'Multi-series Area / 多系列',area_stack:'Stacked Area / 堆叠',pie:'Pie / 饼图（含环形）',boxplot_v:'Box Plot Vertical / 纵向',boxplot_h:'Box Plot Horizontal / 横向'};
+const labels={barh_1:'单系列横向柱图',barh_n:'分组横向柱图',barv_1:'单系列纵向柱图',barv_n:'分组纵向柱图',barv_stack:'堆叠纵向柱图',barh_stack:'堆叠横向柱图',line_1:'单系列折线图',line_n:'多系列折线图',scatter_1:'单系列散点图',scatter_n:'多系列散点图',area_1:'Single-series Area / 单系列',area_n:'Multi-series Area / 多系列',area_stack:'Stacked Area / 堆叠',pie:'Pie / 饼图（含环形）',boxplot_v:'Box Plot Vertical / 纵向',boxplot_h:'Box Plot Horizontal / 横向'};
 for(const kind of ['barh_1','barh_n','barv_1','barv_n'])labels[kind+'_error']=labels[kind]+' · 误差棒';
 let projects=[],currentProjectId=null,focusMode=false,focusZoom=1,imageLoadVersion=0,activationVersion=0;
 let hover=null,selectedHandle='pixel',dragOrigin=null,projectionInfo=null;
 let p=defaultProject('scatter_1'),image=null,imageData=null,fileName='',tool='select',selected=-1,zoom=1,calTarget='x1',pendingStart=null,drag=null,history=[],future=[],queue=[],activeId=null,renderTimer,saveTimer,renderOk=false,lastSpec=null;
 const canvas=$('canvas'),ctx=canvas.getContext('2d');
-const bar=()=>p.kind.startsWith('bar'), horizontal=()=>isHorizontal(p), categorical=()=>bar()||isBox(p)||p.xType==='ordinal';
+const bar=()=>p.kind.startsWith('bar'), horizontal=()=>isHorizontal(p), categorical=()=>!isPie(p)&&(bar()||isBox(p)||p.xType==='ordinal');
 function fresh(kind){const q=defaultProject(kind);q.rows=[];q.evidence=[];q.reviewed=false;for(const a of Object.values(q.axes))a.calibrated=false;return q;}
 p=fresh('scatter_1');
 function toast(message){$('toast').textContent=message;$('toast').style.display='block';clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').style.display='none',4500);}
@@ -586,9 +653,9 @@ function change(fn,{form=false}={}){const old=clone(p);checkpoint();try{fn();}ca
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function options(el,values,chosen){el.innerHTML=values.map(([v,t])=>`<option value="${esc(v)}">${esc(t)}</option>`).join('');if(values.some(([v])=>String(v)===String(chosen)))el.value=chosen;}
 const familyOf=kind=>kind==='pie'?'pie':kind.startsWith('boxplot')?'boxplot':kind.startsWith('bar')?'bar':kind.startsWith('line')?'line':kind.startsWith('area_')?'area':'scatter';
-function syncTypes(){const family=familyOf(p.kind);$('family').value=family;options($('kind'),Object.entries(labels).filter(([k])=>familyOf(k)===family),p.kind+(hasErrors(p)&&p.kind!=='barv_stack'?'_error':''));}
+function syncTypes(){const family=familyOf(p.kind);$('family').value=family;options($('kind'),Object.entries(labels).filter(([k])=>familyOf(k)===family),p.kind+(hasErrors(p)&&!isStack(p)?'_error':''));}
 syncTypes();
-function syncForm(){ensureIdentities(p);syncTypes();for(const key of ['title','xTitle','yTitle','xType','notes'])$(key).value=p[key]??'';$('legend').checked=p.legend;$('reviewed').checked=!!p.reviewed;syncCategoryList();$('xTypeLabel').hidden=!p.kind.startsWith('line');$('addSeries').hidden=p.kind.endsWith('_1');$('activeSeries').closest('label').hidden=p.kind.endsWith('_1');$('seriesSection').hidden=p.kind.endsWith('_1')&&!p.legend;$('roleLabel').hidden=!p.kind.startsWith('line');$('connect').closest('label').hidden=!p.kind.startsWith('line');$('tableNote').textContent=bar()?(hasErrors(p)?'下限 / 上限是绝对数值界限，不是误差长度。':p.kind==='barv_stack'?'段起点 / 段终点是实际边界数值。':'每条记录对应一个柱子。'):p.kind.startsWith('line')?'默认按取点顺序连接；复杂路径可展开高级字段调整顺序。':'每条记录对应一个可见散点。';$('categoryLabel').hidden=!categorical();$('activeCategoryLabel').hidden=!categorical();
+function syncForm(){ensureIdentities(p);syncTypes();$('seriesNames').value=p.series.map(s=>s.name).join('\n');for(const key of ['title','xTitle','yTitle','xType','notes'])$(key).value=p[key]??'';$('legend').checked=p.legend;$('reviewed').checked=!!p.reviewed;syncCategoryList();$('xTypeLabel').hidden=!p.kind.startsWith('line');$('addSeries').hidden=p.kind.endsWith('_1');$('activeSeries').closest('label').hidden=p.kind.endsWith('_1');$('seriesSection').hidden=p.kind.endsWith('_1')&&!p.legend;$('roleLabel').hidden=!p.kind.startsWith('line');$('connect').closest('label').hidden=!p.kind.startsWith('line');$('tableNote').textContent=bar()?(hasErrors(p)?'下限 / 上限是绝对数值界限，不是误差长度。':isStack(p)?'数据记录保留段起点 / 段终点供测量核对；普通堆叠的精简 GT / 导出 GT 统一使用 value、stack_order，不导出这些中间端点。':'每条记录对应一个柱子。'):p.kind.startsWith('line')?'默认按取点顺序连接；复杂路径可展开高级字段调整顺序。':'每条记录对应一个可见散点。';$('categoryLabel').hidden=!categorical();$('activeCategoryLabel').hidden=!categorical();const order=annotationOrder(p);$('orderGuide').textContent=order.records;$('seriesOrderNote').textContent=order.series;$('categoryOrderNote').textContent=order.category;
 const active=$('activeSeries').value;options($('activeSeries'),p.series.map((s,i)=>[s.key,s.name+'（'+(i+1)+'）']),active);options($('activeCategory'),p.categoryObjects.map((c,i)=>[c.key,c.name+'（'+(i+1)+'）']),$('activeCategory').value);
 $('seriesList').innerHTML=p.series.map((s,i)=>`<div class="series-row"><input type="color" aria-label="系列颜色" value="${esc(s.color||'#008b7e')}" data-series="${i}" data-prop="color"><input aria-label="系列名称" value="${esc(s.name)}" data-series="${i}" data-prop="name"><button data-move-series="${i}" data-delta="-1" title="上移">↑</button><button data-move-series="${i}" data-delta="1" title="下移">↓</button><button data-remove-series="${i}" title="删除系列">×</button></div>`).join('');
 syncStatForm();
@@ -601,7 +668,7 @@ if(isArea(p)){
 if(!isArea(p)&&tool.startsWith('area-'))setTool('select');
 else{axisForm();syncAssist();}}
 function axisForm(){ const required=requiredAxes(p);$('categoryAxisNote').hidden=required.length===2;$('categoryAxisNote').textContent=required.length===1?(required[0]==='x'?'Y':'X')+' 轴是类别轴，无需数值标定；在类别顺序中填写标签即可。':'';$('axisFields').innerHTML=required.map(a=>`<div class="axis-group"><h4>${a.toUpperCase()} 轴 <small>${p.axes[a].calibrated?'已校准':'待校准'}</small></h4><label>坐标类型<select data-axis="${a}" data-field="type"><option value="linear" ${p.axes[a].type!=='log'?'selected':''}>线性</option><option value="log" ${p.axes[a].type==='log'?'selected':''}>对数</option></select></label>${[1,2].map(n=>`<div class="tick-row"><button data-tick="${a}${n}" class="${tool==='calibrate'&&calTarget===a+n?'active':''}">${a.toUpperCase()}${n} 取刻度</button><label>原图像素<input type="number" step="any" data-axis="${a}" data-field="p${n}" value="${p.axes[a]['p'+n]}"></label><label>真实数值<input type="number" step="any" data-axis="${a}" data-field="v${n}" value="${p.axes[a]['v'+n]}"></label></div>`).join('')}</div>`).join('');$('calibrationStatus').textContent=required.every(a=>p.axes[a].calibrated)?'所需数值轴已校准':'先取两个刻度再测量';}
-function columns(){if(isPie(p))return ['category','value'];if(isBox(p))return ['category',...BOX_FIELDS,'outliers'];const series=p.kind.endsWith('_1')?[]:['series'];if(isArea(p))return ['x','y','baseline',...series,...(p.kind==='area_stack'?['stack_order']:[])];return bar()?['category','value',...series,...(p.kind==='barv_stack'?['start','end']:[]),...(hasErrors(p)?['lower','upper']:[])]:['x','y',...series,...(p.kind.startsWith('line')&&$('advancedFields').checked?['path_order']:[])];}
+function columns(){if(isPie(p))return ['category','value'];if(isBox(p))return ['category',...BOX_FIELDS,'outliers'];const series=p.kind.endsWith('_1')?[]:['series'];if(isArea(p))return ['x','y','baseline',...series,...(p.kind==='area_stack'?['stack_order']:[])];return bar()?['category','value',...series,...(isStack(p)?['start','end']:[]),...(hasErrors(p)?['lower','upper']:[])]:['x','y',...series,...(p.kind.startsWith('line')&&$('advancedFields').checked?['path_order']:[])];}
 const columnNames={category:'类别',value:'数值',series:'系列',x:'X',y:'Y',baseline:'下界 baseline',start:'段起点',end:'段终点',stack_order:'堆叠顺序',path_order:'路径顺序',lower:'下限',upper:'上限',q1:'Q1',median:'中位数',q3:'Q3',outliers:'异常值'};
 function table(){const cols=columns();$('tableHead').innerHTML='<tr><th># / 来源</th>'+cols.map(k=>`<th>${isArea(p)&&k==='y'?'上界 Y':columnNames[k]}</th>`).join('')+'</tr>';
 $('tableBody').innerHTML=p.rows.map((r,i)=>`<tr class="${i===selected?'selected':''}" data-row="${i}"><td>${isStat(p)?`<button class="small" data-move="-1" data-index="${i}" title="上移类别">↑</button><button class="small" data-move="1" data-index="${i}" title="下移类别">↓</button> `:''}${i+1} ${p.evidence?.[i]?.pixel?'⌖':'✎'}</td>${cols.map(k=>{
@@ -612,7 +679,7 @@ if(kind){const list=kind==='series'?p.series:p.categoryObjects,ref=kind==='serie
 return `<td><input aria-label="第${i+1}行 ${columnNames[k]}" data-i="${i}" data-key="${k}" value="${esc(r[k])}" type="number" step="any"></td>`;
 }).join('')}</tr>`).join('');$('countBadge').textContent=`${p.rows.length} 条记录`;$('undo').disabled=!history.length;$('redo').disabled=!future.length;}
 function syncCategoryList(){
-  $('categories').hidden=true;let list=$('categoryObjects');if(!list){list=document.createElement('div');list.id='categoryObjects';$('categories').after(list);}
+  $('categories').value=p.categoryObjects.map(c=>c.name).join('\n');const list=$('categoryObjects');
   list.innerHTML=p.categoryObjects.map((c,i)=>`<div class="series-row"><input aria-label="类别位置 ${i+1} 名称" data-category="${esc(c.key)}" value="${esc(c.name)}"><button data-move-category="${esc(c.key)}" data-delta="-1" title="上移">↑</button><button data-move-category="${esc(c.key)}" data-delta="1" title="下移">↓</button><button data-remove-category="${esc(c.key)}" title="删除类别及记录">×</button></div>`).join('')+'<button type="button" id="addCategory">＋ 添加类别位置</button>';
   list.onchange=e=>{if(e.target.dataset.category)change(()=>renameObject(p,'category',e.target.dataset.category,e.target.value),{form:true});};
   list.onclick=e=>{const d=e.target.dataset;if(e.target.id==='addCategory')change(()=>addObject(p,'category','新类别'),{form:true});else if(d.moveCategory)change(()=>moveObject(p,'category',d.moveCategory,Number(d.delta)),{form:true});else if(d.removeCategory){if(p.rows.some(r=>r._categoryKey===d.removeCategory)&&!confirm('删除该类别位置及其全部记录？'))return;change(()=>{removeObject(p,'category',d.removeCategory);selected=-1;},{form:true});}};
@@ -623,7 +690,7 @@ async function render(){const version=++renderVersion;renderOk=false;let issues=
 try{const gt=makeSpec(p);$('jsonPreview').textContent=JSON.stringify(gt,null,2);if(!window.vegaEmbed)throw Error('本地 Vega 渲染组件未加载');const spec={...renderSpec(gt),width:230,height:210};for(const a of ['x','y']){if(!isStat(p)&&!isArea(p)&&spec.encoding[a])spec.encoding[a].title=p[a+'Title']||null;}if(!isStat(p)&&!isArea(p)&&spec.encoding.color){spec.encoding.color.legend=p.legend?{...(spec.encoding.color.legend||{}),title:null}:null;const keys=unique(orderedRows(p).map(identity));spec.encoding.color.scale={domain:unique(gt.data.values.map(r=>r.series_id??r.series)),range:keys.map(k=>p.series.find(s=>s.key===k)?.color||'#008b7e')};}if(isPie(p)&&p.donut)spec.mark={type:'arc',innerRadius:55};if(isBox(p)){const v=valueAxis(p);spec.layer[1].mark={type:'bar',size:26};spec.layer[2].mark={type:'tick',orient:horizontal()?'vertical':'horizontal',color:'#243344',size:26,thickness:2};if(p.axes[v].type==='log')for(const l of spec.layer)l.encoding[v].scale={type:'log'};}const holder=document.createElement('div');const result=await window.vegaEmbed(holder,spec,{actions:false,renderer:'svg'});result.view.finalize();if(version!==renderVersion)return;$('preview').replaceChildren(holder);lastSpec=gt;renderOk=true;$('renderState').textContent='Vega-Lite v6 · 语义渲染成功';}catch(e){if(version!==renderVersion)return;lastSpec=null;$('jsonPreview').textContent='请先修正数据结构。';$('preview').replaceChildren();$('renderState').textContent=p.rows.length?'无法渲染：'+e.message:'添加记录后显示语义重绘';}}
 function assist(){
   ensureIdentities(p);p.assist??={};const a=p.assist;
-  a.sequence??=bar()?'category':'series';a.errorOrder??='per-bar';a.projections??=true;a.magnify??=true;a.dragAxis??='free';a.categoryPixels??={};if(isBox(p)){a.boxField??='lower';a.outlierTarget??='new';}
+  a.sequence??=bar()?'category':'series';if(isStack(p)&&a.sequence!=='manual')a.sequence='category';a.errorOrder??='per-bar';a.projections??=true;a.magnify??=true;a.dragAxis??='free';a.categoryPixels??={};if(isBox(p)){a.boxField??='lower';a.outlierTarget??='new';}
   if(!p.series.some(s=>s.key===a.series))a.series=p.series.find(s=>s.name===a.series)?.key??p.series[0]?.key??'';
   if(!p.categoryObjects.some(c=>c.key===a.category))a.category=p.categoryObjects.find(c=>c.name===a.category)?.key??p.categoryObjects[0]?.key??'';
   return a;
@@ -631,13 +698,13 @@ function assist(){
 function targetPairs(){const a=assist(),cats=p.categoryObjects.map(c=>c.key),series=p.series.map(s=>s.key);if(isBox(p))return cats.map(category=>({category,series:a.series}));return a.sequence==='series'?series.flatMap(series=>cats.map(category=>({series,category}))):cats.flatMap(category=>series.map(series=>({series,category})));}
 function targetIndex(t){if(isBox(p))return p.rows.findIndex(r=>categoryIdentity(r)===t.category);return p.rows.findIndex(r=>identity(r)===t.series&&categoryIdentity(r)===t.category);}
 function nextTarget(){const a=assist(),pairs=targetPairs(),at=pairs.findIndex(t=>t.series===a.series&&t.category===a.category);for(let offset=1;offset<=pairs.length;offset++){const t=pairs[(Math.max(at,0)+offset)%pairs.length];if(targetIndex(t)<0||isBox(p)&&BOX_FIELDS.some(k=>!finite(p.rows[targetIndex(t)][k]))){if(isBox(p))a.boxField='lower';a.series=t.series;a.category=t.category;syncAssist();return true;}}syncAssist();return false;}
-function errorTask(){if(!hasErrors(p)||p.kind==='barv_stack')return null;const a=assist(),pairs=targetPairs(),fields=['value','upper','lower'];const missing=t=>{const i=targetIndex(t);return i<0||!finite(p.rows[i][t.field]);};if(!pairs.length)return {category:'',series:a.series,field:'value'};if(a.errorOrder==='passes')return fields.flatMap(field=>pairs.map(t=>({...t,field}))).find(missing)||null;const current={category:a.category,series:a.series},own=fields.map(field=>({...current,field})).find(missing);return own||pairs.flatMap(t=>fields.map(field=>({...t,field}))).find(missing)||null;}
+function errorTask(){if(!hasErrors(p)||isStack(p))return null;const a=assist(),pairs=targetPairs(),fields=['value','upper','lower'];const missing=t=>{const i=targetIndex(t);return i<0||!finite(p.rows[i][t.field]);};if(!pairs.length)return {category:'',series:a.series,field:'value'};if(a.errorOrder==='passes')return fields.flatMap(field=>pairs.map(t=>({...t,field}))).find(missing)||null;const current={category:a.category,series:a.series},own=fields.map(field=>({...current,field})).find(missing);return own||pairs.flatMap(t=>fields.map(field=>({...t,field}))).find(missing)||null;}
 function syncErrorTarget(){const t=errorTask();if(t){assist().series=t.series;assist().category=t.category;}return t;}
 function errorComplete(t){const i=targetIndex(t);return i>=0&&['value','lower','upper'].every(k=>finite(p.rows[i][k]));}
 function measureError(raw){const t=syncErrorTarget();if(!t){toast('误差棒全部标注完成；选择 / 拖动可复查');return;}calibrated();if(!t.category)throw Error('请先填写类别');const i=targetIndex(t),axis=horizontal()?'x':'y';const pt=t.field==='value'?constrainAdd(raw):{...raw,...(p.evidence?.[i]?.pixel?{[horizontal()?'y':'x']:p.evidence[i].pixel[horizontal()?'y':'x']}:{})};const value=pixelToValue(pt[axis],p.axes[axis]);change(()=>{let index=i;if(t.field==='value'&&i<0){p.rows.push({category:categoryName(p,t.category),series:seriesName(p,t.series),_categoryKey:t.category,_seriesKey:t.series,value});p.evidence??=[];p.evidence.push({role:'observation',source:'pixel_measurement',createdAt:new Date().toISOString()});index=p.rows.length-1;}p.rows[index][t.field]=value;p.evidence??=[];p.evidence[index]??={role:'observation',source:'pixel_measurement'};const key=t.field==='value'?'pixel':t.field+'Pixel';p.evidence[index][key]=pt;if(t.field==='value'&&assist().lockCategory){if(horizontal())p.evidence[index].fixedY={pixel:pt.y};else p.evidence[index].fixedX={pixel:pt.x};}selected=index;selectedHandle=key;syncErrorTarget();});}
 function anchorKey(){const a=assist();return JSON.stringify(p.kind==='barv_n'||p.kind==='barh_n'?[a.category,a.series]:[a.category]);}
 function syncAssist(){
-  const a=assist(),task=syncErrorTarget();$('errorOrderLabel').hidden=!hasErrors(p)||p.kind==='barv_stack';$('errorOrder').value=a.errorOrder;for(const k of ['lower','upper'])document.querySelector('[data-tool='+k+']').hidden=!hasErrors(p);
+  const a=assist(),task=syncErrorTarget();$('errorOrderLabel').hidden=!hasErrors(p)||isStack(p);$('errorOrder').value=a.errorOrder;for(const k of ['lower','upper'])document.querySelector('[data-tool='+k+']').hidden=!hasErrors(p);
   for(const k of ['area-upper','area-baseline']){
     const button=document.querySelector('[data-tool='+k+']');
     button.hidden=!isArea(p);button.disabled=!p.rows[selected]||!finite(p.rows[selected].x);
@@ -654,7 +721,7 @@ function syncAssist(){
       $('targetHint').textContent=p.rows[selected]?`第 ${selected+1} 行 · X = ${p.rows[selected].x} · ${tool==='area-upper'?'重取上界':'重取下界'}`:'请先选中有 X 数值的记录';
     }
   }
-  if(hasErrors(p)&&p.kind!=='barv_stack')$('targetHint').textContent=task?'下一点：'+categoryName(p,task.category)+' · '+seriesName(p,task.series)+' · '+({value:'柱子数值端点',upper:'误差上界（较大值）',lower:'误差下界（较小值）'}[task.field]):'误差棒取点完成，可选择标记复查';$('targetTop').textContent=$('targetHint').textContent; $('targetProgress').textContent=pairs.length?`${done} / ${pairs.length} 已标注`:'';
+  if(hasErrors(p)&&!isStack(p))$('targetHint').textContent=task?'下一点：'+categoryName(p,task.category)+' · '+seriesName(p,task.series)+' · '+({value:'柱子数值端点',upper:'误差上界（较大值）',lower:'误差下界（较小值）'}[task.field]):'误差棒取点完成，可选择标记复查';$('targetTop').textContent=$('targetHint').textContent; $('targetProgress').textContent=pairs.length?`${done} / ${pairs.length} 已标注`:'';
   $('targetGrid').hidden=!categorical();$('targetGrid').innerHTML=pairs.map((t,i)=>`<button class="target-cell ${complete(t)?'done':''} ${t.series===a.series&&t.category===a.category?'current':''}" data-target="${i}" title="${esc(categoryName(p,t.category)+' · '+seriesName(p,t.series))}">${complete(t)?'✓ ':''}${esc(categoryName(p,t.category))} <small>${isBox(p)?BOX_FIELDS.filter(k=>finite(p.rows[targetIndex(t)]?.[k])).length+'/5':esc(seriesName(p,t.series))}</small></button>`).join('');
   const anchor=a.categoryPixels[anchorKey()];$('anchorStatus').textContent=Number.isFinite(anchor)?`已定位 ${anchor.toFixed(1)} px`:'尚未定位';
   $('unlockPoint').disabled=selected<0||!p.evidence?.[selected]?.fixedX;
@@ -670,7 +737,22 @@ function constrainDrag(pt,i,kind='pixel',shift=false){const out=bounded(pt),e=p.
   if(a.dragAxis==='y')out.x=old.x;if(a.dragAxis==='x')out.y=old.y;
   if(shift&&dragOrigin){if(Math.abs(out.x-dragOrigin.x)>=Math.abs(out.y-dragOrigin.y))out.y=dragOrigin.y;else out.x=dragOrigin.x;}return out;
 }
-function editHandle(i,kind,pt){if(isBox(p)){calibrated();p.evidence[i][kind]=pt;const f=boxHandleField(kind),v=boxValueAt(pt,p);if(f==='outliers')p.rows[i].outliers[+kind.match(/\d+/)[0]]=v;else p.rows[i][f]=v;}else if(isArea(p))editAreaHandle(i,kind,pt);else if(kind==='pixel')applyPixel(i,pt);else if(kind==='startPixel'){p.evidence[i].startPixel=pt;p.rows[i].start=pixelToValue(pt.y,p.axes.y);p.rows[i].value=p.rows[i].end-p.rows[i].start;}else{const key=kind==='lowerPixel'?'lower':'upper',axis=horizontal()?'x':'y';p.evidence[i][kind]=pt;p.rows[i][key]=pixelToValue(pt[axis],p.axes[axis]);}p.evidence[i].modifiedAt=new Date().toISOString();}
+function editHandle(i,kind,pt){
+  if(isArea(p)){editAreaHandle(i,kind,pt);return;}
+  if(isBox(p)){
+    calibrated();
+    const row=p.rows[i],field=boxHandleField(kind),value=boxValueAt(pt,p);
+    if(field==='outliers')row.outliers[Number(kind.match(/\d+/)[0])]=value;
+    else row[field]=value;
+    p.evidence[i][kind]=pt;
+    p.evidence[i].modifiedAt=new Date().toISOString();
+    return;
+  }
+  const old=p.evidence[i][kind],axis=horizontal()?'x':'y';
+  const related=isStack(p)&&['pixel','startPixel'].includes(kind)&&old?p.rows.flatMap((r,j)=>j!==i&&categoryIdentity(r)===categoryIdentity(p.rows[i])?['pixel','startPixel'].filter(k=>{const q=p.evidence?.[j]?.[k];return q&&q.x===old.x&&q.y===old.y;}).map(k=>({j,k})):[]):[];
+  const update=(j,k)=>{if(k==='pixel')applyPixel(j,pt);else if(k==='startPixel'){p.evidence[j].startPixel={...pt};p.rows[j].start=pixelToValue(pt[axis],p.axes[axis]);p.rows[j].value=p.rows[j].end-p.rows[j].start;}else{const key=k==='lowerPixel'?'lower':'upper';p.evidence[j][k]={...pt};p.rows[j][key]=pixelToValue(pt[axis],p.axes[axis]);}p.evidence[j].modifiedAt=new Date().toISOString();};
+  update(i,kind);for(const {j,k} of related)update(j,k);pendingStart=null;
+}
 function drawGuides(){
   if(isPie(p))return;
   const a=assist(),e=p.evidence?.[selected],selectedPt=e?.[selectedHandle]||e?.pixel;
@@ -797,7 +879,7 @@ function syncStatForm(){
   if(stat)$('connect').parentElement.hidden=true;$('calibrationPanel').hidden=pie;
   document.querySelector('.assist-panel').hidden=pie;
   document.querySelectorAll('[data-tool]').forEach(b=>b.hidden=pie&&b.dataset.tool!=='select'||stat&&['lower','upper'].includes(b.dataset.tool));
-  $('tableNote').textContent=pie?'数值按原图录入，不自动归一化。使用 ↑ / ↓ 调整类别顺序；GT 不保存像素与环形外观。':box?'lower ≤ q1 ≤ median ≤ q3 ≤ upper；只校准数值轴。自动测量保留两位小数，人工录入及 GT 导入保留原精度。不按 1.5×IQR 重算。异常值可逐个编辑、添加或删除。': 'lower / upper 是绝对误差端点。堆叠图 start / end 是实际段起止值；曲线 path_order 保留连接顺序。所有空白可选字段会从 GT 省略。';
+  if(stat)$('tableNote').textContent=pie?'数值按原图录入，不自动归一化。使用 ↑ / ↓ 调整类别顺序；GT 不保存像素与环形外观。' : 'lower ≤ q1 ≤ median ≤ q3 ≤ upper；只校准数值轴。自动测量保留两位小数，人工录入及 GT 导入保留原精度。不按 1.5×IQR 重算。异常值可逐个编辑、添加或删除。';
 }
 function boxHandle(field){const a=assist();return field==='outliers'?`outlier${a.outlierTarget}Pixel`:field+'Pixel';}
 function boxHandleField(key){return key.startsWith('outlier')?'outliers':key.replace(/Pixel$/,'');}
@@ -860,24 +942,24 @@ if($('connect').checked&&p.kind.startsWith('line'))for(const s of p.series){cons
 p.rows.forEach((r,i)=>{const e=p.evidence?.[i];if(isBox(p)){for(const k of handleKeys(i))mark(e[k],i===selected&&k===selectedHandle?'#007bea':'#e85b35',`${i+1}:${boxHandleField(k)==='outliers'?'o'+(+k.match(/\d+/)[0]+1):boxHandleField(k)}`,i===selected&&k===selectedHandle);return;}const color=p.series.find(s=>s.key===identity(r))?.color||'#e85b35';mark(pointPixel(r,e),color,isArea(p)?`${i+1}:上界`:String(i+1),i===selected&&(!isArea(p)||selectedHandle==='pixel'));if(isArea(p)&&e?.baselinePixel)mark(e.baselinePixel,color,`${i+1}:下界`,i===selected&&selectedHandle==='baselinePixel');
 if(e?.startPixel){mark(e.startPixel,color,'s');ctx.beginPath();ctx.moveTo(e.startPixel.x,e.startPixel.y);ctx.lineTo(e.pixel.x,e.pixel.y);ctx.stroke();}for(const k of ['lower','upper'])if(e?.[k+'Pixel'])mark(e[k+'Pixel'],color,k==='lower'?'−':'+');});
 drawGuides();if(pendingStart)mark(pendingStart,'#ffae00','起点');for(const a of ['x','y'])for(const n of [1,2]){const pt=p.axes[a]['point'+n];if(pt)mark(pt,'#007bea',a.toUpperCase()+n);} }
-function setTool(t){if(isBox(p)&&!requiredAxes(p).includes(calTarget[0]))calTarget=valueAxis(p)+'1';if(isPie(p)&&t!=='select'||t.startsWith('area-')&&!isArea(p))t='select';tool=t;pendingStart=null;hover=null;document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===t));$('calibrationPanel').open=t==='calibrate'||$('calibrationPanel').open;const hints={'area-upper':'选中数据行后，在同一 X 处点击新的上界。','area-baseline':'选中数据行后，在同一 X 处点击新的下界。',select:'点击已有标记或选择表格字段后拖动、方向键微调。重合点优先编辑已选字段；Shift 拖动限制方向。',point:isArea(p)?(p.kind==='area_stack'?'选择当前层，在同一 X 依次点该层的累计上界和实际下界。':'在同一 X 依次取上界和下界。下界随取点位置记录，也可在表格中输入。'):p.kind==='barv_stack'?'堆叠测量：先点击当前段起点，再点击段终点。类别和系列使用下方选择。':'点击原图新增当前目标，附近或重合的已有点不会拦截。类别和系列自动推进；编辑请切换「选择 / 拖动」。',calibrate:'选择下方 X1 / X2 / Y1 / Y2，点击原图刻度，再填写真实数值。',lower:'先选中记录，然后点击误差区间下限。',upper:'先选中记录，然后点击误差区间上限。'};$('hint').textContent=isPie(p)?'Pie 使用表格人工录入原始数值；↑ / ↓ 调整类别顺序。':isBox(p)&&t==='point'?'点击只测量当前项，五数统计量自动推进；近邻和重合点均可连续标注。选择任意项可重测，outliers 可连续新增；编辑请切换「选择 / 拖动」。':hints[t]|| (t==='lock-x'?'先填写已知 X 数值，再点击原图对应 X 刻度；然后沿竖直线寻找 Y。':'点击当前类别在原图中的刻度或柱中心位置，之后只测数值。');axisForm();syncAssist();draw();}
+function setTool(t){if(isBox(p)&&!requiredAxes(p).includes(calTarget[0]))calTarget=valueAxis(p)+'1';if(isPie(p)&&t!=='select'||t.startsWith('area-')&&!isArea(p))t='select';tool=t;pendingStart=null;hover=null;document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===t));$('calibrationPanel').open=t==='calibrate'||$('calibrationPanel').open;const hints={'area-upper':'选中数据行后，在同一 X 处点击新的上界。','area-baseline':'选中数据行后，在同一 X 处点击新的下界。',select:'点击已有标记或选择表格字段后拖动、方向键微调。重合点优先编辑已选字段；Shift 拖动限制方向。',point:isArea(p)?(p.kind==='area_stack'?'选择当前层，在同一 X 依次点该层的累计上界和实际下界。':'在同一 X 依次取上界和下界。下界也可在表格中输入。'):isStack(p)?(horizontal()?'横向堆叠：从左到右依次点击起点、各交界点、终点。':'纵向堆叠：从下到上依次点击起点、各交界点、终点。')+'同一堆叠自动复用交界点；系列按此方向排列。':'点击原图取点，近已有标记可直接拖动；Alt 点击强制新增。类别和系列自动推进，进度格可随时跳转。',calibrate:'选择下方 X1 / X2 / Y1 / Y2，点击原图刻度，再填写真实数值。',lower:'先选中记录，然后点击误差区间下限。',upper:'先选中记录，然后点击误差区间上限。'};$('hint').textContent=isPie(p)?'Pie 使用表格人工录入原始数值；↑ / ↓ 调整类别顺序。':isBox(p)&&t==='point'?'点击只测量当前项，五数统计量自动推进；近邻和重合点均可连续标注。选择任意项可重测，outliers 可连续新增；编辑请切换「选择 / 拖动」。':hints[t]|| (t==='lock-x'?'先填写已知 X 数值，再点击原图对应 X 刻度；然后沿竖直线寻找 Y。':'点击当前类别在原图中的刻度或柱中心位置，之后只测数值。');axisForm();syncAssist();draw();}
 function coords(event){const rect=canvas.getBoundingClientRect();return{x:(event.clientX-rect.left)*image.width/rect.width,y:(event.clientY-rect.top)*image.height/rect.height};}
 function calibrated(skipX=false){const axes=requiredAxes(p);for(const a of axes){if(a==='x'&&skipX)continue;if(!p.axes[a].calibrated)throw Error('请先校准 '+a.toUpperCase()+' 轴的两个刻度');pixelToValue(p.axes[a].p1,p.axes[a]);}}
 function measureAt(pt,i=null){
   if(isArea(p)&&i!==null){calibrated(true);return {x:p.rows[i].x,y:pixelToValue(pt.y,p.axes.y)};}
   const a=assist(),e=i===null?null:p.evidence?.[i],fixed=i===null?(!categorical()&&a.lockX?{value:a.fixedXValue}:null):e?.fixedX;calibrated(!!fixed&&Number.isFinite(fixed.value));if(isBox(p))return{category:i===null?categoryName(p,a.category):p.rows[i].category,value:boxValueAt(pt,p)};if(bar())return{category:i===null?categoryName(p,a.category):p.rows[i].category,value:pixelToValue(horizontal()?pt.x:pt.y,p.axes[horizontal()?'x':'y'])};return{x:p.xType==='ordinal'?(i===null?categoryName(p,a.category):p.rows[i].x):fixed&&Number.isFinite(fixed.value)?fixed.value:pixelToValue(pt.x,p.axes.x),y:pixelToValue(pt.y,p.axes.y)};}
-function applyPixel(i,pt){const r=p.rows[i],e=p.evidence[i],data=measureAt(pt,i);if(bar()){r.value=data.value;if(p.kind==='barv_stack'){r.end=data.value;r.value=r.end-r.start;}}else{if(p.xType!=='ordinal')r.x=data.x;r.y=data.y;}e.pixel=pt;if(bar())for(const key of ['lowerPixel','upperPixel'])if(e[key])e[key][horizontal()?'y':'x']=pt[horizontal()?'y':'x'];e.modifiedAt=new Date().toISOString();}
-function recalculate(){if(isArea(p)){recalculateArea();return;}if(isBox(p)){for(let i=0;i<p.rows.length;i++)for(const k of handleKeys(i))editHandle(i,k,p.evidence[i][k]);return;}for(let i=0;i<p.rows.length;i++){const e=p.evidence?.[i];if(!e?.pixel)continue;applyPixel(i,e.pixel);if(e.startPixel){p.rows[i].start=pixelToValue(e.startPixel.y,p.axes.y);p.rows[i].value=p.rows[i].end-p.rows[i].start;}for(const k of ['lower','upper'])if(e[k+'Pixel'])p.rows[i][k]=pixelToValue(horizontal()?e[k+'Pixel'].x:e[k+'Pixel'].y,p.axes[horizontal()?'x':'y']);}}
+function applyPixel(i,pt){const r=p.rows[i],e=p.evidence[i],data=measureAt(pt,i);if(bar()){r.value=data.value;if(isStack(p)){r.end=data.value;r.value=r.end-r.start;}}else{if(p.xType!=='ordinal')r.x=data.x;r.y=data.y;}e.pixel=pt;if(bar())for(const key of ['lowerPixel','upperPixel'])if(e[key])e[key][horizontal()?'y':'x']=pt[horizontal()?'y':'x'];e.modifiedAt=new Date().toISOString();}
+function recalculate(){if(isArea(p)){recalculateArea();return;}if(isBox(p)){for(let i=0;i<p.rows.length;i++)for(const k of handleKeys(i))editHandle(i,k,p.evidence[i][k]);return;}for(let i=0;i<p.rows.length;i++){const e=p.evidence?.[i];if(!e?.pixel)continue;applyPixel(i,e.pixel);if(e.startPixel){p.rows[i].start=pixelToValue(e.startPixel[horizontal()?'x':'y'],p.axes[horizontal()?'x':'y']);p.rows[i].value=p.rows[i].end-p.rows[i].start;}for(const k of ['lower','upper'])if(e[k+'Pixel'])p.rows[i][k]=pixelToValue(horizontal()?e[k+'Pixel'].x:e[k+'Pixel'].y,p.axes[horizontal()?'x':'y']);}}
 canvas.addEventListener('pointerdown',e=>{if(!image)return;canvas.focus({preventScroll:true});const raw=coords(e);try{
 if(tool==='lock-x'){const a=assist();if(!Number.isFinite(a.fixedXValue)){if(!p.axes.x.calibrated)throw Error('请先在固定 X 输入框填写标签的真实数值');a.fixedXValue=pixelToValue(raw.x,p.axes.x);}a.fixedXPixel=raw.x;a.lockX=true;setTool('point');hover=raw;refresh();toast('X 已固定，沿竖直参考线寻找 Y');return;}
 if(tool==='anchor'){const a=assist();a.categoryPixels[anchorKey()]=horizontal()?raw.y:raw.x;a.lockCategory=true;setTool('point');hover=raw;refresh();toast('当前位置已固定，可直接测数值');return;}
 if(tool==='calibrate'){const a=calTarget[0],n=calTarget[1];change(()=>{p.axes[a]['p'+n]=a==='x'?raw.x:raw.y;p.axes[a]['point'+n]=raw;p.axes[a].calibrated=!!(p.axes[a].point1&&p.axes[a].point2);if(p.axes[a].calibrated)recalculate();},{form:true});toast(`已取 ${calTarget.toUpperCase()}，请填写真实刻度值`);return;}
 if(isArea(p)&&areaTool()){measureArea(raw);return;}
-if(tool==='point'&&hasErrors(p)&&p.kind!=='barv_stack'){measureError(raw);return;}
-if(tool==='select'){let best=null,d=10/zoom;const chosen=p.evidence?.[selected]?.[selectedHandle];if(chosen&&Math.hypot(raw.x-chosen.x,raw.y-chosen.y)<d)best={i:selected,kind:selectedHandle};if(!best)p.evidence?.forEach((v,i)=>{for(const kind of handleKeys(i)){if(!v?.[kind])continue;const dist=Math.hypot(raw.x-v[kind].x,raw.y-v[kind].y);if(dist<d){best={i,kind};d=dist;}}});if(best){selected=best.i;selectedHandle=best.kind;if(isBox(p)){assist().category=p.rows[selected]._categoryKey;assist().boxField=boxHandleField(best.kind);assist().outlierTarget=assist().boxField==='outliers'?best.kind.match(/\d+/)[0]:'new';}drag={...best,checkpointed:false};dragOrigin={...p.evidence[selected][selectedHandle]};try{canvas.setPointerCapture(e.pointerId);}catch{}table();syncAssist();draw();return;}if(tool==='select'){selected=-1;selectedHandle='pixel';table();syncAssist();draw();return;}}
+if(tool==='point'&&hasErrors(p)&&!isStack(p)){measureError(raw);return;}
+if((tool==='select'||tool==='point'&&!isBox(p)&&!(isStack(p)&&targetIndex(assist())<0))&&(!e.altKey||isArea(p))){let best=null,d=10/zoom;const chosen=p.evidence?.[selected]?.[selectedHandle];if(tool==='select'&&chosen&&Math.hypot(raw.x-chosen.x,raw.y-chosen.y)<d)best={i:selected,kind:selectedHandle};if(!best)p.evidence?.forEach((v,i)=>{for(const kind of handleKeys(i)){if(!v?.[kind])continue;const dist=Math.hypot(raw.x-v[kind].x,raw.y-v[kind].y);if(dist<d){best={i,kind};d=dist;}}});if(best){selected=best.i;selectedHandle=best.kind;if(isBox(p)){assist().category=p.rows[selected]._categoryKey;assist().boxField=boxHandleField(best.kind);assist().outlierTarget=assist().boxField==='outliers'?best.kind.match(/\d+/)[0]:'new';}drag={...best,checkpointed:false};dragOrigin={...p.evidence[selected][selectedHandle]};try{canvas.setPointerCapture(e.pointerId);}catch{}table();syncAssist();draw();return;}if(tool==='select'){selected=-1;selectedHandle='pixel';table();syncAssist();draw();return;}}
 if(tool==='lower'||tool==='upper'){calibrated();if(selected<0)throw Error('请先选中一条数据记录');if(!bar())throw Error('当前规范只在柱图中导出误差区间');change(()=>{const axis=horizontal()?'x':'y';p.rows[selected][tool]=pixelToValue(raw[axis],p.axes[axis]);p.evidence[selected]??={role:'transcribed'};p.evidence[selected][tool+'Pixel']=raw;selectedHandle=tool+'Pixel';});return;}
 if(tool==='point'&&isBox(p)){const pt=constrainAdd(raw);calibrated();change(()=>measureBox(pt));return;}
-if(tool==='point'){const a=assist();if(categorical()&&a.sequence!=='manual'&&targetIndex(a)>=0){selected=targetIndex(a);selectedHandle='pixel';hover=null;refresh();throw Error('当前目标已经标注；可拖动修改，或选择下一个待标目标');}const pt=constrainAdd(raw),data=measureAt(pt);if(categorical()&&!a.category)throw Error('请先填写类别并选择当前类别');if(p.kind==='barv_stack'&&!pendingStart){pendingStart=pt;draw();toast('段起点已取，请点击该段终点');return;}change(()=>{const row={...data,series:seriesName(p,a.series),_seriesKey:a.series,...(categorical()?{_categoryKey:a.category}:{})};if(p.kind.startsWith('line'))row.path_order=p.rows.filter(r=>identity(r)===identity(row)).length;const ev={pixel:pt,role:$('role').value,source:'pixel_measurement',createdAt:new Date().toISOString()};if(a.lockX&&!categorical())ev.fixedX={value:a.fixedXValue,pixel:pt.x};else if(a.lockCategory&&categorical()){if(horizontal())ev.fixedY={pixel:pt.y};else ev.fixedX={pixel:pt.x};}if(pendingStart){row.start=pixelToValue(pendingStart.y,p.axes.y);row.end=data.value;row.value=row.end-row.start;ev.startPixel=pendingStart;pendingStart=null;}p.rows.push(row);p.evidence??=[];p.evidence.push(ev);selected=p.rows.length-1;selectedHandle='pixel';if(categorical()&&a.sequence!=='manual')nextTarget();});}}
+if(tool==='point'){const a=assist();if(categorical()&&a.sequence!=='manual'&&targetIndex(a)>=0){selected=targetIndex(a);selectedHandle='pixel';hover=null;refresh();throw Error('当前目标已经标注；可拖动修改，或选择下一个待标目标');}const pt=constrainAdd(raw),data=measureAt(pt);if(categorical()&&!a.category)throw Error('请先填写类别并选择当前类别');if(isStack(p)&&!pendingStart){const previous=p.rows.findIndex(r=>categoryIdentity(r)===a.category&&identity(r)===p.series[p.series.findIndex(s=>s.key===a.series)-1]?.key);if(previous>=0&&p.evidence?.[previous]?.pixel)pendingStart={...p.evidence[previous].pixel};}if(isStack(p)&&!pendingStart){pendingStart=pt;draw();toast('起点已取，请依次点击各段交界点和最终终点');return;}change(()=>{const row={...data,series:seriesName(p,a.series),_seriesKey:a.series,...(categorical()?{_categoryKey:a.category}:{})};if(p.kind.startsWith('line'))row.path_order=p.rows.filter(r=>identity(r)===identity(row)).length;const ev={pixel:pt,role:$('role').value,source:'pixel_measurement',createdAt:new Date().toISOString()};if(a.lockX&&!categorical())ev.fixedX={value:a.fixedXValue,pixel:pt.x};else if(a.lockCategory&&categorical()){if(horizontal())ev.fixedY={pixel:pt.y};else ev.fixedX={pixel:pt.x};}if(pendingStart){row.start=pixelToValue(pendingStart[horizontal()?'x':'y'],p.axes[horizontal()?'x':'y']);row.end=data.value;row.value=row.end-row.start;ev.startPixel={...pendingStart};pendingStart=null;}p.rows.push(row);p.evidence??=[];p.evidence.push(ev);selected=p.rows.length-1;selectedHandle='pixel';if(categorical()&&a.sequence!=='manual'){const previousCategory=a.category;const advanced=nextTarget();if(isStack(p)&&advanced&&a.category===previousCategory)pendingStart={...pt};}});}}
 catch(err){toast(err.message);}});
 canvas.addEventListener('pointermove',e=>{if(!image)return;const pt=coords(e);hover=pt;let val='';try{const area=isArea(p)&&areaTool(),i=area?areaTargetIndex():-1;const v=measureAt(area?areaPoint(pt):tool==='point'?constrainAdd(pt):pt,i>=0?i:null);val=isBox(p)?` · ${v.category} / ${assist().boxField}: ${v.value.toFixed(2)}`:bar()?` · ${v.category}: ${v.value.toPrecision(6)}`:` · X ${typeof v.x==='number'?Number(v.x.toPrecision(6)):v.x} / Y ${Number(v.y.toPrecision(6))}`;}catch{}$('cursorInfo').textContent=`原图 px: ${pt.x.toFixed(1)}, ${pt.y.toFixed(1)}${val}`;if(drag!==null){try{const next=constrainDrag(pt,drag.i,drag.kind,e.shiftKey),old=p.evidence[drag.i][drag.kind];if(next.x!==old.x||next.y!==old.y){if(!drag.checkpointed){checkpoint();drag.checkpointed=true;}editHandle(drag.i,drag.kind,next);dirty();table();}}catch(err){toast(err.message);}}draw();});
 function endDrag(){if(drag!==null){drag=null;dragOrigin=null;refresh();}}
@@ -885,12 +967,23 @@ canvas.addEventListener('pointerup',endDrag);canvas.addEventListener('pointercan
 canvas.addEventListener('pointerleave',()=>{if(drag===null){hover=null;$('magnifier').hidden=true;draw();}});
 
 $('tableBody').addEventListener('click',e=>{if(isStat(p)&&e.target.closest('button'))return;const row=e.target.closest('[data-row]');if(row){selected=+row.dataset.row;if(isBox(p)){assist().category=p.rows[selected]._categoryKey;const k=e.target.dataset.key;if(BOX_FIELDS.includes(k))assist().boxField=k;if(k==='outliers'){assist().boxField='outliers';assist().outlierTarget=e.target.dataset.outlier;}selectedHandle=boxHandle(assist().boxField);}else{const key=e.target.dataset.key;selectedHandle=key==='start'?'startPixel':['lower','upper','baseline'].includes(key)?key+'Pixel':'pixel';}syncAssist();document.querySelectorAll('#tableBody tr').forEach((r,i)=>r.classList.toggle('selected',i===selected));draw();}});
-$('tableBody').addEventListener('change',e=>{const {i,key,object}=e.target.dataset;if(i===undefined)return;if(isStat(p)&&key){editStatCell(e.target);return;}if(isArea(p)&&key){editAreaCell(+i,key,e.target.value);return;}change(()=>{if(object){const ref=object==='series'?'_seriesKey':'_categoryKey',field=object==='series'?'series':bar()||isStat(p)?'category':'x';p.rows[i][ref]=e.target.value;p.rows[i][field]=object==='series'?seriesName(p,e.target.value):categoryName(p,e.target.value);return;}const raw=e.target.value;const numeric=!(key==='category'||key==='series'||key==='x'&&categorical());if(raw===''&&['lower','upper','start','end','stack_order','path_order'].includes(key))delete p.rows[i][key];else p.rows[i][key]=numeric?(raw===''?null:Number(raw)):raw;if(p.kind==='barv_stack'){const r=p.rows[i];if(['start','end'].includes(key)&&Number.isFinite(r.start)&&Number.isFinite(r.end))r.value=r.end-r.start;else if(key==='value'&&Number.isFinite(r.start)&&Number.isFinite(r.value))r.end=r.start+r.value;}p.evidence??=[];p.evidence[i]??={};p.evidence[i].role='transcribed';p.evidence[i].source='manual_edit';delete p.evidence[i].pixel;delete p.evidence[i].startPixel;delete p.evidence[i].lowerPixel;delete p.evidence[i].upperPixel;});});
+$('tableBody').addEventListener('change',e=>{const {i,key,object}=e.target.dataset;if(i===undefined)return;if(isStat(p)&&key){editStatCell(e.target);return;}if(isArea(p)&&key){editAreaCell(+i,key,e.target.value);return;}change(()=>{if(object){const ref=object==='series'?'_seriesKey':'_categoryKey',field=object==='series'?'series':bar()||isStat(p)?'category':'x';p.rows[i][ref]=e.target.value;p.rows[i][field]=object==='series'?seriesName(p,e.target.value):categoryName(p,e.target.value);return;}const raw=e.target.value;const numeric=!(key==='category'||key==='series'||key==='x'&&categorical());if(raw===''&&['lower','upper','start','end','stack_order','path_order'].includes(key))delete p.rows[i][key];else p.rows[i][key]=numeric?(raw===''?null:Number(raw)):raw;if(isStack(p)){const r=p.rows[i];if(['start','end'].includes(key)&&Number.isFinite(r.start)&&Number.isFinite(r.end))r.value=r.end-r.start;else if(key==='value'&&Number.isFinite(r.start)&&Number.isFinite(r.value))r.end=r.start+r.value;}p.evidence??=[];p.evidence[i]??={};p.evidence[i].role='transcribed';p.evidence[i].source='manual_edit';delete p.evidence[i].pixel;delete p.evidence[i].startPixel;delete p.evidence[i].lowerPixel;delete p.evidence[i].upperPixel;});});
 for(const key of ['title','xTitle','yTitle','notes','xType'])$(key).addEventListener('change',()=>change(()=>p[key]=$(key).value,{form:true}));
 $('legend').onchange=()=>change(()=>p.legend=$('legend').checked,{form:true});$('reviewed').onchange=()=>{p.reviewed=$('reviewed').checked;p.reviewedAt=p.reviewed?new Date().toISOString():null;refresh();};
 $('kind').onchange=()=>{const kind=$('kind').value;if(p.rows.length&&!confirm('切换类型会清空当前数据记录。建议先保存工程。继续？')){syncTypes();return;}change(()=>{const old=p;p=fresh(kind);for(const k of ['title','xTitle','yTitle','notes'])p[k]=old[k];selected=-1;},{form:true});setTool('select');};
 $('family').onchange=()=>{const kind=Object.keys(labels).find(k=>familyOf(k)===$('family').value);options($('kind'),Object.entries(labels).filter(([k])=>familyOf(k)===familyOf(kind)),kind);$('kind').onchange();};
-$('categories').onchange=()=>{}; // Legacy bulk textarea replaced by stable object-bound controls.
+function applyBulkNames(kind,inputId){
+  const text=$(inputId).value,names=parseObjectNames(text),label=kind==='series'?'系列':'类别位置';
+  if(!names.length){toast('请至少输入一个名称');return;}
+  if(kind==='series'&&p.kind.endsWith('_1')&&names.length>1){toast('单系列类型只允许一个系列，请先选择多系列图表');return;}
+  const list=kind==='series'?p.series:p.categoryObjects,removed=new Set(list.slice(names.length).map(o=>o.key));
+  const ref=kind==='series'?'_seriesKey':'_categoryKey',rows=p.rows.filter(r=>removed.has(r[ref])).length;
+  if(removed.size&&!confirm('将删除末尾 '+removed.size+' 个'+label+'及其 '+rows+' 条记录。继续？'))return;
+  let applied=false;change(()=>{applyObjectNames(p,kind,text);selected=-1;pendingStart=null;applied=true;},{form:true});
+  if(applied)toast('已按行应用 '+names.length+' 个'+label+'名称');
+}
+$('applySeriesNames').onclick=()=>applyBulkNames('series','seriesNames');
+$('applyCategoryNames').onclick=()=>applyBulkNames('category','categories');
 $('seriesList').onchange=e=>{const {series,prop}=e.target.dataset;if(series===undefined)return;change(()=>{const obj=p.series[series];if(prop==='name')renameObject(p,'series',obj.key,e.target.value);else obj[prop]=e.target.value;},{form:true});};
 $('seriesList').onclick=e=>{const d=e.target.dataset;if(d.moveSeries!==undefined){change(()=>moveSeries(p,+d.moveSeries,Number(d.delta)),{form:true});return;}if(d.removeSeries===undefined)return;const obj=p.series[d.removeSeries];if(p.rows.some(r=>identity(r)===obj.key)&&!confirm('删除该系列及其全部记录？'))return;change(()=>{removeObject(p,'series',obj.key);selected=-1;},{form:true});};
 $('addSeries').onclick=()=>{if(p.kind.endsWith('_1')){toast('单系列类型只允许一个系列，请先选择多系列图表');return;}change(()=>{
@@ -906,10 +999,10 @@ $('addRow').onclick=()=>{if(isArea(p)){
   change(()=>addAreaRow({x:null,y:null,baseline:null},{role:'transcribed',source:'manual_entry'}));
   document.querySelector(`[data-i="${selected}"][data-key="x"]`)?.focus();
   return;
-}if(isStat(p)){change(()=>{const a=assist(),c=isBox(p)&&a.category&&targetIndex(a)<0?p.categoryObjects.find(c=>c.key===a.category):addObject(p,'category',nextCategory());p.rows.push({...isPie(p)?{category:c.name,value:null}:emptyBox(c.name),_categoryKey:c.key,_seriesKey:a.series,series:seriesName(p,a.series)});p.evidence??=[];p.evidence.push({role:'transcribed',source:'manual_entry'});selected=p.rows.length-1;a.category=c.key;selectedHandle=isBox(p)?boxHandle('lower'):'pixel';},{form:true});return;}if(categorical()&&assist().sequence!=='manual'&&targetIndex(assist())>=0){toast('当前目标已标注，请选择其他目标或切换手动模式');return;}change(()=>{const row=bar()?{category:categoryName(p,assist().category)||'A',value:0,series:seriesName(p,assist().series),_categoryKey:assist().category,_seriesKey:assist().series}:{x:p.xType==='ordinal'?categoryName(p,assist().category)||'A':0,y:0,series:seriesName(p,assist().series),_seriesKey:assist().series,...(categorical()?{_categoryKey:assist().category}:{})};if(p.kind==='barv_stack'){row.start=0;row.end=0;}if(p.kind.startsWith('line'))row.path_order=p.rows.length;p.rows.push(row);p.evidence??=[];p.evidence.push({role:$('role').value,source:'manual_entry'});selected=p.rows.length-1;selectedHandle='pixel';if(categorical()&&assist().sequence!=='manual')nextTarget();});const field=document.querySelector('[data-i="'+selected+'"][data-key="'+(bar()?'value':'y')+'"]');field?.focus();field?.select();};
+}if(isStat(p)){change(()=>{const a=assist(),c=isBox(p)&&a.category&&targetIndex(a)<0?p.categoryObjects.find(c=>c.key===a.category):addObject(p,'category',nextCategory());p.rows.push({...isPie(p)?{category:c.name,value:null}:emptyBox(c.name),_categoryKey:c.key,_seriesKey:a.series,series:seriesName(p,a.series)});p.evidence??=[];p.evidence.push({role:'transcribed',source:'manual_entry'});selected=p.rows.length-1;a.category=c.key;selectedHandle=isBox(p)?boxHandle('lower'):'pixel';},{form:true});return;}if(categorical()&&assist().sequence!=='manual'&&targetIndex(assist())>=0){toast('当前目标已标注，请选择其他目标或切换手动模式');return;}change(()=>{const row=bar()?{category:categoryName(p,assist().category)||'A',value:0,series:seriesName(p,assist().series),_categoryKey:assist().category,_seriesKey:assist().series}:{x:p.xType==='ordinal'?categoryName(p,assist().category)||'A':0,y:0,series:seriesName(p,assist().series),_seriesKey:assist().series,...(categorical()?{_categoryKey:assist().category}:{})};if(isStack(p)){row.start=0;row.end=0;}if(p.kind.startsWith('line'))row.path_order=p.rows.length;p.rows.push(row);p.evidence??=[];p.evidence.push({role:$('role').value,source:'manual_entry'});selected=p.rows.length-1;selectedHandle='pixel';if(categorical()&&assist().sequence!=='manual')nextTarget();});const field=document.querySelector('[data-i="'+selected+'"][data-key="'+(bar()?'value':'y')+'"]');field?.focus();field?.select();};
 $('deleteRow').onclick=()=>{if(selected<0)return;change(()=>{p.rows.splice(selected,1);p.evidence?.splice(selected,1);selected=-1;});};
-$('undo').onclick=()=>{if(!history.length)return;future.push(clone(p));p=history.pop();selected=-1;refresh(true);};$('redo').onclick=()=>{if(!future.length)return;history.push(clone(p));p=future.pop();selected=-1;refresh(true);};
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&focusMode){e.preventDefault();exitFocus();return;}if(e.target.matches?.('input,textarea,select,[contenteditable=true]'))return;if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();$(e.shiftKey?'redo':'undo').click();}if(e.key==='Escape'){if(focusMode){exitFocus();return;}pendingStart=null;setTool('select');}if(tool==='select'&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)&&selected>=0&&p.evidence?.[selected]?.[selectedHandle]){e.preventDefault();const step=e.altKey?.1:e.shiftKey?10:1;const pt={...p.evidence[selected][selectedHandle]||p.evidence[selected].pixel};pt.x+=(e.key==='ArrowRight'?step:e.key==='ArrowLeft'?-step:0);pt.y+=(e.key==='ArrowDown'?step:e.key==='ArrowUp'?-step:0);change(()=>editHandle(selected,selectedHandle,constrainDrag(pt,selected,selectedHandle)));}});
+$('undo').onclick=()=>{if(!history.length)return;future.push(clone(p));p=history.pop();selected=-1;pendingStart=null;refresh(true);};$('redo').onclick=()=>{if(!future.length)return;history.push(clone(p));p=future.pop();selected=-1;pendingStart=null;refresh(true);};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&focusMode){e.preventDefault();exitFocus();return;}if(e.target.matches?.('input,textarea,select,[contenteditable=true]'))return;if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();$(e.shiftKey?'redo':'undo').click();}if(e.key==='Escape'){if(focusMode){exitFocus();return;}pendingStart=null;setTool('select');}if((!isBox(p)&&!isArea(p)||tool==='select')&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)&&selected>=0&&p.evidence?.[selected]?.[selectedHandle]){e.preventDefault();const step=e.altKey?.1:e.shiftKey?10:1;const pt={...p.evidence[selected][selectedHandle]||p.evidence[selected].pixel};pt.x+=(e.key==='ArrowRight'?step:e.key==='ArrowLeft'?-step:0);pt.y+=(e.key==='ArrowDown'?step:e.key==='ArrowUp'?-step:0);change(()=>editHandle(selected,selectedHandle,constrainDrag(pt,selected,selectedHandle)));}});
 function setZoom(z){zoom=Math.max(.08,Math.min(8,z));draw();}function fit(){if(image)setZoom(Math.min(($('canvasWrap').clientWidth-20)/image.width,($('canvasWrap').clientHeight-20)/image.height,1));}
 $('zoomIn').onclick=()=>setZoom(zoom*1.3);$('zoomOut').onclick=()=>setZoom(zoom/1.3);$('fit').onclick=fit;$('overlay').onchange=draw;$('connect').onchange=draw;
 function readFile(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file);});}
@@ -918,12 +1011,12 @@ function visibleQueue(){return queue.filter(q=>(q.projectId??null)===currentProj
 function projectName(){return projects.find(q=>q.id===currentProjectId)?.name||'无项目';}
 function queueUI(){const items=visibleQueue().map(q=>q.id===activeId?{...q,project:p}:q);$('queue').innerHTML=items.map(q=>`<button class="${q.id===activeId?'active':''}" data-queue="${esc(q.id)}" title="${esc(q.name)}">${q.project.reviewed?'✓ ':q.project.rows.length?'◐ ':'○ '}${esc(q.name)}</button>`).join('');options($('projectSelect'),[["",'无项目'],...projects.map(q=>[q.id,q.name])],currentProjectId||'');options($('moveProject'),[["",'无项目'],...projects.map(q=>[q.id,q.name])],currentProjectId||'');$('moveProjectLabel').hidden=!activeId;$('queueSummary').textContent=projectName()+' · '+items.length+' 张图 / '+items.filter(q=>q.project.reviewed).length+' 张已核对';$('renameProject').disabled=!currentProjectId;$('deleteProject').disabled=!currentProjectId;$('removeImage').disabled=!activeId;}
 function stash(){let q=queue.find(q=>q.id===activeId);if(!q&&(imageData||p.rows.length)){activeId=crypto.randomUUID();q={id:activeId,projectId:currentProjectId,name:fileName||'未命名图表',image:imageData,project:clone(p)};queue.push(q);}if(q){q.project=clone(p);q.image=imageData;}}
-function resetCurrent(){imageLoadVersion++;activationVersion++;p=fresh(p.kind+(hasErrors(p)&&p.kind!=='barv_stack'?'_error':''));image=null;imageData=null;fileName='';activeId=null;selected=-1;hover=null;pendingStart=null;drag=null;history=[];future=[];$('empty').style.display='flex';$('fileName').textContent='从一张图开始';$('magnifier').hidden=true;$('cursorInfo').textContent='原始像素坐标';setTool('select');refresh(true);queueUI();}
+function resetCurrent(){imageLoadVersion++;activationVersion++;p=fresh(p.kind+(hasErrors(p)&&!isStack(p)?'_error':''));image=null;imageData=null;fileName='';activeId=null;selected=-1;hover=null;pendingStart=null;drag=null;history=[];future=[];$('empty').style.display='flex';$('fileName').textContent='从一张图开始';$('magnifier').hidden=true;$('cursorInfo').textContent='原始像素坐标';setTool('select');refresh(true);queueUI();}
 function decodeImage(data){return new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=()=>reject(Error('无法读取图像'));img.src=data;});}
 // Decode before replacing live state; failed or superseded selections must not damage annotations.
 async function activate(id){const version=++activationVersion;stash();const q=queue.find(q=>q.id===id);if(!q)throw Error('图像不存在');const nextImage=q.image?await decodeImage(q.image):null;if(version!==activationVersion||!queue.includes(q))return;stash();imageLoadVersion++;activeId=id;currentProjectId=q.projectId??null;p=ensureIdentities(clone(q.project));fileName=q.name;image=nextImage;imageData=q.image||null;hover=null;pendingStart=null;drag=null;$('fileName').textContent=fileName;history=[];future=[];selected=-1;$('empty').style.display=image?'none':'flex';if(image)fit();refresh(true);queueUI();setTool('select');}
 async function selectProject(id){stash();const destination=id||null,first=queue.find(q=>(q.projectId??null)===destination);if(first)await activate(first.id);else{currentProjectId=destination;resetCurrent();}}
-async function importImages(files){stash();const supported=[...files].filter(f=>/^image\/(png|jpeg|webp)$/.test(f.type)||/\.(png|jpe?g|webp)$/i.test(f.name)),ordered=supported.sort((a,b)=>(a.webkitRelativePath||a.relativePath||a.name).localeCompare(b.webkitRelativePath||b.relativePath||b.name,'zh-CN',{numeric:true}));let first=null,failed=0;const destination=currentProjectId,kind=p.kind+(hasErrors(p)&&p.kind!=='barv_stack'?'_error':'');for(const f of ordered){try{const data=await readFile(f);await new Promise((resolve,reject)=>{const im=new Image();im.onload=resolve;im.onerror=reject;im.src=data;});const id=crypto.randomUUID();queue.push({id,projectId:destination,name:f.webkitRelativePath||f.relativePath||f.name,image:data,project:fresh(kind)});first??=id;}catch{failed++;}}if(first&&destination===currentProjectId)await activate(first);queueUI();toast('已导入 '+(ordered.length-failed)+' 张图'+(failed?'；'+failed+' 张无法读取':'')+'；跳过 '+(files.length-supported.length)+' 个非支持文件');}
+async function importImages(files){stash();const supported=[...files].filter(f=>/^image\/(png|jpeg|webp)$/.test(f.type)||/\.(png|jpe?g|webp)$/i.test(f.name)),ordered=supported.sort((a,b)=>(a.webkitRelativePath||a.relativePath||a.name).localeCompare(b.webkitRelativePath||b.relativePath||b.name,'zh-CN',{numeric:true}));let first=null,failed=0;const destination=currentProjectId,kind=p.kind+(hasErrors(p)&&!isStack(p)?'_error':'');for(const f of ordered){try{const data=await readFile(f);await new Promise((resolve,reject)=>{const im=new Image();im.onload=resolve;im.onerror=reject;im.src=data;});const id=crypto.randomUUID();queue.push({id,projectId:destination,name:f.webkitRelativePath||f.relativePath||f.name,image:data,project:fresh(kind)});first??=id;}catch{failed++;}}if(first&&destination===currentProjectId)await activate(first);queueUI();toast('已导入 '+(ordered.length-failed)+' 张图'+(failed?'；'+failed+' 张无法读取':'')+'；跳过 '+(files.length-supported.length)+' 个非支持文件');}
 for(const id of ['imageInput','folderInput'])$(id).onchange=async e=>{try{await importImages([...e.target.files]);}catch(err){toast(err.message);}finally{e.target.value='';}};
 $('projectSelect').onchange=()=>selectProject($('projectSelect').value).catch(e=>toast(e.message));
 $('newProject').onclick=async()=>{const name=prompt('新标注项目名称');if(!name?.trim())return;const id=crypto.randomUUID();projects.push({id,name:name.trim()});await selectProject(id);};
