@@ -1,0 +1,29 @@
+{
+  "passed": true,
+  "date": "2026-11-12T14:43:22.191Z",
+  "browser": "151.0.7922.34",
+  "checks": [
+    "pie-percent: GT import/export, saved image/data/units/review state, semantic rendering",
+    "pie-absolute: GT import/export, saved image/data/units/review state, semantic rendering",
+    "pie-donut: GT import/export, saved image/data/units/review state, semantic rendering",
+    "box-vertical-outliers: GT import/export, saved image/data/units/review state, semantic rendering",
+    "box-horizontal-empty: GT import/export, saved image/data/units/review state, semantic rendering",
+    "Pie/Box: named v2 workspace, mixed-chart batch ZIP with exact GT/units, image switching, focus/Escape and archive restore",
+    "Pie: numeric editing, row order, deletion/undo, percent warning, absolute mode and project restore",
+    "box-vertical-outliers: axis calibration, five ordered clicks, individual selection/drag/nudge/remeasure, two-decimal pixel values and preserved manual/import precision, outlier clicks/edit/add/delete, validation, guides/zoom, pixels/draft/project restore, image queue, empty-outlier GT",
+    "box-horizontal-empty: axis calibration, five ordered clicks, individual selection/drag/nudge/remeasure, two-decimal pixel values and preserved manual/import precision, outlier clicks/edit/add/delete, validation, guides/zoom, pixels/draft/project restore, image queue, empty-outlier GT",
+    "boxplot_v: close/coincident statistics across categories, next-field progression, duplicate outliers, selected-field drag/nudge, add-mode key isolation, two-decimal measurements and manual/GT precision",
+    "boxplot_h: close/coincident statistics across categories, next-field progression, duplicate outliers, selected-field drag/nudge, add-mode key isolation, two-decimal measurements and manual/GT precision",
+    "barh_1: close/coincident additions, edit-mode field selection and drag, add-mode key isolation, error endpoint editing",
+    "barh_n: close/coincident additions, edit-mode field selection and drag, add-mode key isolation, error endpoint editing",
+    "barv_1: close/coincident additions, edit-mode field selection and drag, add-mode key isolation, error endpoint editing",
+    "barv_n: close/coincident additions, edit-mode field selection and drag, add-mode key isolation, error endpoint editing",
+    "barv_stack: close/coincident additions, edit-mode field selection and drag, add-mode key isolation, error endpoint editing",
+    "line_1: close/coincident additions, edit-mode field selection and drag, add-mode key isolation",
+    "line_n: close/coincident additions, edit-mode field selection and drag, add-mode key isolation",
+    "scatter_1: close/coincident additions, edit-mode field selection and drag, add-mode key isolation",
+    "scatter_n: close/coincident additions, edit-mode field selection and drag, add-mode key isolation",
+    "Legacy scatter demo: calibrated image click and semantic rendering"
+  ],
+  "pageErrors": []
+}
