@@ -2,8 +2,28 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const source=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8').split('<script type="module">')[1].split('const $=id=>')[0];
-function api(html=source){const context=vm.createContext({});vm.runInContext(html+';globalThis.api={KINDS,defaultProject,validate,makeSpec,importSpec,pixelToValue,valueToPixel,boxValueAt};',context);return context.api;}
+function api(html=source){const context=vm.createContext({});vm.runInContext(html+';globalThis.api={KINDS,defaultProject,validate,makeSpec,importSpec,pixelToValue,valueToPixel,boxValueAt,measurePieSectors};',context);return context.api;}
 const app=api(),plain=x=>JSON.parse(JSON.stringify(x));
+const center={x:123.456789,y:76.543219};
+const ray=degrees=>({x:center.x+100*Math.cos(degrees*Math.PI/180),y:center.y+100*Math.sin(degrees*Math.PI/180)});
+test('Pie measurement follows clockwise rays across zero and closes the last sector',()=>{
+ const boundaries=[330,20,170].map(ray),before=plain({center,boundaries});
+ const sectors=plain(app.measurePieSectors(center,boundaries));
+ assert.deepEqual(sectors.map(s=>Number(s.degrees.toFixed(2))),[50,150,160]);
+ assert.deepEqual(sectors.map(s=>s.value),[13.89,41.67,44.44]);
+ assert.deepEqual({center,boundaries},before);
+ assert.throws(()=>app.measurePieSectors(center,[ray(330),ray(240),ray(20)]),/顺时针/);
+ assert.throws(()=>app.measurePieSectors(center,[ray(330),ray(330)]),/只点一次/);
+ assert.throws(()=>app.measurePieSectors(center,[center]),/圆心/);
+});
+test('Pie measurement apportions hundredths exactly, including many small sectors',()=>{
+ const values=degrees=>plain(app.measurePieSectors(center,degrees.map(ray))).map(s=>s.value);
+ assert.deepEqual(values([359.99,0.02,179.99]),[.01,49.99,50]);
+ assert.deepEqual(values([10,130,250]).sort(),[33.33,33.33,33.34]);
+ const parts=values(Array.from({length:73},(_,i)=>i*360/73));
+ assert.ok(parts.every(v=>v===1.36||v===1.37));
+ assert.equal(parts.reduce((sum,v)=>sum+Math.round(v*100),0),10000);
+});
 const rows=[{category:'Late',lower:0.123456789012345,q1:10,median:20,q3:30,upper:99.9876543210987,outliers:[-25,120.1234567890123]},{category:'Early',lower:2,q1:3,median:4,q3:5,upper:6,outliers:[]}];
 function box(kind='boxplot_v'){const p=app.defaultProject(kind);p.rows=plain(rows);p.title='Five number summary';p.xTitle=kind==='boxplot_h'?'Duration (ms)':'Treatment';p.yTitle=kind==='boxplot_h'?'Treatment':'Duration (ms)';return p;}
 test('Pie preserves entered order, precision, original totals and units in both modes',()=>{

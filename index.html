@@ -108,9 +108,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 <div class="two"><label>图表大类<select id="family"><option value="bar">柱状图</option><option value="line">折线图</option><option value="scatter">散点图</option><option value="area">面积图</option><option value="pie">Pie / 饼图</option><option value="boxplot">Box Plot / 箱线图</option></select></label><label>图表子类<select id="kind"></select></label></div><p id="orderGuide" class="muted" role="note"></p><label>图表标题<input id="title" placeholder="没有标题则留空"></label><div class="two"><label>X 轴标题<input id="xTitle"></label><label>Y 轴标题<input id="yTitle"></label></div><div id="pieFields" hidden><label>数值模式<select id="valueMode"><option value="percent">百分比（按 0–100 录入）</option><option value="absolute">绝对数值</option></select></label><label>指标名称及单位<input id="valueTitle" placeholder="Share (%) / Revenue (万元)"></label><label class="check"><input type="checkbox" id="donut"> 环形图预览</label><p class="muted">按原图录入，不归一化。环形外观仅保存在工程中，GT 使用科学数据与 arc 映射。</p></div><label id="valueFormatLabel" hidden>数值轴格式（可选）<input id="valueFormat" placeholder="如 .0%（仅原图数值确为比例时）"></label><label id="xTypeLabel">X 轴类型<select id="xType"><option value="quantitative">连续数值</option><option value="ordinal">离散类别</option></select></label><p id="areaModeNote" class="muted" hidden>两种 X 轴模式各自保留标注记录，切回即可继续。</p><label class="check"><input type="checkbox" id="legend"> 原图中存在可读图例</label>
 <section id="seriesSection"><div class="section-head"><h3>系列</h3><button id="addSeries" class="small">＋ 添加</button></div><p id="seriesOrderNote" class="muted" role="note"></p><details id="seriesBulk"><summary>批量输入系列名称</summary><label>一行一个系列<textarea id="seriesNames" rows="4" placeholder="Series 1&#10;Series 2&#10;Series 3"></textarea></label><p class="muted">按当前顺序改名；多出的行新增系列，减少行数会确认删除末尾系列及记录。空行忽略，同名系列保持独立。</p><button id="applySeriesNames" type="button" class="small">应用系列名称</button></details><div id="seriesList"></div></section><section id="categoryLabel"><div class="section-head"><h3>类别位置（独立对象）</h3></div><p id="categoryOrderNote" class="muted" role="note"></p><details id="categoryBulk"><summary>批量输入对象名称</summary><label>一行一个类别位置<textarea id="categories" rows="4" placeholder="A&#10;B&#10;C"></textarea></label><p class="muted">按当前位置顺序改名；多出的行新增对象，减少行数会确认删除末尾对象及记录。空行忽略，同名对象保持独立。</p><button id="applyCategoryNames" type="button" class="small">应用对象名称</button></details><div id="categoryObjects"></div></section><details><summary>备注 / 数据来源（可选）</summary><label>标注备注 / 数据来源<textarea id="notes" rows="3" placeholder="例如：曲线采样；数值由论文表格核对"></textarea></label></details><a class="ref" href="https://aicarrier.feishu.cn/docx/S5yKdnAPoobj5Zxdi2Ych9sLnSG" target="_blank" rel="noreferrer">查看 GT 标注规范 ↗</a><p class="privacy">图像与标注保存在当前浏览器，不上传服务器。清理浏览器会删除草稿，请定期保存工程。</p></aside>
 <section class="workspace"><div class="workspace-heading"><div><div class="eyebrow">ANNOTATE / 人工交互标注</div><h1 id="fileName">从一张图开始</h1></div><div class="target-summary"><span id="targetTop" class="target-top"></span><span class="badge" id="countBadge">0 条记录</span></div></div>
-<div class="canvas-toolbar"><button id="focusToggle">全屏标注 ⛶</button><button id="focusReview" class="focus-only">返回核对 / 导出</button><div class="segmented"><button data-tool="select" class="active">选择 / 拖动</button><button data-tool="point">＋ 取点</button><button data-tool="calibrate">⊹ 校准</button><button data-tool="lower">误差下限</button><button data-tool="upper">误差上限</button><button data-tool="area-upper" hidden>重取上界</button><button data-tool="area-baseline" hidden>重取下界</button></div><div><button id="undo" title="Ctrl+Z">↶</button><button id="redo" title="Ctrl+Shift+Z">↷</button><button id="zoomOut">−</button><span id="zoomText">100%</span><button id="zoomIn">＋</button><button id="fit">适应</button></div></div>
+<div class="canvas-toolbar"><button id="focusToggle">全屏标注 ⛶</button><button id="focusReview" class="focus-only">返回核对 / 导出</button><div class="segmented"><button data-tool="select" class="active">选择 / 拖动</button><button data-tool="point">＋ 取点</button><button data-tool="pie-angle" hidden>角度测量</button><button data-tool="calibrate">⊹ 校准</button><button data-tool="lower">误差下限</button><button data-tool="upper">误差上限</button><button data-tool="area-upper" hidden>重取上界</button><button data-tool="area-baseline" hidden>重取下界</button></div><div><button id="undo" title="Ctrl+Z">↶</button><button id="redo" title="Ctrl+Shift+Z">↷</button><button id="zoomOut">−</button><span id="zoomText">100%</span><button id="zoomIn">＋</button><button id="fit">适应</button></div></div>
 <div id="hint" class="hint">上传图像或加载示例。也可以直接在数据表中输入数值。</div><div class="image-stage"><div class="canvas-wrap" id="canvasWrap"><canvas id="canvas" aria-label="原图像素标注画布" tabindex="0"></canvas><div class="empty" id="empty"><span>⌖</span><h2>让每个数据点都有依据</h2><p>上传原图，校准坐标轴，然后点击数据点。<br>原生像素标记会立即叠加回原图。</p><button id="demo" class="primary">加载可操作示例</button></div></div><aside class="lens-dock"><span class="lens-title">精度辅助 · 5×</span><div id="magnifier" hidden><canvas id="lens" width="140" height="140"></canvas><span>原图局部放大 · 5×</span></div><p class="muted">移动鼠标查看局部<br>不覆盖原图</p></aside></div><div id="cursorInfo" class="cursor-info">原始像素坐标</div>
 <div class="measure-bar"><label>当前系列<select id="activeSeries"></select></label><label id="activeCategoryLabel">当前类别<select id="activeCategory"></select></label><label id="boxFieldLabel" hidden>当前测量项<select id="boxField"><option value="lower">lower</option><option value="q1">q1</option><option value="median">median</option><option value="q3">q3</option><option value="upper">upper</option><option value="outliers">outliers（连续取点）</option></select></label><label id="outlierTargetLabel" hidden>异常值目标<select id="outlierTarget"></select></label><label id="roleLabel">点的来源<select id="role"><option value="observation">实验点 / 可见数据点</option><option value="curve_sample">曲线采样点</option><option value="transcribed">直接录入 / 外部测量</option></select></label><label class="check"><input type="checkbox" id="overlay" checked> 显示叠加</label><label class="check"><input type="checkbox" id="connect" checked> 连接轨迹</label></div>
+<section id="pieAnglePanel" aria-label="饼图角度测量" hidden>
+<div class="section-head"><h3>角度测量</h3><div><button id="undoPieAngle" class="small">撤销上一点</button><button id="resetPieAngle" class="small">清空重测</button><button id="cancelPieAngle" class="small">取消测量</button></div></div>
+<p id="pieAngleStatus" class="muted" role="status"></p>
+<div id="pieAngleResults" class="table-scroll" hidden><table><thead><tr><th>扇区分界线</th><th>角度</th><th>占比</th><th>匹配类别</th></tr></thead><tbody id="pieAngleRows"></tbody></table></div>
+<div class="section-head"><span id="pieAngleTotal" class="muted"></span><button id="applyPieAngle" class="primary" disabled>应用到数据表</button></div>
+</section>
 <section class="assist-panel" aria-label="连续标注与精度辅助">
 <div class="assist-heading"><strong id="targetHint">选择取点目标</strong><span id="targetProgress" class="badge"></span></div>
 <div class="assist-controls"><label id="errorOrderLabel">误差棒取点顺序<select id="errorOrder"><option value="per-bar">逐柱：数值 → 上界 → 下界</option><option value="passes">分轮：全部数值 → 全部上界 → 全部下界</option></select></label><label id="sequenceLabel">连续标注顺序<select id="sequence"><option value="category">逐类别：类别内依次标各系列</option><option value="series">逐系列：系列内依次标各类别</option><option value="manual">手动选择，不自动切换</option></select></label><button id="nextTarget">下一个待标目标 →</button><label class="check"><input type="checkbox" id="projections" checked> X / Y 投影线</label><label class="check"><input type="checkbox" id="magnify" checked> 局部放大</label></div>
@@ -577,6 +583,35 @@ function importSpec(input) {
 
 function markType(mark){return typeof mark==='string'?mark:mark?.type;}
 
+function measurePieSectors(center,boundaries){
+  if(!boundaries.length)return [];
+  const turn=2*Math.PI,epsilon=1e-10;
+  const angle=point=>{
+    const dx=point?.x-center?.x,dy=point?.y-center?.y;
+    if(!finite(dx)||!finite(dy)||(!dx&&!dy))throw Error('请点击与圆心分开的扇区分界点');
+    // In image coordinates positive Y points down, so atan2 increases clockwise.
+    return Math.atan2(dy,dx);
+  };
+  const start=angle(boundaries[0]),offsets=[0];
+  for(const point of boundaries.slice(1)){
+    const difference=angle(point)-start;
+    const offset=difference<0?difference+turn:difference;
+    if(offset<=offsets.at(-1)+epsilon||offset>=turn-epsilon){
+      throw Error('请从第一条分界线起沿顺时针点一圈，每条分界线只点一次');
+    }
+    offsets.push(offset);
+  }
+  const sectors=offsets.map((offset,i)=>{
+    const span=(offsets[i+1]??turn)-offset;
+    const hundredths=span/turn*10000,units=Math.floor(hundredths);
+    return {degrees:span*180/Math.PI,units,remainder:hundredths-units,index:i};
+  });
+  const missing=10000-sectors.reduce((sum,sector)=>sum+sector.units,0);
+  const byRemainder=[...sectors].sort((a,b)=>b.remainder-a.remainder||a.index-b.index);
+  for(const sector of byRemainder.slice(0,missing))sector.units++;
+  return sectors.map(({degrees,units})=>({degrees,value:units/100}));
+}
+
 function validateArea(p,issue){
   const multi=p.kind!=='area_1',stacked=p.kind==='area_stack',nominal=isNominalArea(p);
   const ranks=new Map(p.series.map((s,i)=>[s.key,stackRank(s,i)]));
@@ -886,7 +921,8 @@ if(isArea(p)){
   $('seriesSection').hidden=p.kind==='area_1';
   $('tableNote').textContent=p.kind==='area_stack'?'每层记录累计上界 y 和实际下界 baseline；贡献值 = y − baseline。堆叠顺序在系列列表中调整。':'每个 X 记录实际的上界 y 和下界 baseline，包括固定或非零基线。';
 }
-if(!isArea(p)&&tool.startsWith('area-'))setTool('select');
+if(!isArea(p)&&tool.startsWith('area-')||
+    tool==='pie-angle'&&(!isPie(p)||p.valueMode!=='percent'||!image))setTool('select');
 else{axisForm();syncAssist();}}
 function axisForm(){ const required=requiredAxes(p);$('categoryAxisNote').hidden=required.length===2;$('categoryAxisNote').textContent=required.length===1?(required[0]==='x'?'Y':'X')+' 轴是类别轴，无需数值标定；在类别顺序中填写标签即可。':'';$('axisFields').innerHTML=required.map(a=>`<div class="axis-group"><h4>${a.toUpperCase()} 轴 <small>${p.axes[a].calibrated?'已校准':'待校准'}</small></h4><label>坐标类型<select data-axis="${a}" data-field="type"><option value="linear" ${p.axes[a].type!=='log'?'selected':''}>线性</option><option value="log" ${p.axes[a].type==='log'?'selected':''}>对数</option></select></label>${[1,2].map(n=>`<div class="tick-row"><button data-tick="${a}${n}" class="${tool==='calibrate'&&calTarget===a+n?'active':''}">${a.toUpperCase()}${n} 取刻度</button><label>原图像素<input type="number" step="any" data-axis="${a}" data-field="p${n}" value="${p.axes[a]['p'+n]}"></label><label>真实数值<input type="number" step="any" data-axis="${a}" data-field="v${n}" value="${p.axes[a]['v'+n]}"></label></div>`).join('')}</div>`).join('');$('calibrationStatus').textContent=required.every(a=>p.axes[a].calibrated)?'所需数值轴已校准':'先取两个刻度再测量';}
 function columns(){if(isPie(p))return ['category','value'];if(isBox(p))return ['category',...BOX_FIELDS,'outliers'];const series=p.kind.endsWith('_1')?[]:['series'];if(isArea(p))return [categoryField(p),'y','baseline',...series,...(p.kind==='area_stack'?['stack_order']:[])];return bar()?['category','value',...series,...(isStack(p)?['start','end']:[]),...(hasErrors(p)?['lower','upper']:[])]:['x','y',...series,...(p.kind.startsWith('line')&&$('advancedFields').checked?['path_order']:[])];}
@@ -905,7 +941,8 @@ function syncCategoryList(){
   list.onchange=e=>{if(e.target.dataset.category)change(()=>renameObject(p,'category',e.target.dataset.category,e.target.value),{form:true});};
   list.onclick=e=>{const d=e.target.dataset;if(e.target.id==='addCategory')change(()=>addObject(p,'category','新类别'),{form:true});else if(d.moveCategory)change(()=>moveObject(p,'category',d.moveCategory,Number(d.delta)),{form:true});else if(d.removeCategory){if(p.rows.some(r=>r._categoryKey===d.removeCategory)&&!confirm('删除该类别位置及其全部记录？'))return;change(()=>{removeObject(p,'category',d.removeCategory);selected=-1;},{form:true});}};
 }
-function refresh(form=false){ensureIdentities(p);queueUI();if(form)syncForm();table();syncAssist();draw();clearTimeout(renderTimer);renderTimer=setTimeout(render,130);clearTimeout(saveTimer);saveTimer=setTimeout(saveDraft,450);}
+function scheduleDraftSave(){clearTimeout(saveTimer);saveTimer=setTimeout(saveDraft,450);}
+function refresh(form=false){ensureIdentities(p);queueUI();if(form)syncForm();table();syncAssist();draw();clearTimeout(renderTimer);renderTimer=setTimeout(render,130);scheduleDraftSave();}
 let renderVersion=0;
 async function render(){const version=++renderVersion;renderOk=false;let issues=validate(p);if(p.rows.length===0)issues=[{severity:'warning',message:'添加数据记录后生成 GT。'}];$('issues').innerHTML=issues.length?issues.map(i=>`<li class="${i.severity}">${esc(i.message)}</li>`).join(''):'<li class="ok">数据结构检查通过。请继续核对原图与科学数值。</li>';$('validationBadge').textContent=issues.filter(i=>i.severity==='error').length+' 个错误';
 try{const gt=makeSpec(p);$('jsonPreview').textContent=JSON.stringify(gt,null,2);if(!window.vegaEmbed)throw Error('本地 Vega 渲染组件未加载');const spec={...renderSpec(gt),width:230,height:210};for(const a of ['x','y']){if(!isStat(p)&&!isArea(p)&&spec.encoding[a])spec.encoding[a].title=p[a+'Title']||null;}if(!isStat(p)&&!isArea(p)&&spec.encoding.color){spec.encoding.color.legend=p.legend?{...(spec.encoding.color.legend||{}),title:null}:null;const keys=unique(orderedRows(p).map(identity));spec.encoding.color.scale={domain:unique(gt.data.values.map(r=>r.series_id??r.series)),range:keys.map(k=>p.series.find(s=>s.key===k)?.color||'#008b7e')};}if(isPie(p)&&p.donut)spec.mark={type:'arc',innerRadius:55};if(isBox(p)){const v=valueAxis(p);spec.layer[1].mark={type:'bar',size:26};spec.layer[2].mark={type:'tick',orient:horizontal()?'vertical':'horizontal',color:'#243344',size:26,thickness:2};if(p.axes[v].type==='log')for(const l of spec.layer)l.encoding[v].scale={type:'log'};}const holder=document.createElement('div');const result=await window.vegaEmbed(holder,spec,{actions:false,renderer:'svg'});result.view.finalize();if(version!==renderVersion)return;$('preview').replaceChildren(holder);lastSpec=gt;renderOk=true;$('renderState').textContent='Vega-Lite v6 · 语义渲染成功';}catch(e){if(version!==renderVersion)return;lastSpec=null;$('jsonPreview').textContent='请先修正数据结构。';$('preview').replaceChildren();$('renderState').textContent=p.rows.length?'无法渲染：'+e.message:'添加记录后显示语义重绘';}}
@@ -958,7 +995,7 @@ function syncAssist(){
   $('targetGrid').hidden=!categorical();$('targetGrid').innerHTML=pairs.map((t,i)=>`<button class="target-cell ${targetComplete(t)?'done':''} ${t.series===a.series&&t.category===a.category?'current':''}" data-target="${i}" title="${esc(categoryName(p,t.category)+' · '+seriesName(p,t.series))}">${targetComplete(t)?'✓ ':''}${esc(categoryName(p,t.category))} <small>${isBox(p)?BOX_FIELDS.filter(k=>finite(p.rows[targetIndex(t)]?.[k])).length+'/5':esc(seriesName(p,t.series))}</small></button>`).join('');
   const anchor=a.categoryPixels[anchorKey()];$('anchorStatus').textContent=Number.isFinite(anchor)?`已定位 ${anchor.toFixed(1)} px`:'尚未定位';
   $('unlockPoint').disabled=selected<0||!p.evidence?.[selected]?.fixedX;
-  syncBoxTarget();$('magnifier').hidden=!image||!a.magnify||!hover;document.querySelector('.lens-dock').hidden=!a.magnify;document.querySelector('.image-stage').classList.toggle('no-lens',!a.magnify);
+  syncBoxTarget();syncPieAngles();$('magnifier').hidden=!image||!a.magnify||!hover;document.querySelector('.lens-dock').hidden=!a.magnify;document.querySelector('.image-stage').classList.toggle('no-lens',!a.magnify);
 }
 function constrainAdd(pt){const a=assist(),out={...pt};if(categorical()&&a.lockCategory){const pixel=a.categoryPixels[anchorKey()];if(!Number.isFinite(pixel))throw Error('请先定位当前类别刻度（分组柱需定位当前系列的柱中心）');out[horizontal()?'y':'x']=pixel;}
   if(!categorical()&&a.lockX){if(!Number.isFinite(a.fixedXValue))throw Error('请先填写固定 X 的真实数值');if(p.axes.x.type==='log'&&a.fixedXValue<=0)throw Error('对数 X 数值必须大于零');if(Number.isFinite(a.fixedXPixel))out.x=a.fixedXPixel;else{if(!p.axes.x.calibrated)throw Error('请在原图定位 X 刻度，或先校准 X 轴');out.x=valueToPixel(a.fixedXValue,p.axes.x);}}
@@ -1119,6 +1156,91 @@ function editAreaCell(i,key,raw){
   });
 }
 
+function pieAngleAssignment(draft,count){
+  if(!count||count!==p.rows.length)return null;
+  const categories=p.rows.map(r=>r.category);
+  if(categories.some(name=>typeof name!=='string'||!name.trim())||new Set(categories).size!==count)return null;
+  const byKey=new Map(p.rows.map((r,i)=>[r._categoryKey,i]));
+  const indices=Array.from({length:count},(_,i)=>byKey.get(draft.targets[i]));
+  return indices.every(i=>i!==undefined)&&new Set(indices).size===count?indices:null;
+}
+function syncPieAngles(renderRows=true){
+  const active=isPie(p)&&tool==='pie-angle';
+  $('pieAnglePanel').hidden=!active;
+  if(!active)return;
+  const draft=p.pieMeasurement;
+  let sectors=[],error='';
+  if(draft){
+    try{sectors=measurePieSectors(draft.center,draft.boundaries);}catch(e){error=e.message;}
+  }
+  const assignment=sectors.length&&pieAngleAssignment(draft,sectors.length);
+  $('undoPieAngle').disabled=$('resetPieAngle').disabled=!draft?.center;
+  $('pieAngleResults').hidden=!sectors.length;
+  $('applyPieAngle').disabled=!assignment;
+  $('pieAngleTotal').textContent=sectors.length?`合计 ${sectors.reduce((sum,s)=>sum+s.value,0).toFixed(2)}%`:'';
+  $('pieAngleStatus').textContent=error||(!draft?.center?'在原图点击圆心。':
+    !sectors.length?'从任意一条分界线开始，沿顺时针逐条点击。':
+    `已取 ${sectors.length} 条分界线，最后一段自动闭合。现有 ${p.rows.length} 个类别。`+
+      (sectors.length===p.rows.length?'请为每个扇区选择一个名称不同的类别。':'请将分界线数量调整为与数据表中的类别数一致。'));
+  if(renderRows)$('pieAngleRows').innerHTML=sectors.map(({degrees,value},i)=>`<tr>
+    <td>${i+1} → ${(i+1)%sectors.length+1}</td><td>${degrees.toFixed(2)}°</td><td>${value.toFixed(2)}%</td>
+    <td><select data-pie-sector="${i}" aria-label="第 ${i+1} 个扇区的类别"><option value="">选择类别</option>${
+      p.rows.map(r=>`<option value="${esc(r._categoryKey)}" ${draft.targets[i]===r._categoryKey?'selected':''}>${esc(r.category)}</option>`).join('')
+    }</select></td></tr>`).join('');
+}
+function pieAngleChanged(){
+  syncPieAngles();draw();scheduleDraftSave();
+}
+function recordPieAngle(point){
+  const draft=p.pieMeasurement;
+  if(!draft){
+    p.pieMeasurement={center:point,boundaries:[],targets:[]};
+  }else{
+    const boundaries=[...draft.boundaries,point];
+    measurePieSectors(draft.center,boundaries);
+    draft.boundaries=boundaries;
+    draft.targets=[];
+  }
+  pieAngleChanged();
+}
+function cancelPieAngles(){
+  delete p.pieMeasurement;
+  setTool('select');scheduleDraftSave();
+}
+$('undoPieAngle').onclick=()=>{
+  const draft=p.pieMeasurement;
+  if(!draft)return;
+  if(draft.boundaries.length){draft.boundaries.pop();draft.targets=[];}
+  else delete p.pieMeasurement;
+  pieAngleChanged();
+};
+$('resetPieAngle').onclick=()=>{delete p.pieMeasurement;pieAngleChanged();};
+$('cancelPieAngle').onclick=cancelPieAngles;
+$('pieAngleRows').onchange=e=>{
+  const i=e.target.dataset.pieSector;
+  if(i===undefined||!p.pieMeasurement)return;
+  p.pieMeasurement.targets[+i]=e.target.value;
+  syncPieAngles(false);scheduleDraftSave();
+};
+$('applyPieAngle').onclick=()=>{
+  const draft=p.pieMeasurement;
+  if(!draft||!isPie(p)||p.valueMode!=='percent')return;
+  const sectors=measurePieSectors(draft.center,draft.boundaries);
+  const indices=pieAngleAssignment(draft,sectors.length);
+  if(!indices)return;
+  if(p.rows.some(r=>finite(r.value))&&!confirm('将用测量结果更新现有类别的数值。继续？'))return;
+  change(()=>{
+    p.evidence??=[];
+    indices.forEach((rowIndex,i)=>{
+      p.rows[rowIndex].value=sectors[i].value;
+      p.evidence[rowIndex]={role:'observation',source:'pie_angle_measurement',
+        pieAngle:{center:draft.center,from:draft.boundaries[i],to:draft.boundaries[(i+1)%sectors.length]}};
+    });
+    delete p.pieMeasurement;
+  });
+  setTool('select');toast('角度测量结果已应用，可撤销');
+};
+
 // Statistical charts share the canvas, calibration, history, evidence and project lifecycle.
 function syncStatForm(){
   const pie=isPie(p),box=isBox(p),stat=isStat(p);
@@ -1130,7 +1252,8 @@ function syncStatForm(){
   $('activeCategoryLabel').hidden=pie||!categorical();$('boxFieldLabel').hidden=!box;
   if(stat)$('connect').parentElement.hidden=true;$('calibrationPanel').hidden=pie;
   document.querySelector('.assist-panel').hidden=pie;
-  document.querySelectorAll('[data-tool]').forEach(b=>b.hidden=pie&&b.dataset.tool!=='select'||stat&&['lower','upper'].includes(b.dataset.tool));
+  document.querySelectorAll('[data-tool]').forEach(b=>b.hidden=b.dataset.tool==='pie-angle'?!pie:
+    pie&&b.dataset.tool!=='select'||stat&&['lower','upper'].includes(b.dataset.tool));
   if(stat)$('tableNote').textContent=pie?'数值按原图录入，不自动归一化。使用 ↑ / ↓ 调整类别顺序；GT 不保存像素与环形外观。' : 'lower ≤ q1 ≤ median ≤ q3 ≤ upper；只校准数值轴。自动测量保留两位小数，人工录入及 GT 导入保留原精度。不按 1.5×IQR 重算。异常值可逐个编辑、添加或删除。';
 }
 function boxHandle(field){const a=assist();return field==='outliers'?`outlier${a.outlierTarget}Pixel`:field+'Pixel';}
@@ -1167,7 +1290,7 @@ function editStatCell(input){
       renameObject(p,'category',r._categoryKey,raw);
     }else if(key==='outliers'){
       r.outliers[+outlier]=raw===''?null:Number(raw);delete e[`outlier${outlier}Pixel`];
-    }else{r[key]=raw===''?null:Number(raw);delete e[key+'Pixel'];}
+    }else{r[key]=raw===''?null:Number(raw);delete e[key+'Pixel'];if(isPie(p)&&key==='value')delete e.pieAngle;}
     e.role='transcribed';e.source='manual_edit';
   },{form:true});
 }
@@ -1187,14 +1310,40 @@ $('tableBody').addEventListener('click',event=>{
   });
 });
 
+function drawPieAngles(mark){
+  const draft=p.pieMeasurement;
+  if(!draft?.center)return;
+  const {center,boundaries}=draft;
+  const ray=point=>{ctx.beginPath();ctx.moveTo(center.x,center.y);ctx.lineTo(point.x,point.y);ctx.stroke();};
+  ctx.save();
+  ctx.strokeStyle='#008b7e';ctx.lineWidth=2/zoom;
+  boundaries.forEach(ray);
+  if(hover){
+    ctx.setLineDash([5/zoom,4/zoom]);
+    ray(hover);ctx.setLineDash([]);
+  }
+  mark(center,'#f05c35','圆心',true);
+  boundaries.forEach((point,i)=>mark(point,'#008b7e',String(i+1)));
+  ctx.restore();
+}
 function pointPixel(r,e){if(e?.pixel)return e.pixel;return null;}
 function draw(){projectionInfo=null;if(!image){canvas.width=0;canvas.height=0;return;}const dpr=window.devicePixelRatio||1;canvas.width=Math.round(image.width*zoom*dpr);canvas.height=Math.round(image.height*zoom*dpr);canvas.style.width=image.width*zoom+'px';canvas.style.height=image.height*zoom+'px';ctx.setTransform(zoom*dpr,0,0,zoom*dpr,0,0);ctx.drawImage(image,0,0);$('zoomText').textContent=Math.round(zoom*100)+'%';if(!$('overlay').checked){drawGuides();return;}
 const mark=(pt,color,text,ring=false)=>{if(!pt||!Number.isFinite(pt.x)||!Number.isFinite(pt.y))return;ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=1.5/zoom;ctx.beginPath();ctx.arc(pt.x,pt.y,(ring?7:4)/zoom,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(pt.x-8/zoom,pt.y);ctx.lineTo(pt.x+8/zoom,pt.y);ctx.moveTo(pt.x,pt.y-8/zoom);ctx.lineTo(pt.x,pt.y+8/zoom);ctx.stroke();ctx.font=`${11/zoom}px monospace`;ctx.fillText(text,pt.x+9/zoom,pt.y-7/zoom);};
+if(tool==='pie-angle'&&isPie(p)){drawPieAngles(mark);return;}
 if($('connect').checked&&p.kind.startsWith('line'))for(const s of p.series){const pts=p.rows.map((r,i)=>({r,e:p.evidence?.[i]})).filter(v=>identity(v.r)===s.key&&v.e?.pixel).sort((a,b)=>(a.r.path_order??0)-(b.r.path_order??0));ctx.beginPath();pts.forEach((v,i)=>{const q=v.e.pixel;ctx[i?'lineTo':'moveTo'](q.x,q.y)});ctx.strokeStyle=s.color||'#06a77d';ctx.lineWidth=1.5/zoom;ctx.stroke();}
 p.rows.forEach((r,i)=>{const e=p.evidence?.[i];if(isBox(p)){for(const k of handleKeys(i))mark(e[k],i===selected&&k===selectedHandle?'#007bea':'#e85b35',`${i+1}:${boxHandleField(k)==='outliers'?'o'+(+k.match(/\d+/)[0]+1):boxHandleField(k)}`,i===selected&&k===selectedHandle);return;}const color=p.series.find(s=>s.key===identity(r))?.color||'#e85b35';mark(pointPixel(r,e),color,isArea(p)?`${i+1}:上界`:String(i+1),i===selected&&(!isArea(p)||selectedHandle==='pixel'));if(isArea(p)&&e?.baselinePixel)mark(e.baselinePixel,color,`${i+1}:下界`,i===selected&&selectedHandle==='baselinePixel');
 if(e?.startPixel){mark(e.startPixel,color,'s');ctx.beginPath();ctx.moveTo(e.startPixel.x,e.startPixel.y);ctx.lineTo(e.pixel.x,e.pixel.y);ctx.stroke();}for(const k of ['lower','upper'])if(e?.[k+'Pixel'])mark(e[k+'Pixel'],color,k==='lower'?'−':'+');});
 drawGuides();if(pendingStart)mark(pendingStart,'#ffae00','起点');for(const a of isNominalArea(p)?['y']:['x','y'])for(const n of [1,2]){const pt=p.axes[a]['point'+n];if(pt)mark(pt,'#007bea',a.toUpperCase()+n);} }
-function setTool(t){if((isBox(p)||isNominalArea(p))&&!requiredAxes(p).includes(calTarget[0]))calTarget=valueAxis(p)+'1';if(isPie(p)&&t!=='select'||t.startsWith('area-')&&!isArea(p))t='select';tool=t;pendingStart=null;hover=null;document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===t));$('calibrationPanel').open=t==='calibrate'||$('calibrationPanel').open;const hints={'area-upper':'选中数据行后，在同一 X 处点击新的上界。','area-baseline':'选中数据行后，在同一 X 处点击新的下界。',select:'点击已有标记或选择表格字段后拖动、方向键微调。重合点优先编辑已选字段；Shift 拖动限制方向。',point:isArea(p)?(p.kind==='area_stack'?'选择当前层，在同一 X 依次点该层的累计上界和实际下界。':'在同一 X 依次取上界和下界。下界也可在表格中输入。'):isStack(p)?(horizontal()?'横向堆叠：从左到右依次点击起点、各交界点、终点。':'纵向堆叠：从下到上依次点击起点、各交界点、终点。')+'同一堆叠自动复用交界点；系列按此方向排列。':'点击原图取点，近已有标记可直接拖动；Alt 点击强制新增。类别和系列自动推进，进度格可随时跳转。',calibrate:'选择下方 X1 / X2 / Y1 / Y2，点击原图刻度，再填写真实数值。',lower:'先选中记录，然后点击误差区间下限。',upper:'先选中记录，然后点击误差区间上限。'};$('hint').textContent=isPie(p)?'Pie 使用表格人工录入原始数值；↑ / ↓ 调整类别顺序。':isBox(p)&&t==='point'?'点击只测量当前项，五数统计量自动推进；近邻和重合点均可连续标注。选择任意项可重测，outliers 可连续新增；编辑请切换「选择 / 拖动」。':hints[t]|| (t==='lock-x'?'先填写已知 X 数值，再点击原图对应 X 刻度；然后沿竖直线寻找 Y。':'点击当前类别在原图中的刻度或柱中心位置，之后只测数值。');axisForm();syncAssist();draw();}
+function setTool(t){
+  if(t==='pie-angle'){
+    if(!isPie(p))t='select';
+    else if(p.valueMode!=='percent'||!image){
+      toast(p.valueMode!=='percent'?'角度测量适用于百分比模式，请先选择百分比':'请先添加饼图原图');
+      return;
+    }
+  }
+  if((isBox(p)||isNominalArea(p))&&!requiredAxes(p).includes(calTarget[0]))calTarget=valueAxis(p)+'1';if(isPie(p)&&t!=='select'&&t!=='pie-angle'||t.startsWith('area-')&&!isArea(p))t='select';tool=t;pendingStart=null;hover=null;document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===t));$('calibrationPanel').open=t==='calibrate'||$('calibrationPanel').open;const hints={'area-upper':'选中数据行后，在同一 X 处点击新的上界。','area-baseline':'选中数据行后，在同一 X 处点击新的下界。',select:'点击已有标记或选择表格字段后拖动、方向键微调。重合点优先编辑已选字段；Shift 拖动限制方向。',point:isArea(p)?(p.kind==='area_stack'?'选择当前层，在同一 X 依次点该层的累计上界和实际下界。':'在同一 X 依次取上界和下界。下界也可在表格中输入。'):isStack(p)?(horizontal()?'横向堆叠：从左到右依次点击起点、各交界点、终点。':'纵向堆叠：从下到上依次点击起点、各交界点、终点。')+'同一堆叠自动复用交界点；系列按此方向排列。':'点击原图取点，近已有标记可直接拖动；Alt 点击强制新增。类别和系列自动推进，进度格可随时跳转。',calibrate:'选择下方 X1 / X2 / Y1 / Y2，点击原图刻度，再填写真实数值。',lower:'先选中记录，然后点击误差区间下限。',upper:'先选中记录，然后点击误差区间上限。'};$('hint').textContent=isPie(p)?(t==='pie-angle'?'先点击圆心，再沿顺时针点击每条分界线。':'可在表格人工录入原始数值，或使用角度测量。'):isBox(p)&&t==='point'?'点击只测量当前项，五数统计量自动推进；近邻和重合点均可连续标注。选择任意项可重测，outliers 可连续新增；编辑请切换「选择 / 拖动」。':hints[t]|| (t==='lock-x'?'先填写已知 X 数值，再点击原图对应 X 刻度；然后沿竖直线寻找 Y。':'点击当前类别在原图中的刻度或柱中心位置，之后只测数值。');axisForm();syncAssist();draw();}
+function resumeTool(){setTool(isPie(p)&&p.pieMeasurement&&p.valueMode==='percent'&&image?'pie-angle':'select');}
 function coords(event){const rect=canvas.getBoundingClientRect();return{x:(event.clientX-rect.left)*image.width/rect.width,y:(event.clientY-rect.top)*image.height/rect.height};}
 function calibrated(skipX=false){const axes=requiredAxes(p);for(const a of axes){if(a==='x'&&skipX)continue;if(!p.axes[a].calibrated)throw Error('请先校准 '+a.toUpperCase()+' 轴的两个刻度');pixelToValue(p.axes[a].p1,p.axes[a]);}}
 function measureAt(pt,i=null){
@@ -1212,6 +1361,7 @@ function measureAt(pt,i=null){
 function applyPixel(i,pt){const r=p.rows[i],e=p.evidence[i],data=measureAt(pt,i);if(bar()){r.value=data.value;if(isStack(p)){r.end=data.value;r.value=r.end-r.start;}}else{if(p.xType!=='ordinal')r.x=data.x;r.y=data.y;}e.pixel=pt;if(bar())for(const key of ['lowerPixel','upperPixel'])if(e[key])e[key][horizontal()?'y':'x']=pt[horizontal()?'y':'x'];e.modifiedAt=new Date().toISOString();}
 function recalculate(){if(isArea(p)){recalculateArea();return;}if(isBox(p)){for(let i=0;i<p.rows.length;i++)for(const k of handleKeys(i))editHandle(i,k,p.evidence[i][k]);return;}for(let i=0;i<p.rows.length;i++){const e=p.evidence?.[i];if(!e?.pixel)continue;applyPixel(i,e.pixel);if(e.startPixel){p.rows[i].start=pixelToValue(e.startPixel[horizontal()?'x':'y'],p.axes[horizontal()?'x':'y']);p.rows[i].value=p.rows[i].end-p.rows[i].start;}for(const k of ['lower','upper'])if(e[k+'Pixel'])p.rows[i][k]=pixelToValue(horizontal()?e[k+'Pixel'].x:e[k+'Pixel'].y,p.axes[horizontal()?'x':'y']);}}
 canvas.addEventListener('pointerdown',e=>{if(!image)return;canvas.focus({preventScroll:true});const raw=coords(e);try{
+if(tool==='pie-angle'){if(e.button===0)recordPieAngle(raw);return;}
 if(tool==='lock-x'){
   const a=assist();
   if(!finite(a.fixedXValue)||isArea(p)&&finite(a.fixedXPixel)){
@@ -1291,7 +1441,7 @@ $('addRow').onclick=()=>{if(isArea(p)){
 }if(isStat(p)){change(()=>{const a=assist(),c=isBox(p)&&a.category&&targetIndex(a)<0?p.categoryObjects.find(c=>c.key===a.category):addObject(p,'category',nextCategory());p.rows.push({...isPie(p)?{category:c.name,value:null}:emptyBox(c.name),_categoryKey:c.key,_seriesKey:a.series,series:seriesName(p,a.series)});p.evidence??=[];p.evidence.push({role:'transcribed',source:'manual_entry'});selected=p.rows.length-1;a.category=c.key;selectedHandle=isBox(p)?boxHandle('lower'):'pixel';},{form:true});return;}if(categorical()&&assist().sequence!=='manual'&&targetIndex(assist())>=0){toast('当前目标已标注，请选择其他目标或切换手动模式');return;}change(()=>{const row=bar()?{category:categoryName(p,assist().category)||'A',value:0,series:seriesName(p,assist().series),_categoryKey:assist().category,_seriesKey:assist().series}:{x:p.xType==='ordinal'?categoryName(p,assist().category)||'A':0,y:0,series:seriesName(p,assist().series),_seriesKey:assist().series,...(categorical()?{_categoryKey:assist().category}:{})};if(isStack(p)){row.start=0;row.end=0;}if(p.kind.startsWith('line'))row.path_order=p.rows.length;p.rows.push(row);p.evidence??=[];p.evidence.push({role:$('role').value,source:'manual_entry'});selected=p.rows.length-1;selectedHandle='pixel';if(categorical()&&assist().sequence!=='manual')nextTarget();});const field=document.querySelector('[data-i="'+selected+'"][data-key="'+(bar()?'value':'y')+'"]');field?.focus();field?.select();};
 $('deleteRow').onclick=()=>{if(selected<0)return;change(()=>{p.rows.splice(selected,1);p.evidence?.splice(selected,1);selected=-1;});};
 $('undo').onclick=()=>{if(!history.length)return;future.push(clone(p));p=history.pop();selected=-1;pendingStart=null;refresh(true);};$('redo').onclick=()=>{if(!future.length)return;history.push(clone(p));p=future.pop();selected=-1;pendingStart=null;refresh(true);};
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&focusMode){e.preventDefault();exitFocus();return;}if(e.target.matches?.('input,textarea,select,[contenteditable=true]'))return;if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();$(e.shiftKey?'redo':'undo').click();}if(e.key==='Escape'){if(focusMode){exitFocus();return;}pendingStart=null;setTool('select');}if((!isBox(p)&&!isArea(p)||tool==='select')&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)&&selected>=0&&p.evidence?.[selected]?.[selectedHandle]){e.preventDefault();const step=e.altKey?.1:e.shiftKey?10:1;const pt={...p.evidence[selected][selectedHandle]||p.evidence[selected].pixel};pt.x+=(e.key==='ArrowRight'?step:e.key==='ArrowLeft'?-step:0);pt.y+=(e.key==='ArrowDown'?step:e.key==='ArrowUp'?-step:0);change(()=>editHandle(selected,selectedHandle,constrainDrag(pt,selected,selectedHandle)));}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&focusMode){e.preventDefault();exitFocus();return;}if(e.target.matches?.('input,textarea,select,[contenteditable=true]'))return;if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();$(e.shiftKey?'redo':'undo').click();}if(e.key==='Escape'){if(focusMode){exitFocus();return;}if(tool==='pie-angle'){cancelPieAngles();return;}pendingStart=null;setTool('select');}if((!isBox(p)&&!isArea(p)||tool==='select')&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)&&selected>=0&&p.evidence?.[selected]?.[selectedHandle]){e.preventDefault();const step=e.altKey?.1:e.shiftKey?10:1;const pt={...p.evidence[selected][selectedHandle]||p.evidence[selected].pixel};pt.x+=(e.key==='ArrowRight'?step:e.key==='ArrowLeft'?-step:0);pt.y+=(e.key==='ArrowDown'?step:e.key==='ArrowUp'?-step:0);change(()=>editHandle(selected,selectedHandle,constrainDrag(pt,selected,selectedHandle)));}});
 function setZoom(z){zoom=Math.max(.08,Math.min(8,z));draw();}function fit(){if(image)setZoom(Math.min(($('canvasWrap').clientWidth-20)/image.width,($('canvasWrap').clientHeight-20)/image.height,1));}
 $('zoomIn').onclick=()=>setZoom(zoom*1.3);$('zoomOut').onclick=()=>setZoom(zoom/1.3);$('fit').onclick=fit;$('overlay').onchange=draw;$('connect').onchange=draw;
 function readFile(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file);});}
@@ -1303,7 +1453,7 @@ function stash(){let q=queue.find(q=>q.id===activeId);if(!q&&(imageData||hasRows
 function resetCurrent(){imageLoadVersion++;activationVersion++;p=fresh(p.kind+(hasErrors(p)&&!isStack(p)?'_error':''),p.xType);image=null;imageData=null;fileName='';activeId=null;selected=-1;hover=null;pendingStart=null;drag=null;history=[];future=[];$('empty').style.display='flex';$('fileName').textContent='从一张图开始';$('magnifier').hidden=true;$('cursorInfo').textContent='原始像素坐标';setTool('select');refresh(true);queueUI();}
 function decodeImage(data){return new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=()=>reject(Error('无法读取图像'));img.src=data;});}
 // Decode before replacing live state; failed or superseded selections must not damage annotations.
-async function activate(id){const version=++activationVersion;stash();const q=queue.find(q=>q.id===id);if(!q)throw Error('图像不存在');const nextImage=q.image?await decodeImage(q.image):null;if(version!==activationVersion||!queue.includes(q))return;stash();imageLoadVersion++;activeId=id;currentProjectId=q.projectId??null;p=ensureIdentities(clone(q.project));fileName=q.name;image=nextImage;imageData=q.image||null;hover=null;pendingStart=null;drag=null;$('fileName').textContent=fileName;history=[];future=[];selected=-1;$('empty').style.display=image?'none':'flex';if(image)fit();refresh(true);queueUI();setTool('select');}
+async function activate(id){const version=++activationVersion;stash();const q=queue.find(q=>q.id===id);if(!q)throw Error('图像不存在');const nextImage=q.image?await decodeImage(q.image):null;if(version!==activationVersion||!queue.includes(q))return;stash();imageLoadVersion++;activeId=id;currentProjectId=q.projectId??null;p=ensureIdentities(clone(q.project));fileName=q.name;image=nextImage;imageData=q.image||null;hover=null;pendingStart=null;drag=null;$('fileName').textContent=fileName;history=[];future=[];selected=-1;$('empty').style.display=image?'none':'flex';if(image)fit();refresh(true);queueUI();resumeTool();}
 async function selectProject(id){stash();const destination=id||null,first=queue.find(q=>(q.projectId??null)===destination);if(first)await activate(first.id);else{currentProjectId=destination;resetCurrent();}}
 async function importImages(files){stash();const supported=[...files].filter(f=>/^image\/(png|jpeg|webp)$/.test(f.type)||/\.(png|jpe?g|webp)$/i.test(f.name)),ordered=supported.sort((a,b)=>(a.webkitRelativePath||a.relativePath||a.name).localeCompare(b.webkitRelativePath||b.relativePath||b.name,'zh-CN',{numeric:true}));let first=null,failed=0;const destination=currentProjectId,kind=p.kind+(hasErrors(p)&&!isStack(p)?'_error':''),xType=p.xType;for(const f of ordered){try{const data=await readFile(f);await new Promise((resolve,reject)=>{const im=new Image();im.onload=resolve;im.onerror=reject;im.src=data;});const id=crypto.randomUUID();queue.push({id,projectId:destination,name:f.webkitRelativePath||f.relativePath||f.name,image:data,project:fresh(kind,xType)});first??=id;}catch{failed++;}}if(first&&destination===currentProjectId)await activate(first);queueUI();toast('已导入 '+(ordered.length-failed)+' 张图'+(failed?'；'+failed+' 张无法读取':'')+'；跳过 '+(files.length-supported.length)+' 个非支持文件');}
 for(const id of ['imageInput','folderInput'])$(id).onchange=async e=>{try{await importImages([...e.target.files]);}catch(err){toast(err.message);}finally{e.target.value='';}};
@@ -1322,7 +1472,7 @@ $('exportGT').onclick=async()=>{await render();const errors=validate(p).filter(i
 $('batchExport').onclick=async()=>{stash();const items=visibleQueue();if(!items.length){toast('当前项目还没有图像');return;}const report=[],entries=[],names=new Set();for(const q of items){let reason='',spec;try{if(!q.project.reviewed)throw Error('尚未核对');spec=makeSpec(q.project);window.vega.parse(window.vegaLite.compile(spec).spec);}catch(e){reason=e.message;}let name=safeExportName(q.name);for(let n=2;names.has(name);n++)name=safeExportName(q.name).replace(/\.gt\.json$/,'-'+n+'.gt.json');if(!reason){names.add(name);if($('withSchema').checked)spec.$schema='https://vega.github.io/schema/vega-lite/v6.json';entries.push({name:'gt/'+name,text:JSON.stringify(spec,null,2)});}report.push({image:q.name,id:q.id,status:reason?'skipped':'exported',file:reason?null:'gt/'+name,reason:reason||null});}entries.push({name:'export-report.json',text:JSON.stringify({project:projectName(),exported:entries.length,skipped:report.filter(q=>q.status==='skipped').length,images:report},null,2)});downloadBlob(projectName().replace(/[<>:"/\\|?*]/g,'_')+'.gt.zip',new Blob([zipBytes(entries)],{type:'application/zip'}));toast('批量导出 '+(entries.length-1)+' 张；跳过 '+report.filter(q=>q.status==='skipped').length+' 张（原因见 ZIP 内清单）');queueUI();};
 $('copyGT').onclick=async()=>{if(!lastSpec){toast('暂无有效 GT');return;}try{await navigator.clipboard.writeText(JSON.stringify(lastSpec,null,2));toast('JSON 已复制');}catch{toast('无法访问剪贴板，请使用导出 GT');}};
 $('openProject').onclick=()=>$('projectInput').click();$('importSpec').onclick=()=>$('specInput').click();
-async function restore(data){if(data.format!=='chart-studio-project'||![1,2].includes(data.version)||!data.current?.project||!Array.isArray(data.queue))throw Error('不是受支持的 Chart Studio 工程');const all=[data.current.project,...data.queue.map(q=>q.project)];for(const item of all){if(!labels[item.kind]||!Array.isArray(item.rows)||!item.axes?.x||!item.axes?.y||!Array.isArray(item.series))throw Error('工程结构不完整');}const nextProjects=data.version===2?data.projects||[]:[];if(!Array.isArray(nextProjects)||nextProjects.some(q=>!q.id||typeof q.name!=='string')||new Set(nextProjects.map(q=>q.id)).size!==nextProjects.length)throw Error('项目列表无效');if(new Set(data.queue.map(q=>q.id)).size!==data.queue.length||data.queue.some(q=>typeof q.id!=='string'))throw Error('图像列表 ID 无效');const projectIds=new Set(nextProjects.map(q=>q.id));const active=data.queue.find(q=>q.id===data.activeId);if(data.activeId&&!active)throw Error('当前图像 ID 不存在');if(data.version===2&&active&&(active.projectId??null)!==(data.currentProjectId||null))throw Error('当前图像与所选项目不一致');if(data.version===2&&(data.currentProjectId&&!projectIds.has(data.currentProjectId)||data.queue.some(q=>q.projectId&&!projectIds.has(q.projectId))))throw Error('图像所属项目不存在');if(data.current.image)await new Promise((resolve,reject)=>{const im=new Image();im.onload=resolve;im.onerror=()=>reject(Error('工程原图无法读取'));im.src=data.current.image;});activationVersion++;queue=clone(data.queue);for(const q of queue){ensureIdentities(q.project);restoreAreaMeasurementPrecision(q.project);}projects=clone(nextProjects);currentProjectId=data.version===2?data.currentProjectId||null:null;activeId=data.activeId;p=ensureIdentities(clone(data.current.project));restoreAreaMeasurementPrecision(p);p.errorBars=hasErrors(p);imageData=data.current.image;fileName=data.current.name||'';image=null;hover=null;pendingStart=null;drag=null;history=[];future=[];selected=-1;if(imageData)await loadImage(imageData);else{$('empty').style.display='flex';$('magnifier').hidden=true;draw();}$('fileName').textContent=fileName||'未命名工程';queueUI();refresh(true);setTool('select');}
+async function restore(data){if(data.format!=='chart-studio-project'||![1,2].includes(data.version)||!data.current?.project||!Array.isArray(data.queue))throw Error('不是受支持的 Chart Studio 工程');const all=[data.current.project,...data.queue.map(q=>q.project)];for(const item of all){if(!labels[item.kind]||!Array.isArray(item.rows)||!item.axes?.x||!item.axes?.y||!Array.isArray(item.series))throw Error('工程结构不完整');}const nextProjects=data.version===2?data.projects||[]:[];if(!Array.isArray(nextProjects)||nextProjects.some(q=>!q.id||typeof q.name!=='string')||new Set(nextProjects.map(q=>q.id)).size!==nextProjects.length)throw Error('项目列表无效');if(new Set(data.queue.map(q=>q.id)).size!==data.queue.length||data.queue.some(q=>typeof q.id!=='string'))throw Error('图像列表 ID 无效');const projectIds=new Set(nextProjects.map(q=>q.id));const active=data.queue.find(q=>q.id===data.activeId);if(data.activeId&&!active)throw Error('当前图像 ID 不存在');if(data.version===2&&active&&(active.projectId??null)!==(data.currentProjectId||null))throw Error('当前图像与所选项目不一致');if(data.version===2&&(data.currentProjectId&&!projectIds.has(data.currentProjectId)||data.queue.some(q=>q.projectId&&!projectIds.has(q.projectId))))throw Error('图像所属项目不存在');if(data.current.image)await new Promise((resolve,reject)=>{const im=new Image();im.onload=resolve;im.onerror=()=>reject(Error('工程原图无法读取'));im.src=data.current.image;});activationVersion++;queue=clone(data.queue);for(const q of queue){ensureIdentities(q.project);restoreAreaMeasurementPrecision(q.project);}projects=clone(nextProjects);currentProjectId=data.version===2?data.currentProjectId||null:null;activeId=data.activeId;p=ensureIdentities(clone(data.current.project));restoreAreaMeasurementPrecision(p);p.errorBars=hasErrors(p);imageData=data.current.image;fileName=data.current.name||'';image=null;hover=null;pendingStart=null;drag=null;history=[];future=[];selected=-1;if(imageData)await loadImage(imageData);else{$('empty').style.display='flex';$('magnifier').hidden=true;draw();}$('fileName').textContent=fileName||'未命名工程';queueUI();refresh(true);resumeTool();}
 $('projectInput').onchange=async e=>{try{await restore(JSON.parse(await e.target.files[0].text()));toast('工程已恢复');}catch(err){toast('打开失败：'+err.message);}e.target.value='';};
 $('specInput').onchange=async e=>{try{const next=importSpec(JSON.parse(await e.target.files[0].text()));next.errorBars=hasErrors(next);change(()=>{keepOtherAreaMode(p,next);p={...next,evidence:next.rows.map(()=>({role:'transcribed',source:'imported_gt'})),reviewed:false};for(const a of Object.values(p.axes))a.calibrated=false;selected=-1;},{form:true});setTool('select');toast('GT 已导入；像素证据需重新标注');}catch(err){toast('导入失败：'+err.message);}e.target.value='';};
 function db(){return new Promise((resolve,reject)=>{const r=indexedDB.open('chart-studio',1);r.onupgradeneeded=()=>r.result.createObjectStore('drafts');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});}
