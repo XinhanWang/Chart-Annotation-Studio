@@ -4,6 +4,10 @@ Browser-based scientific chart annotation with original-pixel calibration, inter
 
 ## 使用
 
+### 柱线复合图
+
+图表大类新增「柱线复合图」，在原系列列表为每个系列选择柱或线；共享类别轴，可使用共享 Y 轴或分别校准左 Y（柱）、右 Y（折线）。复用原有取点、表格、误差棒、拖动、微调、撤销、工程和人工核对导出。GT 使用 `series_role` 区分角色，支持生成器已有复合 GT 导入，误差棒统一为原生 `errorbar`。使用方式、数据结构及边界见 [复合图标注说明](docs/composite-annotations.md)。
+
 打开 `index.html` 即可离线使用，无需安装依赖。原图、标注和草稿保存在当前浏览器中；工具不会上传原图。浏览器草稿不代替工程备份，切换浏览器或清除站点数据前请先备份工作区。
 
 ### 这轮交互改进
