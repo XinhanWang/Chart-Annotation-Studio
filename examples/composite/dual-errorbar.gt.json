@@ -1,0 +1,914 @@
+{
+  "title": "Scame kab cryptanalyst / Asimen",
+  "data": {
+    "values": [
+      {
+        "category": "2024",
+        "value": 1.2,
+        "lower": 1.090794818954357,
+        "upper": 1.3092051810456429,
+        "series_role": "bar",
+        "series": "D"
+      },
+      {
+        "category": "2024",
+        "value": 0.35,
+        "lower": 0.11894448183355436,
+        "upper": 0.5810555181664456,
+        "series_role": "bar",
+        "series": "Batch 3"
+      },
+      {
+        "category": "2024",
+        "value": 2.7,
+        "lower": 2.449916664526269,
+        "upper": 2.9500833354737312,
+        "series_role": "bar",
+        "series": "B"
+      },
+      {
+        "category": "2024",
+        "value": 0.35,
+        "lower": 0.15023677567928637,
+        "upper": 0.5497632243207136,
+        "series_role": "bar",
+        "series": "Gorsy"
+      },
+      {
+        "category": "Aug",
+        "value": 0.46,
+        "lower": 0.3350927623603086,
+        "upper": 0.5849072376396914,
+        "series_role": "bar",
+        "series": "D"
+      },
+      {
+        "category": "Aug",
+        "value": 2,
+        "lower": 1.779247300205308,
+        "upper": 2.220752699794692,
+        "series_role": "bar",
+        "series": "Batch 3"
+      },
+      {
+        "category": "Aug",
+        "value": 1.99,
+        "lower": 1.544554100147614,
+        "upper": 2.435445899852386,
+        "series_role": "bar",
+        "series": "B"
+      },
+      {
+        "category": "Aug",
+        "value": 1,
+        "lower": 0.861038112105771,
+        "upper": 1.138961887894229,
+        "series_role": "bar",
+        "series": "Gorsy"
+      },
+      {
+        "category": "Head",
+        "value": 0.84,
+        "lower": 0.6271423863504859,
+        "upper": 1.052857613649514,
+        "series_role": "bar",
+        "series": "D"
+      },
+      {
+        "category": "Head",
+        "value": 0.48,
+        "lower": 0.37425574770266745,
+        "upper": 0.5857442522973325,
+        "series_role": "bar",
+        "series": "Batch 3"
+      },
+      {
+        "category": "Head",
+        "value": 1.3,
+        "lower": 1.132705402872316,
+        "upper": 1.467294597127684,
+        "series_role": "bar",
+        "series": "B"
+      },
+      {
+        "category": "Head",
+        "value": 2.4,
+        "lower": 2.254337774683881,
+        "upper": 2.5456622253161187,
+        "series_role": "bar",
+        "series": "Gorsy"
+      },
+      {
+        "category": "Keratonyxis Endotys Ungold Ovaloid",
+        "value": 0.295,
+        "lower": 0.23041908164305247,
+        "upper": 0.3595809183569475,
+        "series_role": "bar",
+        "series": "D"
+      },
+      {
+        "category": "Keratonyxis Endotys Ungold Ovaloid",
+        "value": 0.196,
+        "lower": 0.056038545586804656,
+        "upper": 0.33596145441319536,
+        "series_role": "bar",
+        "series": "Batch 3"
+      },
+      {
+        "category": "Keratonyxis Endotys Ungold Ovaloid",
+        "value": 2.25,
+        "lower": 1.7736761673300236,
+        "upper": 2.7263238326699764,
+        "series_role": "bar",
+        "series": "B"
+      },
+      {
+        "category": "Keratonyxis Endotys Ungold Ovaloid",
+        "value": 2,
+        "lower": 1.6659846107710439,
+        "upper": 2.334015389228956,
+        "series_role": "bar",
+        "series": "Gorsy"
+      },
+      {
+        "category": "Caquetoire",
+        "value": 0.2,
+        "lower": -0.06379373105023017,
+        "upper": 0.4637937310502302,
+        "series_role": "bar",
+        "series": "D"
+      },
+      {
+        "category": "Caquetoire",
+        "value": 2.3,
+        "lower": 1.773585947486731,
+        "upper": 2.8264140525132686,
+        "series_role": "bar",
+        "series": "Batch 3"
+      },
+      {
+        "category": "Caquetoire",
+        "value": 2.72,
+        "lower": 2.4066244642064913,
+        "upper": 3.033375535793509,
+        "series_role": "bar",
+        "series": "B"
+      },
+      {
+        "category": "Caquetoire",
+        "value": 0.29,
+        "lower": 0.05479269285830274,
+        "upper": 0.5252073071416972,
+        "series_role": "bar",
+        "series": "Gorsy"
+      },
+      {
+        "category": "11th",
+        "value": 0.6,
+        "lower": 0.5447140991826083,
+        "upper": 0.6552859008173917,
+        "series_role": "bar",
+        "series": "D"
+      },
+      {
+        "category": "11th",
+        "value": 0.64,
+        "lower": 0.3058809031407328,
+        "upper": 0.9741190968592672,
+        "series_role": "bar",
+        "series": "Batch 3"
+      },
+      {
+        "category": "11th",
+        "value": 3.79,
+        "lower": 3.107056888814806,
+        "upper": 4.472943111185194,
+        "series_role": "bar",
+        "series": "B"
+      },
+      {
+        "category": "11th",
+        "value": 0.45,
+        "lower": 0.3090012429978066,
+        "upper": 0.5909987570021934,
+        "series_role": "bar",
+        "series": "Gorsy"
+      },
+      {
+        "category": "Vesseled Lightfulness Gospoda",
+        "value": 3,
+        "lower": 2.377575713510808,
+        "upper": 3.622424286489192,
+        "series_role": "bar",
+        "series": "D"
+      },
+      {
+        "category": "Vesseled Lightfulness Gospoda",
+        "value": 0.34,
+        "lower": 0.24829268054488923,
+        "upper": 0.4317073194551108,
+        "series_role": "bar",
+        "series": "Batch 3"
+      },
+      {
+        "category": "Vesseled Lightfulness Gospoda",
+        "value": 0.73,
+        "lower": 0.5533478734435633,
+        "upper": 0.9066521265564367,
+        "series_role": "bar",
+        "series": "B"
+      },
+      {
+        "category": "Vesseled Lightfulness Gospoda",
+        "value": 1.7,
+        "lower": 1.4360092244645581,
+        "upper": 1.9639907755354418,
+        "series_role": "bar",
+        "series": "Gorsy"
+      },
+      {
+        "category": "Quechuas Chertsey Ensemble's Villagey",
+        "value": 2.57,
+        "lower": 2.3532105020746776,
+        "upper": 2.786789497925322,
+        "series_role": "bar",
+        "series": "D"
+      },
+      {
+        "category": "Quechuas Chertsey Ensemble's Villagey",
+        "value": 2,
+        "lower": 1.7875919261536397,
+        "upper": 2.2124080738463605,
+        "series_role": "bar",
+        "series": "Batch 3"
+      },
+      {
+        "category": "Quechuas Chertsey Ensemble's Villagey",
+        "value": 0.25,
+        "lower": -0.02769129069716364,
+        "upper": 0.5276912906971636,
+        "series_role": "bar",
+        "series": "B"
+      },
+      {
+        "category": "Quechuas Chertsey Ensemble's Villagey",
+        "value": 1.2,
+        "lower": 1.0586143898215798,
+        "upper": 1.34138561017842,
+        "series_role": "bar",
+        "series": "Gorsy"
+      },
+      {
+        "category": "Watchhouse / Satem",
+        "value": 2,
+        "lower": 1.6026979196378985,
+        "upper": 2.3973020803621012,
+        "series_role": "bar",
+        "series": "D"
+      },
+      {
+        "category": "Watchhouse / Satem",
+        "value": 1.12,
+        "lower": 0.9160808572835706,
+        "upper": 1.3239191427164296,
+        "series_role": "bar",
+        "series": "Batch 3"
+      },
+      {
+        "category": "Watchhouse / Satem",
+        "value": 1.8,
+        "lower": 1.369416095138341,
+        "upper": 2.230583904861659,
+        "series_role": "bar",
+        "series": "B"
+      },
+      {
+        "category": "Watchhouse / Satem",
+        "value": 0.844,
+        "lower": 0.62061199592498,
+        "upper": 1.06738800407502,
+        "series_role": "bar",
+        "series": "Gorsy"
+      },
+      {
+        "category": "Diminishment Protracts Rillets",
+        "value": 0.843,
+        "lower": 0.569130639568987,
+        "upper": 1.116869360431013,
+        "series_role": "bar",
+        "series": "D"
+      },
+      {
+        "category": "Diminishment Protracts Rillets",
+        "value": 0.66,
+        "lower": 0.384272205992996,
+        "upper": 0.9357277940070041,
+        "series_role": "bar",
+        "series": "Batch 3"
+      },
+      {
+        "category": "Diminishment Protracts Rillets",
+        "value": 2.25,
+        "lower": 1.8051326948288469,
+        "upper": 2.694867305171153,
+        "series_role": "bar",
+        "series": "B"
+      },
+      {
+        "category": "Diminishment Protracts Rillets",
+        "value": 2.3,
+        "lower": 1.8719977397366947,
+        "upper": 2.7280022602633047,
+        "series_role": "bar",
+        "series": "Gorsy"
+      },
+      {
+        "category": "Ogilvie Knosp Lingtow",
+        "value": 2,
+        "lower": 1.7420653430115731,
+        "upper": 2.257934656988427,
+        "series_role": "bar",
+        "series": "D"
+      },
+      {
+        "category": "Ogilvie Knosp Lingtow",
+        "value": 2,
+        "lower": 1.6747108177595686,
+        "upper": 2.3252891822404314,
+        "series_role": "bar",
+        "series": "Batch 3"
+      },
+      {
+        "category": "Ogilvie Knosp Lingtow",
+        "value": 2.1,
+        "lower": 1.8137175954056968,
+        "upper": 2.3862824045943034,
+        "series_role": "bar",
+        "series": "B"
+      },
+      {
+        "category": "Ogilvie Knosp Lingtow",
+        "value": 1.1,
+        "lower": 0.9279457191368785,
+        "upper": 1.2720542808631217,
+        "series_role": "bar",
+        "series": "Gorsy"
+      },
+      {
+        "category": "Woodhens Limberham",
+        "value": 0.91,
+        "lower": 0.6850385142061022,
+        "upper": 1.1349614857938979,
+        "series_role": "bar",
+        "series": "D"
+      },
+      {
+        "category": "Woodhens Limberham",
+        "value": 3,
+        "lower": 2.635335774107463,
+        "upper": 3.364664225892537,
+        "series_role": "bar",
+        "series": "Batch 3"
+      },
+      {
+        "category": "Woodhens Limberham",
+        "value": 1.8,
+        "lower": 1.5502289322262197,
+        "upper": 2.0497710677737806,
+        "series_role": "bar",
+        "series": "B"
+      },
+      {
+        "category": "Woodhens Limberham",
+        "value": 0.8,
+        "lower": 0.51061864729511,
+        "upper": 1.0893813527048901,
+        "series_role": "bar",
+        "series": "Gorsy"
+      },
+      {
+        "category": "Bewormed Sebilla Spongiocyte",
+        "value": 0.453,
+        "lower": 0.33621219000359825,
+        "upper": 0.5697878099964018,
+        "series_role": "bar",
+        "series": "D"
+      },
+      {
+        "category": "Bewormed Sebilla Spongiocyte",
+        "value": 3,
+        "lower": 2.4532142201189355,
+        "upper": 3.5467857798810645,
+        "series_role": "bar",
+        "series": "Batch 3"
+      },
+      {
+        "category": "Bewormed Sebilla Spongiocyte",
+        "value": 0.277,
+        "lower": 0.21810487525118127,
+        "upper": 0.3358951247488188,
+        "series_role": "bar",
+        "series": "B"
+      },
+      {
+        "category": "Bewormed Sebilla Spongiocyte",
+        "value": 2.9,
+        "lower": 2.422467398727681,
+        "upper": 3.377532601272319,
+        "series_role": "bar",
+        "series": "Gorsy"
+      },
+      {
+        "category": "Apr",
+        "value": 4,
+        "lower": 3.274208377891763,
+        "upper": 4.725791622108237,
+        "series_role": "bar",
+        "series": "D"
+      },
+      {
+        "category": "Apr",
+        "value": 0.41,
+        "lower": 0.1821281841289493,
+        "upper": 0.6378718158710507,
+        "series_role": "bar",
+        "series": "Batch 3"
+      },
+      {
+        "category": "Apr",
+        "value": 1,
+        "lower": 0.9082307561791233,
+        "upper": 1.0917692438208768,
+        "series_role": "bar",
+        "series": "B"
+      },
+      {
+        "category": "Apr",
+        "value": 1.3,
+        "lower": 1.0001936530418558,
+        "upper": 1.5998063469581443,
+        "series_role": "bar",
+        "series": "Gorsy"
+      },
+      {
+        "category": "Cemal Hondled Baidya",
+        "value": 2,
+        "lower": 1.676115786099539,
+        "upper": 2.323884213900461,
+        "series_role": "bar",
+        "series": "D"
+      },
+      {
+        "category": "Cemal Hondled Baidya",
+        "value": 1,
+        "lower": 0.8223522504454759,
+        "upper": 1.1776477495545241,
+        "series_role": "bar",
+        "series": "Batch 3"
+      },
+      {
+        "category": "Cemal Hondled Baidya",
+        "value": 0.62,
+        "lower": 0.3294164217505907,
+        "upper": 0.9105835782494093,
+        "series_role": "bar",
+        "series": "B"
+      },
+      {
+        "category": "Cemal Hondled Baidya",
+        "value": 4,
+        "lower": 3.439287551263425,
+        "upper": 4.5607124487365756,
+        "series_role": "bar",
+        "series": "Gorsy"
+      },
+      {
+        "category": "DN",
+        "value": 0.38,
+        "lower": 0.2964086336949988,
+        "upper": 0.4635913663050012,
+        "series_role": "bar",
+        "series": "D"
+      },
+      {
+        "category": "DN",
+        "value": 2.4,
+        "lower": 1.9669634046174143,
+        "upper": 2.833036595382586,
+        "series_role": "bar",
+        "series": "Batch 3"
+      },
+      {
+        "category": "DN",
+        "value": 1.8,
+        "lower": 1.486862734390121,
+        "upper": 2.113137265609879,
+        "series_role": "bar",
+        "series": "B"
+      },
+      {
+        "category": "DN",
+        "value": 2.4,
+        "lower": 2.013363984261421,
+        "upper": 2.786636015738579,
+        "series_role": "bar",
+        "series": "Gorsy"
+      },
+      {
+        "category": "2024",
+        "value": 1.4,
+        "series_role": "line",
+        "series": "Series 5"
+      },
+      {
+        "category": "2024",
+        "value": 0.7,
+        "series_role": "line",
+        "series": "Trial 6"
+      },
+      {
+        "category": "2024",
+        "value": 1.1,
+        "series_role": "line",
+        "series": "Series 7"
+      },
+      {
+        "category": "Aug",
+        "value": 2.4,
+        "series_role": "line",
+        "series": "Series 5"
+      },
+      {
+        "category": "Aug",
+        "value": 1.4,
+        "series_role": "line",
+        "series": "Trial 6"
+      },
+      {
+        "category": "Aug",
+        "value": 1.58,
+        "series_role": "line",
+        "series": "Series 7"
+      },
+      {
+        "category": "Head",
+        "value": 2,
+        "series_role": "line",
+        "series": "Series 5"
+      },
+      {
+        "category": "Head",
+        "value": 0.86,
+        "series_role": "line",
+        "series": "Trial 6"
+      },
+      {
+        "category": "Head",
+        "value": 1.05,
+        "series_role": "line",
+        "series": "Series 7"
+      },
+      {
+        "category": "Keratonyxis Endotys Ungold Ovaloid",
+        "value": 1,
+        "series_role": "line",
+        "series": "Series 5"
+      },
+      {
+        "category": "Keratonyxis Endotys Ungold Ovaloid",
+        "value": 0.69,
+        "series_role": "line",
+        "series": "Trial 6"
+      },
+      {
+        "category": "Keratonyxis Endotys Ungold Ovaloid",
+        "value": 0.82,
+        "series_role": "line",
+        "series": "Series 7"
+      },
+      {
+        "category": "Caquetoire",
+        "value": 3.4,
+        "series_role": "line",
+        "series": "Series 5"
+      },
+      {
+        "category": "Caquetoire",
+        "value": 2,
+        "series_role": "line",
+        "series": "Trial 6"
+      },
+      {
+        "category": "Caquetoire",
+        "value": 2.4,
+        "series_role": "line",
+        "series": "Series 7"
+      },
+      {
+        "category": "11th",
+        "value": 1.6,
+        "series_role": "line",
+        "series": "Series 5"
+      },
+      {
+        "category": "11th",
+        "value": 0.9,
+        "series_role": "line",
+        "series": "Trial 6"
+      },
+      {
+        "category": "11th",
+        "value": 1.05,
+        "series_role": "line",
+        "series": "Series 7"
+      },
+      {
+        "category": "Vesseled Lightfulness Gospoda",
+        "value": 1.2,
+        "series_role": "line",
+        "series": "Series 5"
+      },
+      {
+        "category": "Vesseled Lightfulness Gospoda",
+        "value": 0.69,
+        "series_role": "line",
+        "series": "Trial 6"
+      },
+      {
+        "category": "Vesseled Lightfulness Gospoda",
+        "value": 0.948,
+        "series_role": "line",
+        "series": "Series 7"
+      },
+      {
+        "category": "Quechuas Chertsey Ensemble's Villagey",
+        "value": 2.8,
+        "series_role": "line",
+        "series": "Series 5"
+      },
+      {
+        "category": "Quechuas Chertsey Ensemble's Villagey",
+        "value": 1.8,
+        "series_role": "line",
+        "series": "Trial 6"
+      },
+      {
+        "category": "Quechuas Chertsey Ensemble's Villagey",
+        "value": 2,
+        "series_role": "line",
+        "series": "Series 7"
+      },
+      {
+        "category": "Watchhouse / Satem",
+        "value": 2.15,
+        "series_role": "line",
+        "series": "Series 5"
+      },
+      {
+        "category": "Watchhouse / Satem",
+        "value": 1.21,
+        "series_role": "line",
+        "series": "Trial 6"
+      },
+      {
+        "category": "Watchhouse / Satem",
+        "value": 2,
+        "series_role": "line",
+        "series": "Series 7"
+      },
+      {
+        "category": "Diminishment Protracts Rillets",
+        "value": 2,
+        "series_role": "line",
+        "series": "Series 5"
+      },
+      {
+        "category": "Diminishment Protracts Rillets",
+        "value": 0.91,
+        "series_role": "line",
+        "series": "Trial 6"
+      },
+      {
+        "category": "Diminishment Protracts Rillets",
+        "value": 1.2,
+        "series_role": "line",
+        "series": "Series 7"
+      },
+      {
+        "category": "Ogilvie Knosp Lingtow",
+        "value": 2.4,
+        "series_role": "line",
+        "series": "Series 5"
+      },
+      {
+        "category": "Ogilvie Knosp Lingtow",
+        "value": 1.4,
+        "series_role": "line",
+        "series": "Trial 6"
+      },
+      {
+        "category": "Ogilvie Knosp Lingtow",
+        "value": 1.6,
+        "series_role": "line",
+        "series": "Series 7"
+      },
+      {
+        "category": "Woodhens Limberham",
+        "value": 4.1,
+        "series_role": "line",
+        "series": "Series 5"
+      },
+      {
+        "category": "Woodhens Limberham",
+        "value": 2.4,
+        "series_role": "line",
+        "series": "Trial 6"
+      },
+      {
+        "category": "Woodhens Limberham",
+        "value": 2,
+        "series_role": "line",
+        "series": "Series 7"
+      },
+      {
+        "category": "Bewormed Sebilla Spongiocyte",
+        "value": 4.11,
+        "series_role": "line",
+        "series": "Series 5"
+      },
+      {
+        "category": "Bewormed Sebilla Spongiocyte",
+        "value": 2.4,
+        "series_role": "line",
+        "series": "Trial 6"
+      },
+      {
+        "category": "Bewormed Sebilla Spongiocyte",
+        "value": 2.8,
+        "series_role": "line",
+        "series": "Series 7"
+      },
+      {
+        "category": "Apr",
+        "value": 1.4,
+        "series_role": "line",
+        "series": "Series 5"
+      },
+      {
+        "category": "Apr",
+        "value": 0.77,
+        "series_role": "line",
+        "series": "Trial 6"
+      },
+      {
+        "category": "Apr",
+        "value": 0.99,
+        "series_role": "line",
+        "series": "Series 7"
+      },
+      {
+        "category": "Cemal Hondled Baidya",
+        "value": 2.3,
+        "series_role": "line",
+        "series": "Series 5"
+      },
+      {
+        "category": "Cemal Hondled Baidya",
+        "value": 2,
+        "series_role": "line",
+        "series": "Trial 6"
+      },
+      {
+        "category": "Cemal Hondled Baidya",
+        "value": 1.7,
+        "series_role": "line",
+        "series": "Series 7"
+      },
+      {
+        "category": "DN",
+        "value": 4,
+        "series_role": "line",
+        "series": "Series 5"
+      },
+      {
+        "category": "DN",
+        "value": 2,
+        "series_role": "line",
+        "series": "Trial 6"
+      },
+      {
+        "category": "DN",
+        "value": 2.3,
+        "series_role": "line",
+        "series": "Series 7"
+      }
+    ]
+  },
+  "encoding": {
+    "x": {
+      "field": "category",
+      "type": "nominal",
+      "sort": null,
+      "title": "Category (%)"
+    },
+    "y": {
+      "field": "value",
+      "type": "quantitative",
+      "title": "Score (rpm)"
+    },
+    "color": {
+      "field": "series",
+      "type": "nominal",
+      "sort": null
+    }
+  },
+  "layer": [
+    {
+      "transform": [
+        {
+          "filter": {
+            "field": "series_role",
+            "equal": "bar"
+          }
+        }
+      ],
+      "layer": [
+        {
+          "mark": {
+            "type": "bar"
+          },
+          "encoding": {
+            "xOffset": {
+              "field": "series",
+              "type": "nominal",
+              "sort": null,
+              "scale": {
+                "domain": [
+                  "D",
+                  "Batch 3",
+                  "B",
+                  "Gorsy"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "mark": {
+            "type": "errorbar"
+          },
+          "encoding": {
+            "y": {
+              "field": "lower",
+              "type": "quantitative"
+            },
+            "xOffset": {
+              "field": "series",
+              "type": "nominal",
+              "sort": null,
+              "scale": {
+                "domain": [
+                  "D",
+                  "Batch 3",
+                  "B",
+                  "Gorsy"
+                ]
+              }
+            },
+            "y2": {
+              "field": "upper"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "transform": [
+        {
+          "filter": {
+            "field": "series_role",
+            "equal": "line"
+          }
+        }
+      ],
+      "mark": {
+        "type": "line"
+      },
+      "encoding": {
+        "y": {
+          "field": "value",
+          "type": "quantitative",
+          "title": "Density (k)",
+          "scale": {
+            "type": "linear"
+          }
+        }
+      }
+    }
+  ],
+  "resolve": {
+    "scale": {
+      "y": "independent"
+    }
+  }
+}
