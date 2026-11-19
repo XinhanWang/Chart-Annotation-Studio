@@ -1,6 +1,7 @@
 /** Compact-v4 semantic GT. Image geometry and review evidence stay in project files. */
 const HISTOGRAM_KINDS = ['histogram_v_1','histogram_h_1','histogram_v_n','histogram_h_n','histogram_v_stack','histogram_h_stack'];
-const KINDS = ['barh_1','barh_n','barv_1','barv_n','barv_stack','barh_stack','line_1','line_n','scatter_1','scatter_n','pie','boxplot_v','boxplot_h','area_1','area_n','area_stack','barline_n',...HISTOGRAM_KINDS];
+const HEATMAP_KINDS = ['heatmap_dd','heatmap_cc','heatmap_dc','heatmap_cd'];
+const KINDS = ['barh_1','barh_n','barv_1','barv_n','barv_stack','barh_stack','line_1','line_n','scatter_1','scatter_n','pie','boxplot_v','boxplot_h','area_1','area_n','area_stack','barline_n',...HISTOGRAM_KINDS,...HEATMAP_KINDS];
 const copy = value => JSON.parse(JSON.stringify(value));
 const finite = n => typeof n === 'number' && Number.isFinite(n);
 const present = n => n !== undefined && n !== null && n !== '';
@@ -15,6 +16,7 @@ const isPie = p => p.kind==='pie';
 const isBox = p => p.kind.startsWith('boxplot_');
 const isStat = p => isPie(p)||isBox(p);
 const isArea = p => p.kind.startsWith('area_');
+const isHeatmap = p => HEATMAP_KINDS.includes(p?.kind);
 const isHistogram = p => p.kind.startsWith('histogram_');
 const isHistogramStack = p => isHistogram(p)&&p.kind.endsWith('_stack');
 const hasLayerOrder = p => p.kind==='area_stack'||isHistogramStack(p);
@@ -50,6 +52,7 @@ const orderRow=r=>Object.fromEntries(ROW_FIELDS.filter(k=>k in r).map(k=>[k,r[k]
 const categoryName=(p,key)=>p.categoryObjects?.find(c=>c.key===key)?.name??key;
 const seriesName=(p,key)=>p.series?.find(c=>c.key===key)?.name??key;
 function ensureIdentities(p){
+  if(isHeatmap(p))return p;
   const field=categoryField(p),categorical=field==='category'||p.xType==='ordinal';
   p.series??=[];
   for(const s of p.series){s.key??=newKey('series');if(isComposite(p))s.role??='bar';}
@@ -122,7 +125,8 @@ function applyObjectNames(p,kind,text){
   for(const r of p.rows)r[field]=byKey.get(r[ref]);
   p.categories=p.categoryObjects.map(c=>c.name);return names.length;
 }
-function renderSpec(gt){
+function renderSpec(gt,p){
+  if(markType(gt.mark)==='rect')return renderHeatmapSpec(gt,p);
   const out=copy(gt),rows=out.data.values;
   function view(node){for(const [channel,d] of Object.entries(node.encoding||{})){
     const field=d.field,label={category_id:'category',x_id:'x',series_id:'series'}[field];
@@ -191,6 +195,11 @@ function defaultProject(kind='scatter_1') {
   if(hasLayerOrder({kind}))series.forEach((s,i)=>s.stackOrder=i);
   const histogram=isHistogram({kind}),categories=isPie({kind})||isArea({kind})||histogram?[]:['A','B','C'];
   const axes={x:{p1:80,p2:560,v1:0,v2:10,type:'linear',reverse:false,calibrated:false},y:{p1:400,p2:50,v1:0,v2:100,type:'linear',reverse:false,calibrated:false}};
+  if(isHeatmap({kind})){
+    for(const axis of Object.values(axes))axis.p1=axis.p2=axis.v1=axis.v2=null;
+    return {kind,title:'',xTitle:'',yTitle:'',heatmapTitle:'',axes,rows:[],series:[],legend:false,errorBars:false,
+      categories:[],categoryObjects:[],heatmap:{x:[],y:[],pixels:{x:[null],y:[null]},colorPoints:[]}};
+  }
   if(histogram)for(const axis of Object.values(axes))axis.p1=axis.p2=axis.v1=axis.v2=null;
   if(kind==='barline_n')axes.r={...axes.y};
   return ensureIdentities({kind,title:'',xTitle:'',yTitle:'',xType:kind==='barline_n'?'ordinal':'quantitative',legend:multi,errorBars,...(kind==='barline_n'?{dualYAxis:false,rightYTitle:''}:{}),...(isPie({kind})?{valueMode:'percent',valueTitle:'Share (%)',donut:false}:{}),
@@ -233,6 +242,7 @@ function validateAxes(p,issue){
   }
 }
 function validate(p) {
+  if(isHeatmap(p))return validateHeatmap(p);
   try{p=ensureIdentities(copy(p));}catch(e){return [{severity:'error',message:e.message}];}
   const out=[];
   const issue=(severity,message)=>out.push({severity,message});
@@ -323,6 +333,7 @@ function makeSpec(p) {
   if(isComposite(p))return makeCompositeSpec(p);
   const errors=validate(p).filter(x=>x.severity==='error');
   if(errors.length) throw Error(errors.map(x=>x.message).join('\n'));
+  if(isHeatmap(p))return makeHeatmapSpec(p);
   if(isStat(p))return makeStatSpec(p);
   if(isArea(p))return makeAreaSpec(ensureIdentities(copy(p)));
   if(isHistogram(p))return makeHistogramSpec(ensureIdentities(copy(p)));
@@ -383,6 +394,7 @@ function importSpec(input) {
   const s=copy(input);
   if(!s||typeof s!=='object'||Array.isArray(s))throw Error('GT 必须为 JSON 对象');
   if(!s.data||!Array.isArray(s.data.values)||!s.data.values.length)throw Error('只支持包含 data.values 的非空内联 Vega-Lite 图表');
+  if(markType(s.mark)==='rect')return importHeatmapSpec(s);
   if(markType(s.mark)==='area')return importAreaSpec(s);
   if(markType(s.mark)==='bar'&&isHistogramSpec(s))return importHistogramSpec(s);
   if(markType(s.mark)==='arc'||Array.isArray(s.layer)&&s.layer.some(l=>markType(l.mark)==='tick'))return importStatSpec(s);
@@ -1056,10 +1068,11 @@ function importCompositeSpec(input){
   const errors=validate(p).filter(i=>i.severity==='error');if(errors.length)throw Error(errors.map(i=>i.message).join('\n'));return p;
 }
 
-function requiredAxes(p){if(isComposite(p))return p.dualYAxis?['y','r']:['y'];return isPie(p)?[]:isHistogram(p)?['x','y']:isBar(p)||isBox(p)?[valueAxis(p)]:isNominalArea(p)||!isArea(p)&&p.xType==='ordinal'?['y']:['x','y'];}
+function requiredAxes(p){if(isHeatmap(p))return heatmapAxes.filter(axis=>heatmapContinuous(p,axis));if(isComposite(p))return p.dualYAxis?['y','r']:['y'];return isPie(p)?[]:isHistogram(p)?['x','y']:isBar(p)||isBox(p)?[valueAxis(p)]:isNominalArea(p)||!isArea(p)&&p.xType==='ordinal'?['y']:['x','y'];}
 function hasRows(p){
   return p.rows.length>0||isArea(p)&&Object.values(p.areaModes??{}).some(mode=>mode.rows.length>0)||
-    isHistogram(p)&&!!(p.histogramRun||p.histogramBins?.length);
+    isHistogram(p)&&!!(p.histogramRun||p.histogramBins?.length)||
+    isHeatmap(p)&&!!(p.heatmap.x.length||p.heatmap.y.length||p.heatmap.colorPoints.length);
 }
 const AREA_MODE_FIELDS=['rows','evidence','categoryObjects','series','axes','assist','title','xTitle','yTitle'];
 const areaMode=p=>isNominalArea(p)?'nominal':'quantitative';
@@ -1101,8 +1114,350 @@ for(const entry of entries){const name=encoder.encode(entry.name),data=encoder.e
 if(entries.length>65535||offset>0xffffffff)throw Error('ZIP 超过容量限制，请拆分项目');const size=directory.reduce((n,b)=>n+b.length,0),end=new Uint8Array(22),e=new DataView(end.buffer);e.setUint32(0,0x06054b50,true);e.setUint16(8,entries.length,true);e.setUint16(10,entries.length,true);e.setUint32(12,size,true);e.setUint32(16,offset,true);const out=new Uint8Array(offset+size+22);let at=0;for(const b of [...parts,...directory,end]){out.set(b,at);at+=b.length;}return out;}
 function safeExportName(name){return String(name||'chart').replace(/\\/g,'/').split('/').filter(v=>v&&v!=='.'&&v!=='..').map(v=>v.replace(/[<>:"|?*\u0000-\u001f]/g,'_')).join('/').replace(/\.[^/.]+$/,'')+'.gt.json';}
 
+// Heatmap coordinates belong to grid bands. A cell stores two stable keys and a value.
+const heatmapAxes=['x','y'];
+const heatmapContinuous=(p,axis)=>p.kind==='heatmap_cc'||p.kind==='heatmap_'+(axis==='x'?'cd':'dc');
+const heatmapCellKey=(x,y)=>JSON.stringify([x,y]);
+const heatmapId=(axis,index)=>axis.toUpperCase()+(index+1);
+const heatmapTitle=value=>typeof value==='string'||Array.isArray(value)&&value.length>0&&value.every(v=>typeof v==='string');
+const heatmapLabel=value=>typeof value==='string'&&value.trim()!==''||finite(value);
+const heatmapValueToken=/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
+
+function checkHeatmapSize(x,y) {
+  if(![x,y].every(n=>Number.isInteger(n)&&n>=0&&n<=1000)||x*y>10000)
+    throw Error('热力图每轴最多 1000 个位置，网格最多 10000 格');
+}
+
+function heatmapIdIndex(id,axis) {
+  if(typeof id!=='string'||!new RegExp('^'+axis.toUpperCase()+'[1-9][0-9]*$').test(id))
+    throw Error('热力图需要按视觉位置编号的 '+axis+'_id，如 '+heatmapId(axis,0));
+  const index=Number(id.slice(1))-1;
+  checkHeatmapSize(index+1,1);
+  return index;
+}
+
+function newHeatmapBand(p,axis) {
+  return {key:newKey(axis),...(heatmapContinuous(p,axis)?{start:null,end:null,fromPixels:true}:{label:''})};
+}
+
+function heatmapInterval(p,axis,index) {
+  const band=p.heatmap[axis][index];
+  if(!band.fromPixels)return [band.start,band.end];
+  const pixel=p.heatmap.pixels[axis].slice(index,index+2),calibration=p.axes[axis];
+  if(!calibration.calibrated||!pixel.every(finite)||pixel[0]>=pixel[1])return [null,null];
+  try{return pixel.map(v=>pixelToValue(v,calibration)).sort((a,b)=>a-b);}
+  catch{return [null,null];}
+}
+
+function heatmapRecords(p) {
+  return new Map(p.rows.map((row,i)=>[heatmapCellKey(row._xKey,row._yKey),{row,evidence:p.evidence?.[i],index:i}]));
+}
+
+function checkHeatmapProject(p) {
+  const h=p.heatmap;
+  if(!h||!heatmapAxes.every(a=>Array.isArray(h[a])&&Array.isArray(h.pixels?.[a])&&h.pixels[a].length===h[a].length+1)||
+      !Array.isArray(h.colorPoints)||!Array.isArray(p.rows))throw Error('热力图工程结构不完整');
+  checkHeatmapSize(h.x.length,h.y.length);
+  const ids={};
+  for(const axis of heatmapAxes){
+    ids[axis]=new Set(h[axis].map(b=>b?.key));
+    if(ids[axis].size!==h[axis].length||[...ids[axis]].some(k=>typeof k!=='string'||!k))
+      throw Error('热力图行列对象身份无效或重复');
+    if(h.pixels[axis].some(v=>v!==null&&(!finite(v)||v<0)))throw Error('热力图像素边界无效');
+  }
+  if(h.colorPoints.length>64||h.colorPoints.some(q=>!finite(q?.x)||!finite(q.y)||q.value!==null&&!finite(q.value)))
+    throw Error('热力图色标校准点无效');
+  if(p.evidence!==undefined&&(!Array.isArray(p.evidence)||p.evidence.length!==p.rows.length))
+    throw Error('热力图像素证据与单元格记录不一致');
+  if(p.rows.some(r=>!ids.x.has(r?._xKey)||!ids.y.has(r?._yKey))||heatmapRecords(p).size!==p.rows.length)
+    throw Error('热力图单元格引用无效或重复');
+  return p;
+}
+
+function validateHeatmap(p) {
+  const out=[];
+  const issue=(severity,message)=>out.push({severity,message});
+  try{checkHeatmapProject(p);}catch(e){return [{severity:'error',message:e.message}];}
+  for(const title of ['title','xTitle','yTitle','heatmapTitle'])
+    if(present(p[title])&&!heatmapTitle(p[title]))issue('error',title+' 需要文字或非空文字数组');
+  const rows=p.rows.filter(r=>Object.hasOwn(r,'value'));
+  if(!rows.length)issue('error','至少录入一个热力图数值或显式缺测（null）');
+  if(rows.some(r=>r.value!==null&&!finite(r.value)))issue('error','热力图格值必须是有限数字或 null');
+  for(const axis of heatmapAxes){
+    const name=axis.toUpperCase(),used=new Set(rows.map(r=>r['_'+axis+'Key']));
+    let previous, direction=0, incomplete=0, unordered=false, overlap=false;
+    const bands=p.heatmap[axis];
+    for(const [i,band] of bands.entries()){
+      if(!used.has(band.key))continue;
+      if(!heatmapContinuous(p,axis)){
+        if(!heatmapLabel(band.label))incomplete++;
+        continue;
+      }
+      const interval=heatmapInterval(p,axis,i);
+      if(!interval.every(finite)||interval[0]>=interval[1]){incomplete++;continue;}
+      if(previous){
+        const step=Math.sign(interval[0]-previous[0]);
+        const tolerance=Math.max(...interval.map(Math.abs),...previous.map(Math.abs))*Number.EPSILON*8;
+        if(step===0||(step>0?previous[1]-interval[0]:interval[1]-previous[0])>tolerance)overlap=true;
+        if(direction&&step!==direction)unordered=true;
+        direction=step;
+      }
+      previous=interval;
+    }
+    if(incomplete)issue('error',name+' 轴有 '+incomplete+(heatmapContinuous(p,axis)?' 个已使用区间缺少有效的起止值（起点须小于终点）':' 个已使用位置未填写原始标签'));
+    if(overlap||unordered)issue('error',name+' 轴区间不能重叠，须按视觉方向递增或递减排列');
+    if(rows.length&&used.size<bands.length)issue('warning',name+' 轴有整行或整列没有 GT 记录；可将其中一格标为缺测以保留该位置的标签或区间');
+    const pixels=p.heatmap.pixels[axis].filter(finite);
+    if(pixels.some((v,i)=>i>0&&v<=pixels[i-1]))issue('warning',name+' 轴像素边界须从左到右或从上到下排列');
+  }
+  const unconfirmed=p.evidence?.filter(e=>e?.source==='heatmap_color'&&e.warning&&!e.accepted).length??0;
+  if(unconfirmed)issue('warning',unconfirmed+' 格色标估值待核对，未采用的估值不会进入 GT');
+  const signature=JSON.stringify(p.heatmap.colorPoints);
+  if(p.evidence?.some(e=>e?.source==='heatmap_color'&&e.calibration!==signature))
+    issue('warning','色标校准已改动，请复核现有估值或重新测量');
+  validateAxes(p,issue);
+  return out;
+}
+
+function makeHeatmapSpec(p) {
+  const records=heatmapRecords(p),values=[];
+  const x=p.heatmap.x.map((band,i)=>heatmapContinuous(p,'x')?heatmapInterval(p,'x',i):[band.label]);
+  const y=p.heatmap.y.map((band,i)=>heatmapContinuous(p,'y')?heatmapInterval(p,'y',i):[band.label]);
+  for(const [j,yBand] of p.heatmap.y.entries())for(const [i,xBand] of p.heatmap.x.entries()){
+    const record=records.get(heatmapCellKey(xBand.key,yBand.key))?.row;
+    if(!record||!Object.hasOwn(record,'value'))continue;
+    values.push({
+      x:x[i][0],x_id:heatmapId('x',i),...(x[i].length===2?{x2:x[i][1]}:{}),
+      y:y[j][0],y_id:heatmapId('y',j),...(y[j].length===2?{y2:y[j][1]}:{}),value:record.value
+    });
+  }
+  const encoding={};
+  for(const axis of heatmapAxes){
+    const continuous=heatmapContinuous(p,axis),title=p[axis+'Title'];
+    encoding[axis]=continuous?{field:axis,type:'quantitative'}:{field:axis+'_id',type:'ordinal',sort:null};
+    if(present(title))encoding[axis].title=copy(title);
+    if(continuous)encoding[axis+'2']={field:axis+'2'};
+  }
+  encoding.color={field:'value',type:'quantitative'};
+  if(present(p.heatmapTitle))encoding.color.title=copy(p.heatmapTitle);
+  return {...(present(p.title)?{title:copy(p.title)}:{}),data:{values},mark:{type:'rect'},encoding};
+}
+
+function importHeatmapSpec(s) {
+  if(['transform','layer','concat','hconcat','vconcat','facet','repeat','resolve'].some(k=>Object.hasOwn(s,k)))
+    throw Error('热力图 GT 需要单图层内联数据和直接字段编码');
+  const enc=s.encoding??{},channels=['x','x2','y','y2','color'];
+  for(const [channel,def] of Object.entries(enc)){
+    if(!def||typeof def!=='object'||Array.isArray(def)||['condition','aggregate','bin','timeUnit','datum'].some(k=>Object.hasOwn(def,k))||
+        (channels.includes(channel)?Object.hasOwn(def,'value'):!Object.hasOwn(def,'value')))
+      throw Error('热力图仅支持直接的 X、Y、区间边界和数值颜色编码');
+  }
+  const mode=heatmapAxes.map(axis=>{
+    const primary=enc[axis],secondary=enc[axis+'2'];
+    if(primary?.field===axis&&primary.type==='quantitative'&&secondary?.field===axis+'2')return 'c';
+    if(primary?.field===axis+'_id'&&['ordinal','nominal'].includes(primary.type)&&!secondary)return 'd';
+    throw Error(axis.toUpperCase()+' 轴需要 '+axis+'_id 离散编码，或 '+axis+' / '+axis+'2 连续区间编码');
+  }).join('');
+  if(enc.color?.field!=='value'||enc.color.type!=='quantitative')throw Error('热力图需要以 value 编码定量颜色');
+  const p=defaultProject('heatmap_'+mode);
+  const titleText=title=>Array.isArray(title)||typeof title!=='object'?title??'':title?.text??'';
+  p.title=titleText(s.title);
+  p.xTitle=titleText(enc.x.title??enc.x.axis?.title);
+  p.yTitle=titleText(enc.y.title??enc.y.axis?.title);
+  p.heatmapTitle=titleText(enc.color.title??enc.color.legend?.title);
+  const locations=new Map();
+  const rows=s.data.values.map(row=>{
+    if(!row||typeof row!=='object'||Array.isArray(row)||!Object.hasOwn(row,'value'))
+      throw Error('热力图 GT 的每条观测需要 value（缺测为 null）');
+    return {row,positions:heatmapAxes.map(a=>heatmapIdIndex(row[a+'_id'],a))};
+  });
+  const sizes=heatmapAxes.map((_,i)=>rows.reduce((max,r)=>Math.max(max,r.positions[i]+1),0));
+  checkHeatmapSize(...sizes);
+  for(const [i,axis] of heatmapAxes.entries()){
+    p.heatmap[axis]=Array.from({length:sizes[i]},()=>newHeatmapBand(p,axis));
+    p.heatmap.pixels[axis]=Array(sizes[i]+1).fill(null);
+  }
+  p.rows=rows.map(({row,positions})=>{
+    const refs={};
+    for(const [i,axis] of heatmapAxes.entries()){
+      const band=p.heatmap[axis][positions[i]],continuous=heatmapContinuous(p,axis);
+      const coordinates=continuous?[row[axis],row[axis+'2']]:[row[axis]];
+      if(continuous?!coordinates.every(finite)||coordinates[0]>=coordinates[1]:!heatmapLabel(coordinates[0]))
+        throw Error('热力图原始标签或连续区间无效');
+      if(locations.has(band.key)&&locations.get(band.key).some((v,j)=>v!==coordinates[j]))
+        throw Error(row[axis+'_id']+' 对应的原始标签或区间不一致');
+      locations.set(band.key,coordinates);
+      if(continuous)[band.start,band.end,band.fromPixels]=[...coordinates,false];
+      else band.label=coordinates[0];
+      refs['_'+axis+'Key']=band.key;
+    }
+    return {...refs,value:row.value};
+  });
+  makeSpec(p);
+  return p;
+}
+
+function renderHeatmapSpec(gt,p) {
+  const out=copy(gt),{color,...position}=out.encoding,tooltips=[];
+  const axisText=axis=>position[axis].title??axis.toUpperCase();
+  const describe=(row,axis)=>axisText(axis)+' '+row[axis]+(position[axis+'2']?' – '+row[axis+'2']:'');
+  for(const row of out.data.values)
+    row.__heatmapDescription=describe(row,'x')+'，'+describe(row,'y')+'，'+(row.value===null?'缺测':(color.title??'数值')+' '+row.value);
+  const description={field:'__heatmapDescription',type:'nominal'};
+  for(const axis of heatmapAxes){
+    const enc=position[axis],id=axis+'_id';
+    const byId=new Map(out.data.values.map(r=>[r[id],r]));
+    const ids=[...byId.keys()].sort((a,b)=>heatmapIdIndex(a,axis)-heatmapIdIndex(b,axis));
+    const title=enc.title??axis.toUpperCase();
+    tooltips.push({field:axis,type:enc.field===id?'nominal':'quantitative',title});
+    if(enc.field===id){
+      const bands=p?.heatmap[axis], labels=Object.fromEntries(ids.map(key=>[key,String(byId.get(key)[axis])]));
+      const count=bands?.length??heatmapIdIndex(ids.at(-1),axis)+1;
+      if(bands)bands.forEach((band,i)=>{if(heatmapLabel(band.label))labels[heatmapId(axis,i)]=String(band.label);});
+      enc.scale={domain:Array.from({length:count},(_,i)=>heatmapId(axis,i))};
+      enc.axis={labelExpr:'('+JSON.stringify(labels)+'[datum.value] || "")',labelOverlap:false,labelLimit:0,
+        description:title+' 轴，标签：'+enc.scale.domain.map(id=>labels[id]).filter(label=>label!==undefined).join('、')};
+      enc.title??=null;
+    }else{
+      const first=byId.get(ids[0])[axis],last=byId.get(ids.at(-1))[axis];
+      const reverse=ids.length>1&&(axis==='x'?last<first:last>first);
+      const values=p?p.heatmap[axis].flatMap((_,i)=>heatmapInterval(p,axis,i)).filter(finite):[];
+      enc.scale={zero:false,nice:false,reverse,...(values.length&&Math.min(...values)<Math.max(...values)?{domain:[Math.min(...values),Math.max(...values)]}:{})};
+      tooltips.push({field:axis+'2',type:'quantitative',title:axis.toUpperCase()+' 结束'});
+    }
+  }
+  color.title??='数值';
+  const tooltip=[...tooltips,{field:'value',type:'quantitative',title:color.title}];
+  delete out.mark;
+  out.encoding=position;
+  const missing={mark:{type:'rect'},transform:[{filter:'datum.value === null'}],
+    encoding:{color:{value:'#d8dee5'},tooltip:tooltips,description}};
+  const measured={mark:{type:'rect'},transform:[{filter:'isValid(datum.value)'}],encoding:{color,tooltip,description}};
+  out.layer=[];
+  if(out.data.values.some(row=>row.value===null))out.layer.push(missing);
+  if(out.data.values.some(row=>row.value!==null))out.layer.push(measured);
+  return out;
+}
+
+function readHeatmapValue(raw) {
+  const value=raw.trim().replaceAll('−','-');
+  if(!value)return undefined;
+  if(/^(?:null|na|n\/a|[-–—])$/i.test(value))return null;
+  if(!heatmapValueToken.test(value)||!finite(Number(value)))throw Error('请输入有限数值、null 或留空');
+  return Number(value);
+}
+
+function parseHeatmapMatrix(raw) {
+  const lines=raw.replace(/\r\n?/g,'\n').replace(/\n$/,'').split('\n');
+  const separator=raw.includes('\t')?'\t':raw.includes(',')?',':/ +/;
+  return lines.map((line,y)=> (typeof separator==='string'?line:line.trim()).split(separator).map((token,x)=>{
+    try{return readHeatmapValue(token);}
+    catch(e){throw Error('粘贴区域第 '+(y+1)+' 行、第 '+(x+1)+' 列：'+e.message);}
+  }));
+}
+
+// Sample the image along the colorbar itself, so intermediate hues work across
+// diverging and multihue ramps. Values are linear between adjacent anchors.
+function heatmapColorDistance(a,b) {
+  return Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]);
+}
+
+function dominantHeatmapColor(read,points) {
+  const pixels=new Map();
+  for(const {x,y} of points){
+    const point={x:Math.floor(x),y:Math.floor(y)};
+    const key=heatmapCellKey(point.x,point.y);
+    if(!pixels.has(key))pixels.set(key,{...point,rgb:read(point.x,point.y)});
+  }
+  const samples=[...pixels.values()].filter(q=>q.rgb);
+  let cluster=[];
+  for(const sample of samples){
+    const near=samples.filter(q=>heatmapColorDistance(sample.rgb,q.rgb)<=18);
+    if(near.length>cluster.length)cluster=near;
+  }
+  if(!cluster.length)return null;
+  const rgb=[0,1,2].map(i=>cluster.map(q=>q.rgb[i]).sort((a,b)=>a-b)[Math.floor(cluster.length/2)]);
+  const point=cluster.reduce((best,q)=>heatmapColorDistance(q.rgb,rgb)<heatmapColorDistance(best.rgb,rgb)?q:best);
+  return {rgb,pixel:{x:point.x,y:point.y},agreement:cluster.length/pixels.size,samples:samples.length};
+}
+
+function heatmapColorRamp(points,read) {
+  if(points.length<2||points.some(q=>!finite(q.value)))throw Error('请至少标注色标两端并填写每个校准点的数值');
+  const [a,b]=points,axis=Math.abs(a.x-b.x)>=Math.abs(a.y-b.y)?'x':'y',cross=axis==='x'?'y':'x';
+  const anchors=[...points].sort((a,b)=>a[axis]-b[axis]);
+  const first=anchors[0],last=anchors.at(-1),length=last[axis]-first[axis],sign=Math.sign(last.value-first.value);
+  if(length<4||Math.abs(last[cross]-first[cross])>length/2||!sign||
+      anchors.some((p,i)=>i>0&&(p[axis]-anchors[i-1][axis]<1||Math.sign(p.value-anchors[i-1].value)!==sign)))
+    throw Error('色标校准点须沿水平或垂直色带分布，数值按位置严格递增或递减');
+  const steps=Math.min(512,Math.ceil(length)),ramp=[];
+  let index=1;
+  for(let i=0;i<=steps;i++){
+    const t=i/steps,coordinate=first[axis]+t*length;
+    while(index<anchors.length-1&&coordinate>anchors[index][axis])index++;
+    const start=anchors[index-1],end=anchors[index];
+    const fraction=(coordinate-start[axis])/(end[axis]-start[axis]);
+    const value=start.value*(1-fraction)+end.value*fraction;
+    const middle=first[cross]+t*(last[cross]-first[cross]);
+    const sample=dominantHeatmapColor(read,[0,-1,1].map(offset=>({[axis]:coordinate,[cross]:middle+offset})));
+    if(sample)ramp.push({t,value,...sample});
+  }
+  if(ramp.length<2||Math.max(...ramp.map(q=>heatmapColorDistance(q.rgb,ramp[0].rgb)))<12)
+    throw Error('色标取样没有足够的颜色变化，请沿色带内部重新定位两端');
+  return ramp;
+}
+
+function measureHeatmapColor(read,ramp,bounds,point) {
+  const positions=[.12,.24,.37,.50,.63,.76,.88];
+  const points=bounds?positions.flatMap(fy=>positions.map(fx=>({
+    x:bounds.x[0]+fx*(bounds.x[1]-bounds.x[0]),y:bounds.y[0]+fy*(bounds.y[1]-bounds.y[0])
+  }))):[-1,0,1].flatMap(dy=>[-1,0,1].map(dx=>({x:point.x+dx,y:point.y+dy})));
+  const sample=dominantHeatmapColor(read,points);
+  if(!sample)return {warning:'区域无可用像素',bounds,point};
+  let best, distance=Infinity;
+  for(let i=1;i<ramp.length;i++){
+    const a=ramp[i-1],b=ramp[i],delta=b.rgb.map((v,j)=>v-a.rgb[j]);
+    if(b.t-a.t>.05)continue;
+    const dot=(a,b)=>a.reduce((sum,v,j)=>sum+v*b[j],0),length=dot(delta,delta);
+    const t=length?Math.max(0,Math.min(1,dot(sample.rgb.map((v,j)=>v-a.rgb[j]),delta)/length)):.5;
+    const d=heatmapColorDistance(sample.rgb,a.rgb.map((v,j)=>v+t*delta[j]));
+    if(d<distance){
+      distance=d;
+      best={t:a.t+t*(b.t-a.t),value:a.value*(1-t)+b.value*t,pixel:t<.5?a.pixel:b.pixel};
+    }
+  }
+  if(!best)return {warning:'色标上缺少连续可用像素',...sample,bounds,point};
+  const ambiguous=ramp.some(q=>Math.abs(q.t-best.t)>.08&&heatmapColorDistance(sample.rgb,q.rgb)<=distance+6);
+  const warning=distance>36?'格内颜色偏离色标':sample.agreement<.60?'格内颜色不一致':ambiguous?'相似颜色对应多个色标位置':'';
+  return {value:Number(best.value.toFixed(2)),...sample,bounds,point,distance,legendPixel:best.pixel,warning};
+}
+
+function heatmapPixelRanges(p,axis) {
+  const pixels=[...p.heatmap.pixels[axis]],bands=p.heatmap[axis];
+  if(!heatmapContinuous(p,axis)){
+    let previous=-1;
+    for(let i=0;i<pixels.length;i++)if(finite(pixels[i])){
+      if(previous>=0&&pixels[i]>pixels[previous])for(let j=previous+1;j<i;j++)
+        pixels[j]=pixels[previous]+(pixels[i]-pixels[previous])*(j-previous)/(i-previous);
+      previous=i;
+    }
+  }
+  return bands.map((_,i)=>{
+    const measured=pixels.slice(i,i+2),calibration=p.axes[axis];
+    if(!measured.every(finite)&&heatmapContinuous(p,axis)&&calibration.calibrated){
+      const values=heatmapInterval(p,axis,i);
+      if(values.every(finite))try{
+        const fromScale=values.map(value=>valueToPixel(value,calibration)).sort((a,b)=>a-b);
+        measured.forEach((v,j)=>{if(!finite(v))measured[j]=fromScale[j];});
+      }catch{/* The table remains editable while the numeric calibration is incomplete. */}
+    }
+    return measured.every(finite)&&measured[0]<measured[1]?measured:null;
+  });
+}
+
 const $=id=>document.getElementById(id), clone=x=>structuredClone(x);
-const labels={barline_n:'柱线复合图 / 共用类别轴',barh_1:'单系列横向柱图',barh_n:'分组横向柱图',barv_1:'单系列纵向柱图',barv_n:'分组纵向柱图',barv_stack:'堆叠纵向柱图',barh_stack:'堆叠横向柱图',line_1:'单系列折线图',line_n:'多系列折线图',scatter_1:'单系列散点图',scatter_n:'多系列散点图',area_1:'Single-series Area / 单系列',area_n:'Multi-series Area / 多系列',area_stack:'Stacked Area / 堆叠',pie:'Pie / 饼图（含环形）',boxplot_v:'Box Plot Vertical / 纵向',boxplot_h:'Box Plot Horizontal / 横向',
+const labels={
+  heatmap_dd:'离散 × 离散',heatmap_cc:'连续 × 连续',heatmap_dc:'离散 X × 连续 Y',heatmap_cd:'连续 X × 离散 Y',
+  barline_n:'柱线复合图 / 共用类别轴',barh_1:'单系列横向柱图',barh_n:'分组横向柱图',barv_1:'单系列纵向柱图',barv_n:'分组纵向柱图',barv_stack:'堆叠纵向柱图',barh_stack:'堆叠横向柱图',line_1:'单系列折线图',line_n:'多系列折线图',scatter_1:'单系列散点图',scatter_n:'多系列散点图',area_1:'Single-series Area / 单系列',area_n:'Multi-series Area / 多系列',area_stack:'Stacked Area / 堆叠',pie:'Pie / 饼图（含环形）',boxplot_v:'Box Plot Vertical / 纵向',boxplot_h:'Box Plot Horizontal / 横向',
   histogram_v_1:'单系列纵向直方图',histogram_h_1:'单系列横向直方图',
   histogram_v_n:'重叠纵向直方图',histogram_h_n:'重叠横向直方图',
   histogram_v_stack:'堆叠纵向直方图',histogram_h_stack:'堆叠横向直方图'};
@@ -1120,15 +1475,518 @@ function dirty(){p.reviewed=false;$('reviewed').checked=false;}
 function change(fn,{form=false,keepTable=false}={}){const old=clone(p);checkpoint();try{fn();}catch(e){p=old;history.pop();toast(e.message);return;}dirty();refresh(form,keepTable);}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function options(el,values,chosen){el.innerHTML=values.map(([v,t])=>`<option value="${esc(v)}">${esc(t)}</option>`).join('');if(values.some(([v])=>String(v)===String(chosen)))el.value=chosen;}
-const familyOf=kind=>kind==='barline_n'?'composite':kind==='pie'?'pie':kind.startsWith('boxplot')?'boxplot':kind.startsWith('bar')?'bar':kind.startsWith('line')?'line':kind.startsWith('area_')?'area':isHistogram({kind})?'histogram':'scatter';
+const familyOf=kind=>isHeatmap({kind})?'heatmap':kind==='barline_n'?'composite':kind==='pie'?'pie':kind.startsWith('boxplot')?'boxplot':kind.startsWith('bar')?'bar':kind.startsWith('line')?'line':kind.startsWith('area_')?'area':isHistogram({kind})?'histogram':'scatter';
 function syncTypes(){const family=familyOf(p.kind);$('family').value=family;options($('kind'),Object.entries(labels).filter(([k])=>familyOf(k)===family),p.kind+(hasErrors(p)&&!isStack(p)&&!isComposite(p)?'_error':''));}
 syncTypes();
+let heatmapCapture=null;
+const heatmapImages=new WeakMap();
+const heatmapAxisName=axis=>axis==='x'?'列':'行';
+
+function heatmapBandText(axis,i) {
+  const band=p.heatmap[axis][i];
+  if(!heatmapContinuous(p,axis))return String(band.label??'');
+  const [start,end]=heatmapInterval(p,axis,i);
+  return finite(start)&&finite(end)?start+' – '+end:'';
+}
+
+function heatmapCell(index) {
+  const {x,y}=p.heatmap, column=index%x.length, row=Math.floor(index/x.length);
+  return index>=0&&x[column]&&y[row]?{column,row,x:x[column].key,y:y[row].key}:null;
+}
+
+function heatmapCellInput(index) {
+  return $('tableBody').querySelector('[data-heatmap-cell="'+index+'"]');
+}
+
+function heatmapCellRecord(cell) {
+  const index=p.rows.findIndex(r=>r._xKey===cell.x&&r._yKey===cell.y);
+  return {row:p.rows[index],evidence:p.evidence?.[index]};
+}
+
+function heatmapCellDisplay(row,evidence) {
+  if(row?.value===null)return 'null';
+  if(evidence?.source==='heatmap_color'&&(!evidence.warning||evidence.accepted)&&finite(row?.value))
+    return row.value.toFixed(2);
+  return row?.value??'';
+}
+
+function updateHeatmapCellInput(input,row,evidence) {
+  input.value=heatmapCellDisplay(row,evidence);
+  const omitted=evidence?.source==='heatmap_omitted';
+  input.placeholder=omitted?'跳过':'';
+  input.toggleAttribute('data-heatmap-missing',row?.value===null||omitted);
+  input.toggleAttribute('data-heatmap-warning',!!(evidence?.warning&&!evidence.accepted));
+  input.title=evidence?.source==='heatmap_color'?
+    (evidence.warning&&!evidence.accepted?evidence.warning:'色标估值'):omitted?'结构空格':row?.value===null?'显式缺测':'';
+}
+
+function syncHeatmapTable() {
+  const {x,y}=p.heatmap, records=heatmapRecords(p);
+  $('tableHead').innerHTML='<tr><th scope="col">行 / 列</th>'+x.map((_,i)=>'<th scope="col"><small>'+heatmapId('x',i)+'</small>'+esc(heatmapBandText('x',i))+'</th>').join('')+'</tr>';
+  $('tableBody').innerHTML=y.map((yBand,j)=>'<tr><th scope="row"><small>'+heatmapId('y',j)+'</small>'+esc(heatmapBandText('y',j))+'</th>'+
+    x.map((xBand,i)=>{
+      const {row,evidence}=records.get(heatmapCellKey(xBand.key,yBand.key))??{};
+      const pending=evidence?.warning&&!evidence.accepted,omitted=evidence?.source==='heatmap_omitted';
+      return '<td><input type="text" inputmode="decimal" data-heatmap-cell="'+(j*x.length+i)+'"'+
+        ' aria-label="第 '+(j+1)+' 行第 '+(i+1)+' 列 '+esc(heatmapBandText('y',j)+' '+heatmapBandText('x',i))+'"'+
+        (row?.value===null||omitted?' data-heatmap-missing':'')+(pending?' data-heatmap-warning':'')+
+        (omitted?' placeholder="跳过"':'')+
+        ' title="'+esc(pending?evidence.warning:evidence?.source==='heatmap_color'?'色标估值':omitted?'结构空格':row?.value===null?'显式缺测':'')+'" value="'+
+        esc(heatmapCellDisplay(row,evidence))+'"></td>';
+    }).join('')+'</tr>').join('');
+  syncHeatmapSelection();
+  syncHistoryControls();
+}
+
+function syncHeatmapSelection() {
+  const cell=heatmapCell(selected),total=p.heatmap.x.length*p.heatmap.y.length;
+  const current=$('tableBody').querySelector('[data-heatmap-active]'),input=heatmapCellInput(selected);
+  current?.removeAttribute('data-heatmap-active');
+  input?.parentElement.setAttribute('data-heatmap-active','');
+  const {row,evidence}=cell?heatmapCellRecord(cell):{};
+  const estimate=evidence?.source==='heatmap_color'?evidence:null;
+  const pending=estimate?.warning&&!estimate.accepted;
+  const recorded=p.rows.filter(r=>Object.hasOwn(r,'value')).length;
+  $('countBadge').textContent=recorded+' / '+total+' 格已记录';
+  $('heatmapSelection').textContent=cell?
+    '第 '+(cell.row+1)+' 行、第 '+(cell.column+1)+' 列'+(pending?' · '+estimate.warning+(finite(estimate.value)?' · 建议值 '+estimate.value.toFixed(2):''):estimate?' · 色标估值':'')+
+    (row?.value===null?' · 缺测':evidence?.source==='heatmap_omitted'?' · 跳过批量测量':''):'点击单元格选中。输入数值后按 Enter 前进；null 表示缺测。';
+  $('targetTop').textContent=cell?'第 '+(cell.row+1)+' 行 · 第 '+(cell.column+1)+' 列':'';
+  $('heatmapMissing').disabled=$('heatmapOmit').disabled=!cell;
+  $('heatmapClearCell').disabled=!row;
+  $('heatmapMeasureCell').disabled=!cell||!image;
+  $('heatmapAcceptEstimate').hidden=!pending||!finite(estimate.value)||estimate.calibration!==JSON.stringify(p.heatmap.colorPoints);
+}
+
+function syncHeatmapBoundaryOptions() {
+  const axis=$('heatmapBoundaryAxis').value, el=$('heatmapBoundaryIndex');
+  const indices=p.heatmap[axis].length?Array.from({length:p.heatmap[axis].length+1},(_,i)=>[
+    i, (i===0?'起边':i===p.heatmap[axis].length?'末边':i+' / '+(i+1))+
+      (finite(p.heatmap.pixels[axis][i])?' · '+p.heatmap.pixels[axis][i].toFixed(1)+' px':'')
+  ]):[];
+  options(el,indices,el.value);
+  $('heatmapBoundary').disabled=!image||!indices.length;
+}
+
+function syncHeatmapForm() {
+  const heatmap=isHeatmap(p);
+  for(const id of ['heatmapTitleLabel','heatmapStructure','heatmapMeasurement','heatmapCellControls'])$(id).hidden=!heatmap;
+  for(const id of ['addRow','deleteRow'])$(id).hidden=heatmap;
+  $('dataTable').classList.toggle('heatmap-matrix',heatmap);
+  document.querySelector('[data-tool="heatmap-measure"]').hidden=!heatmap;
+  if(!heatmap)return;
+  const {x,y,pixels,colorPoints}=p.heatmap;
+  $('heatmapTitle').value=p.heatmapTitle??'';
+  $('seriesSection').hidden=$('legend').parentElement.hidden=$('activeSeries').parentElement.hidden=true;
+  document.querySelector('.assist-panel').hidden=true;
+  document.querySelector('[data-tool="point"]').hidden=true;
+  document.querySelector('[data-tool="calibrate"]').hidden=$('calibrationPanel').hidden=!requiredAxes(p).length;
+  $('orderGuide').textContent='列按左到右、行按上到下。标签可以重名。';
+  $('tableNote').textContent='留空表示省略该格，null 表示显式缺测。色标估值保留两位小数。';
+  $('heatmapRows').value=y.length||'';
+  $('heatmapColumns').value=x.length||'';
+  $('heatmapAxes').innerHTML=heatmapAxes.map(axis=>{
+    const bands=p.heatmap[axis], continuous=heatmapContinuous(p,axis), name=heatmapAxisName(axis);
+    const bandRows=bands.map((band,i)=>{
+      const attrs=' data-hm-axis="'+axis+'" data-hm-index="'+i+'"';
+      const input=(field,label,value)=>'<input'+attrs+' data-hm-field="'+field+'" aria-label="'+label+'" '+
+        (continuous?'type="number" step="any" placeholder="'+(field==='start'?'起点':'终点')+'"':'type="text" placeholder="原始标签"')+' value="'+esc(value)+'">';
+      const [start,end]=continuous?heatmapInterval(p,axis,i):[];
+      const button=(action,text,title,disabled=false)=>'<button class="small"'+attrs+' data-hm-action="'+action+'" title="'+title+'" aria-label="'+title+'" '+(disabled?'disabled':'')+'>'+text+'</button>';
+      return '<div class="heatmap-band"><span>'+heatmapId(axis,i)+'</span>'+
+        (continuous?input('start',name+(i+1)+' 起点',start)+input('end',name+(i+1)+' 终点',end)+
+          button('pixels','↺','使用校准后的像素边界',band.fromPixels):input('label',name+(i+1)+' 标签',band.label))+
+        button('previous','↑','前移'+name,i===0)+button('next','↓','后移'+name,i===bands.length-1)+button('delete','×','删除'+name)+'</div>';
+    }).join('');
+    const action=(value,text)=>'<button class="small" data-hm-axis="'+axis+'" data-hm-action="'+value+'">'+text+'</button>';
+    const bulk=continuous?'': '<details><summary>批量输入'+name+'标签</summary><label>一行一个标签<textarea rows="3" data-hm-names="'+axis+'">'+
+      esc(bands.map(b=>b.label).join('\n'))+'</textarea></label>'+action('names','应用'+name+'标签')+'</details>';
+    return '<section><div class="section-head"><h3>'+axis.toUpperCase()+' · '+name+(continuous?'区间':'标签')+'</h3><div>'+
+      action('add','＋ 添加'+name)+(continuous?action('ascending','递增')+action('descending','递减'):action('ascending','按标签排序'))+
+      '</div></div>'+bulk+'<div class="heatmap-bands">'+bandRows+'</div></section>';
+  }).join('');
+  syncHeatmapBoundaryOptions();
+  syncHeatmapGridStatus();
+  $('heatmapCorners').disabled=!image||!x.length||!y.length;
+  $('heatmapClearGrid').disabled=!Object.values(pixels).some(axis=>axis.some(finite));
+  $('heatmapColorPoint').disabled=!image;
+  document.querySelector('[data-tool="heatmap-measure"]').disabled=!image;
+  $('heatmapColorPoints').innerHTML=colorPoints.map((q,i)=>'<div class="heatmap-band"><span>点 '+(i+1)+' · '+q.x.toFixed(1)+', '+q.y.toFixed(1)+' px</span>'+
+    '<input type="number" step="any" data-hm-color="'+i+'" aria-label="校准点 '+(i+1)+' 数值" value="'+esc(q.value)+'">'+
+    '<button class="small" data-hm-retake="'+i+'" '+(image?'':'disabled')+'>重取</button>'+
+    '<button class="small" data-hm-remove-color="'+i+'">删除</button></div>').join('');
+}
+
+function syncHeatmapGridStatus() {
+  const [columns,rows]=heatmapAxes.map(axis=>heatmapPixelRanges(p,axis).filter(Boolean).length);
+  $('heatmapGridStatus').textContent='已定位 '+columns+' / '+p.heatmap.x.length+' 列、'+rows+' / '+p.heatmap.y.length+
+    ' 行。离散轴可用两角等分，连续轴可点取共享边界或用已知区间和数值轴校准定位。';
+  $('heatmapMeasureBatch').disabled=!image||!columns||!rows;
+}
+
+function editHeatmapRecords(updates) {
+  const records=heatmapRecords(p);
+  for(const {x,y,value,evidence} of updates){
+    const key=heatmapCellKey(x,y);
+    if(value===undefined&&!evidence)records.delete(key);
+    else records.set(key,{row:{_xKey:x,_yKey:y,...(value===undefined?{}:{value})},evidence});
+  }
+  const entries=[...records.values()];
+  p.rows=entries.map(e=>e.row);
+  p.evidence=entries.map(e=>e.evidence??null);
+}
+
+function manualHeatmapRecord(cell,value,evidence=heatmapCellRecord(cell).evidence) {
+  const measurement=evidence?.source==='heatmap_color'?evidence:evidence?.measurement;
+  return {...cell,value,evidence:value===undefined?undefined:{
+    source:'manual_entry',role:'transcribed',...(measurement?{measurement}:{})
+  }};
+}
+
+function editHeatmapValue(index,raw) {
+  const cell=heatmapCell(index),{row,evidence}=heatmapCellRecord(cell);
+  selected=index;
+  if(String(heatmapCellDisplay(row,evidence))===raw)return true;
+  let value;
+  try{value=readHeatmapValue(raw);}
+  catch(e){updateHeatmapCellInput(heatmapCellInput(index),row,evidence);toast(e.message);return false;}
+  change(()=>editHeatmapRecords([manualHeatmapRecord(cell,value)]),{keepTable:true});
+  const result=heatmapCellRecord(cell);
+  updateHeatmapCellInput(heatmapCellInput(index),result.row,result.evidence);
+  return true;
+}
+
+function selectHeatmapCell(index,focus=false) {
+  selected=index;
+  syncHeatmapSelection();
+  if(focus)heatmapCellInput(index)?.focus();
+  draw();
+}
+
+function advanceHeatmapCell(focus=false) {
+  const next=selected+1;
+  if(heatmapCell(next))selectHeatmapCell(next,focus);
+}
+
+function keepHeatmapBands(axis,bands) {
+  const keys=new Set(bands.map(b=>b.key)),ref='_'+axis+'Key',old=p.heatmap[axis];
+  if(heatmapContinuous(p,axis)){
+    const oldIndex=new Map(old.map((b,i)=>[b.key,i]));
+    bands.forEach(band=>{
+      const index=oldIndex.get(band.key);
+      if(index===undefined||!band.fromPixels)return;
+      const [start,end]=heatmapInterval(p,axis,index);
+      if(finite(start)&&finite(end))Object.assign(band,{start,end,fromPixels:false});
+    });
+  }
+  p.heatmap[axis]=bands;
+  if(heatmapContinuous(p,axis)||bands.length!==old.length)p.heatmap.pixels[axis]=Array(bands.length+1).fill(null);
+  p.evidence=p.rows.flatMap((r,i)=>keys.has(r[ref])?[p.evidence?.[i]??null]:[]);
+  p.rows=p.rows.filter(r=>keys.has(r[ref]));
+  selected=-1;
+  if(tool==='heatmap-boundary'||tool==='heatmap-corners')setTool('select');
+}
+
+function canRemoveHeatmapBands(axis,bands) {
+  const removed=new Set(bands.map(b=>b.key));
+  return !p.rows.some(r=>removed.has(r['_'+axis+'Key']))||confirm('删除这些'+heatmapAxisName(axis)+'及其记录和证据？');
+}
+
+function resizeHeatmap(x,y) {
+  checkHeatmapSize(x,y);
+  const sizes={x,y};
+  if(heatmapAxes.some(axis=>!canRemoveHeatmapBands(axis,p.heatmap[axis].slice(sizes[axis]))))return;
+  change(()=>{
+    for(const axis of heatmapAxes){
+      const old=p.heatmap[axis],size=sizes[axis];
+      if(old.length===size)continue;
+      const bands=Array.from({length:size},(_,i)=>old[i]??newHeatmapBand(p,axis));
+      keepHeatmapBands(axis,bands);
+    }
+  },{form:true});
+}
+
+function reshapeHeatmapAxis(axis,action,index) {
+  const old=p.heatmap[axis],bands=[...old],name=heatmapAxisName(axis);
+  if(action==='pixels'){
+    change(()=>old[index].fromPixels=true,{form:true});
+    return;
+  }
+  let names;
+  if(action==='names'){
+    names=parseObjectNames($('heatmapAxes').querySelector('[data-hm-names="'+axis+'"]').value);
+    if(!names.length)throw Error('请至少输入一个'+name+'标签');
+    if(!canRemoveHeatmapBands(axis,bands.slice(names.length)))return;
+    bands.length=names.length;
+  }else if(action==='add')bands.push(newHeatmapBand(p,axis));
+  else if(action==='delete'){
+    if(!canRemoveHeatmapBands(axis,[bands[index]]))return;
+    bands.splice(index,1);
+  }else if(action==='ascending'||action==='descending'){
+    if(heatmapContinuous(p,axis)){
+      const anchors=new Map(bands.map((b,i)=>[b.key,heatmapInterval(p,axis,i)[0]]));
+      if([...anchors.values()].some(v=>!finite(v)))throw Error('请先填写所有区间起点');
+      const sign=action==='ascending'?1:-1;
+      bands.sort((a,b)=>sign*(anchors.get(a.key)-anchors.get(b.key)));
+    }else bands.sort((a,b)=>String(a.label).localeCompare(String(b.label),undefined,{numeric:true}));
+  }else{
+    const next=index+(action==='previous'?-1:1);
+    [bands[index],bands[next]]=[bands[next],bands[index]];
+  }
+  checkHeatmapSize(bands.length,p.heatmap[axis==='x'?'y':'x'].length);
+  change(()=>{
+    if(names)names.forEach((label,i)=>{bands[i]??=newHeatmapBand(p,axis);bands[i].label=label;});
+    if(bands.length!==old.length||bands.some((b,i)=>b!==old[i]))keepHeatmapBands(axis,bands);
+  },{form:true});
+}
+
+function pasteHeatmap(raw,start=selected) {
+  if(!raw.trim()&&!raw.includes('\t')&&!raw.includes(','))return;
+  const matrix=parseHeatmapMatrix(raw),cell=heatmapCell(start);
+  const row=cell?.row??0,column=cell?.column??0,{x,y}=p.heatmap;
+  const width=Math.max(x.length,column+Math.max(...matrix.map(r=>r.length)));
+  const height=Math.max(y.length,row+matrix.length);
+  checkHeatmapSize(width,height);
+  change(()=>{
+    for(const [axis,size] of [['x',width],['y',height]])if(p.heatmap[axis].length<size)
+      keepHeatmapBands(axis,Array.from({length:size},(_,i)=>p.heatmap[axis][i]??newHeatmapBand(p,axis)));
+    const records=heatmapRecords(p);
+    const updates=matrix.flatMap((line,j)=>line.map((value,i)=>{
+      const cell=heatmapCell((row+j)*width+column+i);
+      return manualHeatmapRecord(cell,value,records.get(heatmapCellKey(cell.x,cell.y))?.evidence??null);
+    }));
+    editHeatmapRecords(updates);
+    selected=row*width+column;
+  },{form:true});
+  toast('已应用 '+matrix.length+' 行矩阵数据');
+}
+
+function heatmapReadPixel() {
+  let sample=heatmapImages.get(image);
+  if(!sample){
+    const original=document.createElement('canvas');
+    original.width=image.width;original.height=image.height;
+    sample=original.getContext('2d',{willReadFrequently:true});
+    sample.drawImage(image,0,0);
+    heatmapImages.set(image,sample);
+  }
+  return (x,y)=>{
+    if(x<0||y<0||x>=sample.canvas.width||y>=sample.canvas.height)return null;
+    const [r,g,b,a]=sample.getImageData(x,y,1,1).data;
+    return a>=224?[r,g,b]:null;
+  };
+}
+
+function heatmapGeometry() {
+  return Object.fromEntries(heatmapAxes.map(axis=>[axis,heatmapPixelRanges(p,axis)]));
+}
+
+function heatmapBounds(geometry,cell) {
+  const x=geometry.x[cell.column],y=geometry.y[cell.row];
+  return x&&y?{x,y}:null;
+}
+
+function heatmapMeasure({batch=false,point}={}) {
+  if(!image)throw Error('请先添加原图');
+  const geometry=heatmapGeometry(),read=heatmapReadPixel(),calibration=JSON.stringify(p.heatmap.colorPoints);
+  const ramp=heatmapColorRamp(p.heatmap.colorPoints,read);
+  const targets=batch?Array.from({length:p.heatmap.x.length*p.heatmap.y.length},(_,i)=>heatmapCell(i)):[heatmapCell(selected)];
+  if(!targets[0])throw Error('请先选中一个单元格');
+  const records=heatmapRecords(p),updates=[];
+  let skipped=0,ambiguous=0;
+  for(const cell of targets){
+    const {row,evidence}=records.get(heatmapCellKey(cell.x,cell.y))??{};
+    if(batch&&(row&&Object.hasOwn(row,'value')||evidence?.source==='heatmap_omitted'))continue;
+    const bounds=heatmapBounds(geometry,cell);
+    if(!bounds&&!point){skipped++;continue;}
+    const result=measureHeatmapColor(read,ramp,bounds,point);
+    if(result.warning)ambiguous++;
+    updates.push({...cell,value:result.warning?row?.value:result.value,evidence:{
+      ...result,source:'heatmap_color',role:'color_estimate',calibration,measuredAt:new Date().toISOString()
+    }});
+  }
+  if(!updates.length)throw Error(skipped?'请先定位待测单元格的原图边界':'没有待测空格');
+  change(()=>editHeatmapRecords(updates));
+  if(!batch&&ambiguous===0)advanceHeatmapCell();
+  $('heatmapMeasurementStatus').textContent='已估算 '+(updates.length-ambiguous)+' 格'+(ambiguous?'；'+ambiguous+' 格待核对':'')+(skipped?'；'+skipped+' 格缺少边界':'');
+}
+
+function startHeatmapCapture(type,data={}) {
+  if(!image)throw Error('请先添加原图');
+  heatmapCapture=data;
+  $('heatmapMeasurementStatus').textContent='';
+  setTool(type);
+}
+
+function handleHeatmapPointer(raw) {
+  const pt=bounded(raw);
+  if(tool==='heatmap-corners'){
+    const first=heatmapCapture?.first;
+    if(!first){
+      heatmapCapture={first:pt};
+      $('hint').textContent='点击网格的另一个对角。';
+      draw();
+      return;
+    }
+    if(heatmapAxes.some(axis=>Math.abs(first[axis]-pt[axis])<1))throw Error('两个角须形成有宽度和高度的区域');
+    change(()=>{
+      for(const axis of heatmapAxes){
+        const bounds=p.heatmap.pixels[axis];
+        bounds.fill(null);
+        bounds[0]=Math.min(first[axis],pt[axis]);bounds[bounds.length-1]=Math.max(first[axis],pt[axis]);
+      }
+    },{form:true});
+    setTool('select');
+    return;
+  }
+  if(tool==='heatmap-boundary'){
+    const {axis,index}=heatmapCapture;
+    const bounds=p.heatmap.pixels[axis],previous=bounds.slice(0,index).filter(finite).at(-1),next=bounds.slice(index+1).find(finite);
+    if(finite(previous)&&previous>=pt[axis]||finite(next)&&next<=pt[axis])
+      throw Error('共享边界须按从左到右或从上到下排列');
+    change(()=>bounds[index]=pt[axis],{form:true});
+    if(index===bounds.length-1)setTool('select');
+    else{
+      heatmapCapture.index++;
+      $('heatmapBoundaryIndex').value=heatmapCapture.index;
+      $('hint').textContent='继续点击 '+axis.toUpperCase()+' 轴 '+$('heatmapBoundaryIndex').selectedOptions[0].textContent+'。';
+    }
+    return;
+  }
+  if(tool==='heatmap-color'){
+    const index=heatmapCapture.index??p.heatmap.colorPoints.length;
+    if(index>=64)throw Error('色标最多支持 64 个校准点');
+    change(()=>{p.heatmap.colorPoints[index]={...pt,value:p.heatmap.colorPoints[index]?.value??null};},{form:true});
+    setTool('select');
+    $('heatmapColorPoints').querySelector('[data-hm-color="'+index+'"]').focus();
+    return;
+  }
+  const geometry=heatmapGeometry();
+  const band=axis=>geometry[axis].findIndex(range=>range&&pt[axis]>=range[0]&&pt[axis]<range[1]);
+  const column=band('x'),row=band('y');
+  if(column>=0&&row>=0)selectHeatmapCell(row*p.heatmap.x.length+column);
+  else if(tool==='select')return;
+  else if(!heatmapCell(selected)||heatmapBounds(geometry,heatmapCell(selected)))throw Error('请点击已定位的格子，或选中一个尚未定位的格子再局部取色');
+  if(tool==='heatmap-measure')heatmapMeasure({point:pt});
+}
+
+function drawHeatmap(mark) {
+  const geometry=heatmapGeometry(),x=geometry.x.filter(Boolean).flat(),y=geometry.y.filter(Boolean).flat();
+  if(x.length&&y.length){
+    ctx.strokeStyle='#172f39';
+    ctx.lineWidth=1/zoom;
+    ctx.setLineDash([3/zoom,3/zoom]);
+    ctx.beginPath();
+    const left=Math.min(...x),right=Math.max(...x),top=Math.min(...y),bottom=Math.max(...y);
+    for(const v of unique(x)){ctx.moveTo(v,top);ctx.lineTo(v,bottom);}
+    for(const v of unique(y)){ctx.moveTo(left,v);ctx.lineTo(right,v);}
+    ctx.stroke();
+    ctx.setLineDash([]);
+    const cell=heatmapCell(selected),bounds=cell&&heatmapBounds(geometry,cell);
+    if(bounds){
+      ctx.strokeStyle='#00dfe5';ctx.lineWidth=2/zoom;
+      ctx.strokeRect(bounds.x[0],bounds.y[0],bounds.x[1]-bounds.x[0],bounds.y[1]-bounds.y[0]);
+    }
+  }
+  if(heatmapCapture?.first)mark(heatmapCapture.first,'#007bea','网格第一角');
+  p.heatmap.colorPoints.forEach((q,i)=>mark(q,'#e85b35','色标 '+(i+1)));
+  const cell=heatmapCell(selected),evidence=cell&&heatmapCellRecord(cell).evidence;
+  if(evidence?.source==='heatmap_color'&&evidence.pixel)mark(evidence.pixel,'#00b2bb','采样');
+  for(const axis of requiredAxes(p))for(const n of [1,2])
+    if(p.axes[axis]['point'+n])mark(p.axes[axis]['point'+n],'#007bea',axis.toUpperCase()+n);
+}
+
+function heatmapAction(fn) {
+  try{fn();}catch(e){toast(e.message);}
+}
+
+$('heatmapResize').onclick=()=>heatmapAction(()=>{
+  const x=Number($('heatmapColumns').value),y=Number($('heatmapRows').value);
+  if(!x||!y)throw Error('请输入至少一行和一列');
+  resizeHeatmap(x,y);
+});
+$('heatmapAxes').onclick=e=>{
+  const {hmAxis,hmIndex,hmAction}=e.target.dataset;
+  if(hmAction)heatmapAction(()=>reshapeHeatmapAxis(hmAxis,hmAction,Number(hmIndex)));
+};
+$('heatmapAxes').onchange=e=>{
+  const {hmAxis,hmIndex,hmField}=e.target.dataset;
+  if(!hmField)return;
+  const band=p.heatmap[hmAxis][hmIndex],input=e.target;
+  change(()=>{
+    if(hmField==='label')band.label=input.value;
+    else{
+      const [start,end]=heatmapInterval(p,hmAxis,Number(hmIndex));
+      Object.assign(band,{start,end,fromPixels:false,[hmField]:input.value===''?null:input.valueAsNumber});
+    }
+  });
+  if(hmField!=='label'){
+    const fields='[data-hm-axis="'+hmAxis+'"][data-hm-index="'+hmIndex+'"]';
+    const group=$('heatmapAxes');
+    for(const edge of ['start','end'])group.querySelector(fields+'[data-hm-field="'+edge+'"]').value=band[edge]??'';
+    group.querySelector(fields+'[data-hm-action="pixels"]').disabled=false;
+    syncHeatmapGridStatus();
+  }
+};
+$('heatmapBoundaryAxis').onchange=syncHeatmapBoundaryOptions;
+$('heatmapCorners').onclick=()=>heatmapAction(()=>startHeatmapCapture('heatmap-corners'));
+$('heatmapBoundary').onclick=()=>heatmapAction(()=>startHeatmapCapture('heatmap-boundary',{
+  axis:$('heatmapBoundaryAxis').value,index:Number($('heatmapBoundaryIndex').value)
+}));
+$('heatmapClearGrid').onclick=()=>change(()=>{
+  for(const axis of heatmapAxes)p.heatmap.pixels[axis].fill(null);
+},{form:true});
+$('heatmapColorPoint').onclick=()=>heatmapAction(()=>startHeatmapCapture('heatmap-color'));
+$('heatmapColorPoints').onclick=e=>{
+  const {hmRetake,hmRemoveColor}=e.target.dataset;
+  if(hmRetake!==undefined)heatmapAction(()=>startHeatmapCapture('heatmap-color',{index:Number(hmRetake)}));
+  if(hmRemoveColor!==undefined)change(()=>p.heatmap.colorPoints.splice(Number(hmRemoveColor),1),{form:true});
+};
+$('heatmapColorPoints').onchange=e=>{
+  const {hmColor}=e.target.dataset;
+  if(hmColor!==undefined)change(()=>p.heatmap.colorPoints[hmColor].value=e.target.value===''?null:e.target.valueAsNumber);
+};
+$('heatmapMeasureCell').onclick=()=>heatmapAction(()=>heatmapMeasure());
+$('heatmapMeasureBatch').onclick=()=>heatmapAction(()=>heatmapMeasure({batch:true}));
+$('heatmapMissing').onclick=()=>{
+  change(()=>editHeatmapRecords([manualHeatmapRecord(heatmapCell(selected),null)]));
+  advanceHeatmapCell();
+};
+$('heatmapOmit').onclick=()=>{
+  change(()=>editHeatmapRecords([{...heatmapCell(selected),evidence:{source:'heatmap_omitted',role:'structure'}}]));
+  advanceHeatmapCell();
+};
+$('heatmapClearCell').onclick=()=>change(()=>editHeatmapRecords([manualHeatmapRecord(heatmapCell(selected),undefined)]));
+$('heatmapAcceptEstimate').onclick=()=>{
+  const cell=heatmapCell(selected),{evidence}=heatmapCellRecord(cell);
+  change(()=>editHeatmapRecords([{...cell,value:evidence.value,evidence:{...evidence,accepted:true}}]));
+  advanceHeatmapCell();
+};
+$('heatmapApplyPaste').onclick=()=>heatmapAction(()=>pasteHeatmap($('heatmapPaste').value));
+$('tableBody').addEventListener('focusin',e=>{
+  if(e.target.dataset.heatmapCell!==undefined)selectHeatmapCell(Number(e.target.dataset.heatmapCell));
+});
+$('tableBody').addEventListener('change',e=>{
+  if(e.target.dataset.heatmapCell!==undefined)editHeatmapValue(Number(e.target.dataset.heatmapCell),e.target.value);
+});
+$('tableBody').addEventListener('keydown',e=>{
+  if(e.key!=='Enter'||e.target.dataset.heatmapCell===undefined)return;
+  e.preventDefault();
+  if(editHeatmapValue(Number(e.target.dataset.heatmapCell),e.target.value))advanceHeatmapCell(true);
+});
+$('tableBody').addEventListener('paste',e=>{
+  const index=e.target.dataset.heatmapCell,raw=e.clipboardData?.getData('text/plain');
+  if(index===undefined||!raw||!/[\r\n\t,]/.test(raw))return;
+  e.preventDefault();
+  heatmapAction(()=>pasteHeatmap(raw,Number(index)));
+});
+
 function syncForm(){ensureIdentities(p);syncTypes();$('seriesNames').value=p.series.map(s=>s.name).join('\n');for(const key of ['title','xTitle','yTitle','notes'])$(key).value=p[key]??'';$('legend').checked=p.legend;$('reviewed').checked=!!p.reviewed;syncCategoryList();$('xTypeLabel').hidden=!isArea(p)&&!p.kind.startsWith('line');
 options($('xType'),isArea(p)?[['quantitative','Quantitative / 连续数值'],['nominal','Nominal / 类别']]:[['quantitative','连续数值'],['ordinal','离散类别']],p.xType??'quantitative');
 $('areaModeNote').hidden=!isArea(p);$('addSeries').hidden=p.kind.endsWith('_1');$('activeSeries').closest('label').hidden=p.kind.endsWith('_1');$('seriesSection').hidden=p.kind.endsWith('_1')&&!p.legend;$('roleLabel').hidden=!p.kind.startsWith('line');$('connect').closest('label').hidden=!p.kind.startsWith('line');$('tableNote').textContent=bar()?(hasErrors(p)?'下限 / 上限是绝对数值界限，不是误差长度。':isStack(p)?'数据记录保留段起点 / 段终点供测量核对；普通堆叠的精简 GT / 导出 GT 统一使用 value、stack_order，不导出这些中间端点。':'每条记录对应一个柱子。'):p.kind.startsWith('line')?'默认按取点顺序连接；复杂路径可展开高级字段调整顺序。':'每条记录对应一个可见散点。';$('categoryLabel').hidden=!categorical();$('activeCategoryLabel').hidden=!categorical();const order=annotationOrder(p);$('orderGuide').textContent=order.records;$('seriesOrderNote').textContent=order.series;$('categoryOrderNote').textContent=order.category;
 const active=$('activeSeries').value;options($('activeSeries'),p.series.map((s,i)=>[s.key,s.name+'（'+(i+1)+'）']),active);options($('activeCategory'),p.categoryObjects.map((c,i)=>[c.key,c.name+'（'+(i+1)+'）']),$('activeCategory').value);
 $('seriesList').innerHTML=p.series.map((s,i)=>`<div class="series-row"><input type="color" aria-label="系列颜色" value="${esc(s.color||'#008b7e')}" data-series="${i}" data-prop="color"><input aria-label="系列名称" value="${esc(s.name)}" data-series="${i}" data-prop="name">${isComposite(p)?`<select aria-label="系列角色" data-series="${i}" data-prop="role"><option value="bar" ${s.role==='bar'?'selected':''}>柱</option><option value="line" ${s.role==='line'?'selected':''}>线</option></select>`:''}<button data-move-series="${i}" data-delta="-1" title="上移">↑</button><button data-move-series="${i}" data-delta="1" title="下移">↓</button><button data-remove-series="${i}" title="删除系列">×</button></div>`).join('');
-syncStatForm();syncCompositeForm();
+syncStatForm();syncCompositeForm();syncHeatmapForm();
 if(isHistogram(p)){
   $('legend').parentElement.hidden=p.kind.endsWith('_1');
   $('seriesSection').hidden=p.kind.endsWith('_1');
@@ -1145,7 +2003,8 @@ if(isArea(p)){
   $('seriesSection').hidden=p.kind==='area_1';
   $('tableNote').textContent=p.kind==='area_stack'?'每层记录累计上界 y 和实际下界 baseline；贡献值 = y − baseline。堆叠顺序在系列列表中调整。':'每个 X 记录实际的上界 y 和下界 baseline，包括固定或非零基线。';
 }
-if(!isArea(p)&&tool.startsWith('area-')||
+if(!isHeatmap(p)&&tool.startsWith('heatmap-')||isHeatmap(p)&&!['select','calibrate'].includes(tool)&&!tool.startsWith('heatmap-')||
+    isHeatmap(p)&&tool==='calibrate'&&!requiredAxes(p).length||!isArea(p)&&tool.startsWith('area-')||
     tool==='pie-angle'&&(!isPie(p)||p.valueMode!=='percent'||!image))setTool('select');
 else{axisForm();syncAssist();}}
 function syncCompositeForm(){
@@ -1158,6 +2017,11 @@ $('dualYAxis').onchange=()=>change(()=>{p.dualYAxis=$('dualYAxis').checked;recal
 $('rightYTitle').onchange=()=>change(()=>p.rightYTitle=$('rightYTitle').value,{form:true});
 $('compositeErrors').onchange=()=>change(()=>{if(!$('compositeErrors').checked&&p.rows.some(r=>present(r.lower)||present(r.upper)))throw Error('请先清除已有误差上下界再关闭误差棒');p.errorBars=$('compositeErrors').checked;},{form:true});
 function axisForm(){ const required=requiredAxes(p);$('categoryAxisNote').hidden=required.length===2;$('categoryAxisNote').textContent=required.length===1?(required[0]==='x'?'Y':'X')+' 轴是类别轴，无需数值标定；在类别顺序中填写标签即可。':'';$('axisFields').innerHTML=required.map(a=>`<div class="axis-group"><h4>${isComposite(p)?a==='r'?'右 Y（折线）':'左 Y（柱）':a.toUpperCase()} 轴 <small data-axis-status="${a}"></small></h4><label>坐标类型<select data-axis="${a}" data-field="type"><option value="linear" ${p.axes[a].type!=='log'?'selected':''}>线性</option><option value="log" ${p.axes[a].type==='log'?'selected':''}>对数</option></select></label>${[1,2].map(n=>`<div class="tick-row"><button data-tick="${a}${n}" class="${tool==='calibrate'&&calTarget===a+n?'active':''}">${isComposite(p)?a==='r'?'右Y':'左Y':a.toUpperCase()}${n} 取刻度</button><label>原图像素<input type="number" step="any" data-axis="${a}" data-field="p${n}" value="${p.axes[a]['p'+n]??''}"></label><label>真实数值<input type="number" step="any" data-axis="${a}" data-field="v${n}" value="${p.axes[a]['v'+n]??''}"></label></div>`).join('')}</div>`).join('');syncCalibrationStatus();}
+function updateHeatmapCalibration(axis){
+  const calibration=p.axes[axis];
+  try{axisTransform(calibration);calibration.calibrated=true;}
+  catch{calibration.calibrated=false;}
+}
 function syncCalibrationStatus(){
   const required=requiredAxes(p);
   for(const axis of required)document.querySelector('[data-axis-status="'+axis+'"]').textContent=p.axes[axis].calibrated?'已校准':'待校准';
@@ -1165,7 +2029,7 @@ function syncCalibrationStatus(){
 }
 function columns(){if(isComposite(p))return ['category','value','series',...(hasErrors(p)?['lower','upper']:[]),...($('advancedFields').checked?['path_order']:[])];if(isPie(p))return ['category','value'];if(isBox(p))return ['category',...BOX_FIELDS,'outliers'];const series=p.kind.endsWith('_1')?[]:['series'];if(isArea(p))return [categoryField(p),'y','baseline',...series,...(p.kind==='area_stack'?['stack_order']:[])];if(isHistogramStack(p))return ['histogram_bin','value','series','stack_order'];if(isHistogram(p))return [...HISTOGRAM_FIELDS,...series];return bar()?['category','value',...series,...(isStack(p)?['start','end']:[]),...(hasErrors(p)?['lower','upper']:[])]:['x','y',...series,...(p.kind.startsWith('line')&&$('advancedFields').checked?['path_order']:[])];}
 const columnNames={category:'类别',histogram_bin:'所属分箱',bin_start:'分箱起始 bin_start',bin_end:'分箱结束 bin_end',value:'数值',series:'系列',x:'X',y:'Y',baseline:'下界 baseline',start:'段起点',end:'段终点',stack_order:'堆叠顺序',path_order:'路径顺序',lower:'下限',upper:'上限',q1:'Q1',median:'中位数',q3:'Q3',outliers:'异常值'};
-function table(){const cols=columns();$('tableHead').innerHTML='<tr><th># / 来源</th>'+cols.map(k=>`<th>${isArea(p)&&k==='y'?'上界 Y':isHistogram(p)&&k==='value'?'统计值 value':columnNames[k]}</th>`).join('')+'</tr>';
+function table(){if(isHeatmap(p)){syncHeatmapTable();return;}const cols=columns();$('tableHead').innerHTML='<tr><th># / 来源</th>'+cols.map(k=>`<th>${isArea(p)&&k==='y'?'上界 Y':isHistogram(p)&&k==='value'?'统计值 value':columnNames[k]}</th>`).join('')+'</tr>';
 $('tableBody').innerHTML=p.rows.map((r,i)=>`<tr class="${i===selected?'selected':''}" data-row="${i}"><td>${isStat(p)?`<button class="small" data-move="-1" data-index="${i}" title="上移类别">↑</button><button class="small" data-move="1" data-index="${i}" title="下移类别">↓</button> `:''}${i+1} ${isHistogram(p)?'<span data-row-source>'+rowSource(i)+'</span>':p.evidence?.[i]?.pixel?'⌖':'✎'}</td>${cols.map(k=>{
 if(isComposite(p)&&(['lower','upper'].includes(k)&&compositeRole(p,identity(r))==='line'||k==='path_order'&&compositeRole(p,identity(r))==='bar'))return '<td>—</td>';
 if(isBox(p)&&k==='outliers')return `<td>${outlierCells(r,i)}</td>`;if(isPie(p)&&k==='category')return `<td><input aria-label="第${i+1}行 类别" data-i="${i}" data-key="category" value="${esc(r.category)}"></td>`;
@@ -1190,8 +2054,8 @@ function syncCategoryList(){
 function scheduleDraftSave(){clearTimeout(saveTimer);saveTimer=setTimeout(saveDraft,450);}
 function refresh(form=false,keepTable=false){ensureIdentities(p);queueUI();if(form)syncForm();if(keepTable)syncHistoryControls();else table();syncAssist();draw();clearTimeout(renderTimer);renderTimer=setTimeout(render,130);scheduleDraftSave();}
 let renderVersion=0;
-async function render(){const version=++renderVersion;renderOk=false;let issues=validate(p);if(p.rows.length===0)issues=[{severity:'warning',message:'添加数据记录后生成 GT。'}];$('issues').innerHTML=issues.length?issues.map(i=>`<li class="${i.severity}">${esc(i.message)}</li>`).join(''):'<li class="ok">数据结构检查通过。请继续核对原图与科学数值。</li>';$('validationBadge').textContent=issues.filter(i=>i.severity==='error').length+' 个错误';
-try{const gt=makeSpec(p);$('jsonPreview').textContent=JSON.stringify(gt,null,2);if(!window.vegaEmbed)throw Error('本地 Vega 渲染组件未加载');const spec={...renderSpec(gt),width:230,height:210};for(const a of ['x','y']){if(!isStat(p)&&!isArea(p)&&!isHistogram(p)&&spec.encoding[a])spec.encoding[a].title=p[a+'Title']||null;}if(!isStat(p)&&!isArea(p)&&!isHistogram(p)&&spec.encoding.color){spec.encoding.color.legend=p.legend?{...(spec.encoding.color.legend||{}),title:null}:null;const keys=unique((isComposite(p)?['bar','line'].flatMap(role=>orderedRows(compositePart(p,role))):orderedRows(p)).map(identity));spec.encoding.color.scale={domain:unique(gt.data.values.map(r=>r.series_id??r.series)),range:keys.map(k=>p.series.find(s=>s.key===k)?.color||'#008b7e')};}if(isHistogram(p))styleHistogramPreview(spec);if(isPie(p)&&p.donut)spec.mark={type:'arc',innerRadius:55};if(isBox(p)){const v=valueAxis(p);spec.layer[1].mark={type:'bar',size:26};spec.layer[2].mark={type:'tick',orient:horizontal()?'vertical':'horizontal',color:'#243344',size:26,thickness:2};if(p.axes[v].type==='log')for(const l of spec.layer)l.encoding[v].scale={type:'log'};}const holder=document.createElement('div');const result=await window.vegaEmbed(holder,spec,{actions:false,renderer:'svg'});result.view.finalize();if(version!==renderVersion)return;$('preview').replaceChildren(holder);lastSpec=gt;renderOk=true;$('renderState').textContent='Vega-Lite v6 · 语义渲染成功';}catch(e){if(version!==renderVersion)return;lastSpec=null;$('jsonPreview').textContent='请先修正数据结构。';$('preview').replaceChildren();$('renderState').textContent=p.rows.length?'无法渲染：'+e.message:'添加记录后显示语义重绘';}}
+async function render(){const version=++renderVersion;renderOk=false;let issues=validate(p);if(p.rows.length===0&&!isHeatmap(p))issues=[{severity:'warning',message:'添加数据记录后生成 GT。'}];$('issues').innerHTML=issues.length?issues.map(i=>`<li class="${i.severity}">${esc(i.message)}</li>`).join(''):'<li class="ok">数据结构检查通过。请继续核对原图与科学数值。</li>';$('validationBadge').textContent=issues.filter(i=>i.severity==='error').length+' 个错误';
+try{const gt=makeSpec(p);$('jsonPreview').textContent=JSON.stringify(gt,null,2);if(!window.vegaEmbed)throw Error('本地 Vega 渲染组件未加载');const spec={...renderSpec(gt,p),width:230,height:210};for(const a of ['x','y']){if(!isHeatmap(p)&&!isStat(p)&&!isArea(p)&&!isHistogram(p)&&spec.encoding[a])spec.encoding[a].title=p[a+'Title']||null;}if(!isHeatmap(p)&&!isStat(p)&&!isArea(p)&&!isHistogram(p)&&spec.encoding.color){spec.encoding.color.legend=p.legend?{...(spec.encoding.color.legend||{}),title:null}:null;const keys=unique((isComposite(p)?['bar','line'].flatMap(role=>orderedRows(compositePart(p,role))):orderedRows(p)).map(identity));spec.encoding.color.scale={domain:unique(gt.data.values.map(r=>r.series_id??r.series)),range:keys.map(k=>p.series.find(s=>s.key===k)?.color||'#008b7e')};}if(isHistogram(p))styleHistogramPreview(spec);if(isPie(p)&&p.donut)spec.mark={type:'arc',innerRadius:55};if(isBox(p)){const v=valueAxis(p);spec.layer[1].mark={type:'bar',size:26};spec.layer[2].mark={type:'tick',orient:horizontal()?'vertical':'horizontal',color:'#243344',size:26,thickness:2};if(p.axes[v].type==='log')for(const l of spec.layer)l.encoding[v].scale={type:'log'};}const holder=document.createElement('div');const result=await window.vegaEmbed(holder,spec,{actions:false,renderer:'svg'});result.view.finalize();if(version!==renderVersion)return;$('preview').replaceChildren(holder);lastSpec=gt;renderOk=true;$('renderState').textContent='Vega-Lite v6 · 语义渲染成功';}catch(e){if(version!==renderVersion)return;lastSpec=null;$('jsonPreview').textContent='请先修正数据结构。';$('preview').replaceChildren();$('renderState').textContent=p.rows.length?'无法渲染：'+e.message:'添加记录后显示语义重绘';}}
 function assist(){
   ensureIdentities(p);p.assist??={};const a=p.assist;
   a.sequence??=bar()||isNominalArea(p)?'category':'series';if(isStack(p)&&a.sequence!=='manual')a.sequence='category';a.errorOrder??='per-bar';a.projections??=true;a.magnify??=true;a.dragAxis??='free';a.categoryPixels??={};if(isBox(p)){a.boxField??='lower';a.outlierTarget??='new';}
@@ -1222,6 +2086,7 @@ function errorComplete(t){const i=targetIndex(t);return i>=0&&['value','lower','
 function measureError(raw){const t=syncErrorTarget();if(!t){toast('误差棒全部标注完成；选择 / 拖动可复查');return;}calibrated();if(!t.category)throw Error('请先填写类别');const i=targetIndex(t),axis=horizontal()?'x':'y';const pt=t.field==='value'?constrainAdd(raw):{...raw,...(p.evidence?.[i]?.pixel?{[horizontal()?'y':'x']:p.evidence[i].pixel[horizontal()?'y':'x']}:{})};const value=pixelToValue(pt[axis],p.axes[measurementAxis(p,t.series)]);change(()=>{let index=i;if(t.field==='value'&&i<0){p.rows.push({category:categoryName(p,t.category),series:seriesName(p,t.series),_categoryKey:t.category,_seriesKey:t.series,value});p.evidence??=[];p.evidence.push({role:'observation',source:'pixel_measurement',createdAt:new Date().toISOString()});index=p.rows.length-1;}p.rows[index][t.field]=value;p.evidence??=[];p.evidence[index]??={role:'observation',source:'pixel_measurement'};const key=t.field==='value'?'pixel':t.field+'Pixel';p.evidence[index][key]=pt;if(t.field==='value'&&assist().lockCategory){if(horizontal())p.evidence[index].fixedY={pixel:pt.y};else p.evidence[index].fixedX={pixel:pt.x};}selected=index;selectedHandle=key;syncErrorTarget();});}
 function anchorKey(){if(isComposite(p)){const a=assist();return JSON.stringify([a.category,compositeRole(p,a.series)==='bar'?a.series:'line']);}const a=assist();return JSON.stringify(p.kind==='barv_n'||p.kind==='barh_n'?[a.category,a.series]:[a.category]);}
 function syncAssist(){
+  if(isHeatmap(p))syncHeatmapSelection();
   const a=assist(),task=syncErrorTarget();$('errorOrderLabel').hidden=!hasErrors(p)||isStack(p);$('errorOrder').value=a.errorOrder;for(const k of ['lower','upper'])document.querySelector('[data-tool='+k+']').hidden=!hasErrors(p);
   for(const k of ['area-upper','area-baseline']){
     const button=document.querySelector('[data-tool='+k+']');
@@ -1245,7 +2110,7 @@ function syncAssist(){
     }
   }
   syncHistogramAssist();
-  if(hasErrors(p)&&!isStack(p))$('targetHint').textContent=task?'下一点：'+categoryName(p,task.category)+' · '+seriesName(p,task.series)+' · '+({value:isComposite(p)&&compositeRole(p,task.series)==='line'?'折线点':'柱子数值端点',upper:'误差上界（较大值）',lower:'误差下界（较小值）'}[task.field]):'误差棒取点完成，可选择标记复查';if(isComposite(p))$('targetHint').textContent+=' · '+(compositeRole(p,a.series)==='line'?'折线':'柱')+' / '+(measurementAxis(p,a.series)==='r'?'右 Y':'左 Y');$('targetTop').textContent=$('targetHint').textContent; $('targetProgress').textContent=pairs.length?`${done} / ${pairs.length} 已标注`:'';
+  if(hasErrors(p)&&!isStack(p))$('targetHint').textContent=task?'下一点：'+categoryName(p,task.category)+' · '+seriesName(p,task.series)+' · '+({value:isComposite(p)&&compositeRole(p,task.series)==='line'?'折线点':'柱子数值端点',upper:'误差上界（较大值）',lower:'误差下界（较小值）'}[task.field]):'误差棒取点完成，可选择标记复查';if(isComposite(p))$('targetHint').textContent+=' · '+(compositeRole(p,a.series)==='line'?'折线':'柱')+' / '+(measurementAxis(p,a.series)==='r'?'右 Y':'左 Y');if(!isHeatmap(p))$('targetTop').textContent=$('targetHint').textContent; $('targetProgress').textContent=pairs.length?`${done} / ${pairs.length} 已标注`:'';
   syncHistogramWorkflow();
   $('targetGrid').hidden=!categorical();$('targetGrid').innerHTML=pairs.map((t,i)=>`<button class="target-cell ${targetComplete(t)?'done':''} ${t.series===a.series&&t.category===a.category?'current':''}" data-target="${i}" title="${esc(categoryName(p,t.category)+' · '+seriesName(p,t.series))}">${targetComplete(t)?'✓ ':''}${esc(categoryName(p,t.category))} <small>${isBox(p)?BOX_FIELDS.filter(k=>finite(p.rows[targetIndex(t)]?.[k])).length+'/5':esc(seriesName(p,t.series))}</small></button>`).join('');
   const anchor=a.categoryPixels[anchorKey()];$('anchorStatus').textContent=Number.isFinite(anchor)?`已定位 ${anchor.toFixed(1)} px`:'尚未定位';
@@ -1279,8 +2144,16 @@ function editHandle(i,kind,pt){
   const update=(j,k)=>{if(k==='pixel')applyPixel(j,pt);else if(k==='startPixel'){p.evidence[j].startPixel={...pt};p.rows[j].start=pixelToValue(pt[axis],p.axes[axis]);p.rows[j].value=p.rows[j].end-p.rows[j].start;}else{const key=k==='lowerPixel'?'lower':'upper';p.evidence[j][k]={...pt};p.rows[j][key]=pixelToValue(pt[axis],p.axes[measurementAxis(p,identity(p.rows[j]))]);}p.evidence[j].modifiedAt=new Date().toISOString();};
   update(i,kind);for(const {j,k} of related)update(j,k);pendingStart=null;
 }
+function drawMagnifier(pt,visible){
+  $('magnifier').hidden=!visible;
+  if(!visible)return;
+  const lc=$('lens').getContext('2d');
+  lc.clearRect(0,0,140,140);lc.fillStyle='white';lc.fillRect(0,0,140,140);
+  lc.imageSmoothingEnabled=false;lc.drawImage(image,pt.x-14,pt.y-14,28,28,0,0,140,140);
+  lc.strokeStyle='#f05c35';lc.lineWidth=1;lc.beginPath();lc.moveTo(58,70);lc.lineTo(82,70);lc.moveTo(70,58);lc.lineTo(70,82);lc.stroke();
+}
 function drawGuides(){
-  if(isPie(p))return;
+  if(isPie(p)||isHeatmap(p))return;
   const a=assist(),e=p.evidence?.[selected],selectedPt=e?.[selectedHandle]||e?.pixel;
   let pt=drag!==null||tool==='select'&&selectedPt?selectedPt:hover||selectedPt;if(!pt&&tool==='point'){try{if(a.lockX||a.lockCategory)pt=constrainAdd({x:p.axes.x.p1,y:p.axes.y.p1});}catch{}}if(!pt)return;
   if(hover&&drag===null)try{if(isArea(p)&&areaTool())pt=areaPoint(hover);else if(tool==='point'&&!isHistogram(p))pt=constrainAdd(hover);}catch{}
@@ -1293,7 +2166,7 @@ function drawGuides(){
   const text=(s,x,y)=>{const w=ctx.measureText(s).width;ctx.fillStyle='#fffef3';ctx.fillRect(Math.max(0,x-3/zoom),Math.max(0,y-12/zoom),w+6/zoom,16/zoom);ctx.fillStyle='#9f5414';ctx.fillText(s,Math.max(0,Math.min(x,image.width-w)),Math.max(12/zoom,Math.min(y,image.height-3/zoom)));};
   text('X: '+format(x),pt.x+4/zoom,Math.min(image.height-4/zoom,baseY+18/zoom));text('Y: '+format(y),Math.max(2/zoom,baseX+5/zoom),pt.y-6/zoom);ctx.restore();}
   const fixed=(!categorical()&&a.lockX)||categorical()&&a.lockCategory;if(fixed&&tool==='point'||isArea(p)&&areaTool()&&target>=0){let guide;try{guide=isArea(p)?areaPoint(pt):constrainAdd(pt);}catch{}if(guide){ctx.save();ctx.strokeStyle='#008b7e';ctx.lineWidth=1.5/zoom;ctx.setLineDash([3/zoom,3/zoom]);ctx.beginPath();if(horizontal()){ctx.moveTo(0,guide.y);ctx.lineTo(image.width,guide.y);}else{ctx.moveTo(guide.x,0);ctx.lineTo(guide.x,image.height);}ctx.stroke();ctx.restore();}}
-  const lens=$('magnifier');lens.hidden=!a.magnify||!hover;if(!lens.hidden){const lc=$('lens').getContext('2d');lc.clearRect(0,0,140,140);lc.fillStyle='white';lc.fillRect(0,0,140,140);lc.imageSmoothingEnabled=false;lc.drawImage(image,pt.x-14,pt.y-14,28,28,0,0,140,140);lc.strokeStyle='#f05c35';lc.lineWidth=1;lc.beginPath();lc.moveTo(58,70);lc.lineTo(82,70);lc.moveTo(70,58);lc.lineTo(70,82);lc.stroke();}
+  drawMagnifier(pt,a.magnify&&!!hover);
 }
 $('errorOrder').onchange=()=>{assist().errorOrder=$('errorOrder').value;syncErrorTarget();refresh();};$('advancedFields').onchange=table;
 $('sequence').onchange=()=>{assist().sequence=$('sequence').value;refresh();};
@@ -2240,8 +3113,9 @@ function drawPieAngles(mark){
   ctx.restore();
 }
 function pointPixel(r,e){if(e?.pixel)return e.pixel;return null;}
-function draw(){projectionInfo=null;if(!image){canvas.width=0;canvas.height=0;return;}const dpr=window.devicePixelRatio||1;canvas.width=Math.round(image.width*zoom*dpr);canvas.height=Math.round(image.height*zoom*dpr);canvas.style.width=image.width*zoom+'px';canvas.style.height=image.height*zoom+'px';ctx.setTransform(zoom*dpr,0,0,zoom*dpr,0,0);ctx.drawImage(image,0,0);$('zoomText').textContent=Math.round(zoom*100)+'%';if(!$('overlay').checked){drawGuides();return;}
+function draw(){projectionInfo=null;if(!image){canvas.width=0;canvas.height=0;return;}const dpr=window.devicePixelRatio||1;canvas.width=Math.round(image.width*zoom*dpr);canvas.height=Math.round(image.height*zoom*dpr);canvas.style.width=image.width*zoom+'px';canvas.style.height=image.height*zoom+'px';ctx.setTransform(zoom*dpr,0,0,zoom*dpr,0,0);ctx.drawImage(image,0,0);$('zoomText').textContent=Math.round(zoom*100)+'%';if(isHeatmap(p))drawMagnifier(hover,!!hover&&assist().magnify);if(!$('overlay').checked){drawGuides();return;}
 const mark=(pt,color,text,ring=false)=>{if(!pt||!Number.isFinite(pt.x)||!Number.isFinite(pt.y))return;ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=1.5/zoom;ctx.beginPath();ctx.arc(pt.x,pt.y,(ring?7:4)/zoom,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(pt.x-8/zoom,pt.y);ctx.lineTo(pt.x+8/zoom,pt.y);ctx.moveTo(pt.x,pt.y-8/zoom);ctx.lineTo(pt.x,pt.y+8/zoom);ctx.stroke();ctx.font=`${11/zoom}px monospace`;ctx.fillText(text,pt.x+9/zoom,pt.y-7/zoom);};
+if(isHeatmap(p)){drawHeatmap(mark);return;}
 if(tool==='pie-angle'&&isPie(p)){drawPieAngles(mark);return;}
 if(isHistogramStack(p))drawHistogramRun(mark);
 if($('connect').checked&&(p.kind.startsWith('line')||isComposite(p)))for(const s of p.series.filter(s=>!isComposite(p)||s.role==='line')){const pts=p.rows.map((r,i)=>({r,e:p.evidence?.[i]})).filter(v=>identity(v.r)===s.key&&v.e?.pixel).sort((a,b)=>(a.r.path_order??0)-(b.r.path_order??0));ctx.beginPath();pts.forEach((v,i)=>{const q=v.e.pixel;ctx[i?'lineTo':'moveTo'](q.x,q.y)});ctx.strokeStyle=s.color||'#06a77d';ctx.lineWidth=1.5/zoom;ctx.stroke();}
@@ -2252,6 +3126,13 @@ p.rows.forEach((r,i)=>{const e=p.evidence?.[i];if(isBox(p)){for(const k of handl
 if(e?.startPixel){mark(e.startPixel,color,'s');ctx.beginPath();ctx.moveTo(e.startPixel.x,e.startPixel.y);ctx.lineTo(e.pixel.x,e.pixel.y);ctx.stroke();}for(const k of ['lower','upper'])if(e?.[k+'Pixel'])mark(e[k+'Pixel'],color,k==='lower'?'−':'+');});
 drawGuides();if(pendingStart)mark(pendingStart,'#ffae00','起点');for(const a of isComposite(p)?requiredAxes(p):isNominalArea(p)?['y']:['x','y'])for(const n of [1,2]){const pt=p.axes[a]['point'+n];if(pt)mark(pt,'#007bea',a.toUpperCase()+n);} }
 function setTool(t){
+  if(!['heatmap-corners','heatmap-boundary','heatmap-color'].includes(t))heatmapCapture=null;
+  if(isHeatmap(p)){
+    if(t==='select')$('heatmapMeasurementStatus').textContent='';
+    const required=requiredAxes(p);
+    if(!required.includes(calTarget[0]))calTarget=(required[0]??'x')+'1';
+    if(t==='calibrate'&&!required.length)t='select';
+  }
   if(t==='pie-angle'){
     if(!isPie(p))t='select';
     else if(p.valueMode!=='percent'||!image){
@@ -2259,7 +3140,12 @@ function setTool(t){
       return;
     }
   }
-  if((isBox(p)||isNominalArea(p))&&!requiredAxes(p).includes(calTarget[0]))calTarget=valueAxis(p)+'1';if(isPie(p)&&t!=='select'&&t!=='pie-angle'||t.startsWith('area-')&&!isArea(p))t='select';tool=t;pendingStart=null;hover=null;document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===t));$('calibrationPanel').open=t==='calibrate'||$('calibrationPanel').open;const hints={'area-upper':'选中数据行后，在同一 X 处点击新的上界。','area-baseline':'选中数据行后，在同一 X 处点击新的下界。',select:'点击已有标记或选择表格字段后拖动、方向键微调。重合点优先编辑已选字段；Shift 拖动限制方向。',point:isHistogram(p)?(activeHistogramRun()?'按当前测量项点击原图，也可在表格直接输入。':'添加或选中记录，选择测量项后点击原图。'):isArea(p)?(p.kind==='area_stack'?'选择当前层，在同一 X 依次点该层的累计上界和实际下界。':'在同一 X 依次取上界和下界。下界也可在表格中输入。'):isStack(p)?(horizontal()?'横向堆叠：从左到右依次点击起点、各交界点、终点。':'纵向堆叠：从下到上依次点击起点、各交界点、终点。')+'同一堆叠自动复用交界点；系列按此方向排列。':'点击原图取点，近已有标记可直接拖动；Alt 点击强制新增。类别和系列自动推进，进度格可随时跳转。',calibrate:'选择下方 X1 / X2 / Y1 / Y2，点击原图刻度，再填写真实数值。',lower:'先选中记录，然后点击误差区间下限。',upper:'先选中记录，然后点击误差区间上限。'};$('hint').textContent=isPie(p)?(t==='pie-angle'?'先点击圆心，再沿顺时针点击每条分界线。':'可在表格人工录入原始数值，或使用角度测量。'):isBox(p)&&t==='point'?'点击只测量当前项，五数统计量自动推进；近邻和重合点均可连续标注。选择任意项可重测，outliers 可连续新增；编辑请切换「选择 / 拖动」。':hints[t]|| (t==='lock-x'?'先填写已知 X 数值，再点击原图对应 X 刻度；然后沿竖直线寻找 Y。':'点击当前类别在原图中的刻度或柱中心位置，之后只测数值。');axisForm();syncAssist();draw();}
+  if((isBox(p)||isNominalArea(p))&&!requiredAxes(p).includes(calTarget[0]))calTarget=valueAxis(p)+'1';if(isPie(p)&&t!=='select'&&t!=='pie-angle'||t.startsWith('area-')&&!isArea(p))t='select';tool=t;pendingStart=null;hover=null;document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===t));$('calibrationPanel').open=t==='calibrate'||$('calibrationPanel').open;const hints={'area-upper':'选中数据行后，在同一 X 处点击新的上界。','area-baseline':'选中数据行后，在同一 X 处点击新的下界。',select:'点击已有标记或选择表格字段后拖动、方向键微调。重合点优先编辑已选字段；Shift 拖动限制方向。',point:isHistogram(p)?(activeHistogramRun()?'按当前测量项点击原图，也可在表格直接输入。':'添加或选中记录，选择测量项后点击原图。'):isArea(p)?(p.kind==='area_stack'?'选择当前层，在同一 X 依次点该层的累计上界和实际下界。':'在同一 X 依次取上界和下界。下界也可在表格中输入。'):isStack(p)?(horizontal()?'横向堆叠：从左到右依次点击起点、各交界点、终点。':'纵向堆叠：从下到上依次点击起点、各交界点、终点。')+'同一堆叠自动复用交界点；系列按此方向排列。':'点击原图取点，近已有标记可直接拖动；Alt 点击强制新增。类别和系列自动推进，进度格可随时跳转。',calibrate:'选择下方 X1 / X2 / Y1 / Y2，点击原图刻度，再填写真实数值。',lower:'先选中记录，然后点击误差区间下限。',upper:'先选中记录，然后点击误差区间上限。'};$('hint').textContent=isPie(p)?(t==='pie-angle'?'先点击圆心，再沿顺时针点击每条分界线。':'可在表格人工录入原始数值，或使用角度测量。'):isBox(p)&&t==='point'?'点击只测量当前项，五数统计量自动推进；近邻和重合点均可连续标注。选择任意项可重测，outliers 可连续新增；编辑请切换「选择 / 拖动」。':hints[t]|| (t==='lock-x'?'先填写已知 X 数值，再点击原图对应 X 刻度；然后沿竖直线寻找 Y。':'点击当前类别在原图中的刻度或柱中心位置，之后只测数值。');if(isHeatmap(p)){
+    const hints={select:'有网格时可点击原图选格，也可在矩阵中选格。',
+      'heatmap-corners':'点击网格的第一个角。','heatmap-boundary':'点击所选的共享边界。',
+      'heatmap-color':'点击色带内部的校准位置。','heatmap-measure':'点击原图中要测量的格子。'};
+    if(hints[t])$('hint').textContent=hints[t];
+  }axisForm();syncAssist();draw();}
 function resumeTool(){
   if(activeHistogramRun()){
     selectHistogramRunTarget();
@@ -2286,8 +3172,9 @@ function measureAt(pt,i=null){
   }
   const a=assist(),e=i===null?null:p.evidence?.[i],fixed=i===null?(!categorical()&&a.lockX?{value:a.fixedXValue}:null):e?.fixedX;calibrated(!!fixed&&Number.isFinite(fixed.value));if(isBox(p))return{category:i===null?categoryName(p,a.category):p.rows[i].category,value:boxValueAt(pt,p)};if(bar())return{category:i===null?categoryName(p,a.category):p.rows[i].category,value:pixelToValue(horizontal()?pt.x:pt.y,p.axes[horizontal()?'x':'y'])};return{x:p.xType==='ordinal'?(i===null?categoryName(p,a.category):p.rows[i].x):fixed&&Number.isFinite(fixed.value)?fixed.value:pixelToValue(pt.x,p.axes.x),y:pixelToValue(pt.y,p.axes.y)};}
 function applyPixel(i,pt){const r=p.rows[i],e=p.evidence[i],data=measureAt(pt,i);if(bar()){r.value=data.value;if(isStack(p)){r.end=data.value;r.value=r.end-r.start;}}else{if(p.xType!=='ordinal')r.x=data.x;r.y=data.y;}e.pixel=pt;if(bar())for(const key of ['lowerPixel','upperPixel'])if(e[key])e[key][horizontal()?'y':'x']=pt[horizontal()?'y':'x'];e.modifiedAt=new Date().toISOString();}
-function recalculate(){if(isArea(p)){recalculateArea();return;}if(isBox(p)){for(let i=0;i<p.rows.length;i++)for(const k of handleKeys(i))editHandle(i,k,p.evidence[i][k]);return;}for(let i=0;i<p.rows.length;i++){const e=p.evidence?.[i];if(isComposite(p)&&!p.axes[measurementAxis(p,identity(p.rows[i]))]?.calibrated)continue;if(!e?.pixel)continue;applyPixel(i,e.pixel);if(e.startPixel){p.rows[i].start=pixelToValue(e.startPixel[horizontal()?'x':'y'],p.axes[horizontal()?'x':'y']);p.rows[i].value=p.rows[i].end-p.rows[i].start;}for(const k of ['lower','upper'])if(e[k+'Pixel'])p.rows[i][k]=pixelToValue(horizontal()?e[k+'Pixel'].x:e[k+'Pixel'].y,p.axes[measurementAxis(p,identity(p.rows[i]))]);}}
+function recalculate(){if(isHeatmap(p))return;if(isArea(p)){recalculateArea();return;}if(isBox(p)){for(let i=0;i<p.rows.length;i++)for(const k of handleKeys(i))editHandle(i,k,p.evidence[i][k]);return;}for(let i=0;i<p.rows.length;i++){const e=p.evidence?.[i];if(isComposite(p)&&!p.axes[measurementAxis(p,identity(p.rows[i]))]?.calibrated)continue;if(!e?.pixel)continue;applyPixel(i,e.pixel);if(e.startPixel){p.rows[i].start=pixelToValue(e.startPixel[horizontal()?'x':'y'],p.axes[horizontal()?'x':'y']);p.rows[i].value=p.rows[i].end-p.rows[i].start;}for(const k of ['lower','upper'])if(e[k+'Pixel'])p.rows[i][k]=pixelToValue(horizontal()?e[k+'Pixel'].x:e[k+'Pixel'].y,p.axes[measurementAxis(p,identity(p.rows[i]))]);}}
 canvas.addEventListener('pointerdown',e=>{if(!image)return;canvas.focus({preventScroll:true});const raw=coords(e);try{
+if(isHeatmap(p)&&tool!=='calibrate'){if(e.button===0)handleHeatmapPointer(raw);return;}
 if(tool==='pie-angle'){if(e.button===0)recordPieAngle(raw);return;}
 if(tool==='lock-x'){
   const a=assist();
@@ -2298,7 +3185,7 @@ if(tool==='lock-x'){
   a.fixedXPixel=raw.x;a.lockX=true;setTool('point');hover=raw;refresh();toast('X 已固定，沿竖直参考线寻找 Y');return;
 }
 if(tool==='anchor'){const a=assist();a.categoryPixels[anchorKey()]=horizontal()?raw.y:raw.x;a.lockCategory=true;setTool('point');hover=raw;refresh();toast('当前位置已固定，可直接测数值');return;}
-if(tool==='calibrate'){const a=calTarget[0],n=calTarget[1];change(()=>{p.axes[a]['p'+n]=a==='x'?raw.x:raw.y;p.axes[a]['point'+n]=raw;if(isHistogram(p))updateHistogramCalibration(a);else{p.axes[a].calibrated=!!(p.axes[a].point1&&p.axes[a].point2);if(p.axes[a].calibrated)recalculate();}},{form:true});toast(`已取 ${calTarget.toUpperCase()}，请填写真实刻度值`);return;}
+if(tool==='calibrate'){const a=calTarget[0],n=calTarget[1];change(()=>{p.axes[a]['p'+n]=a==='x'?raw.x:raw.y;p.axes[a]['point'+n]=raw;if(isHistogram(p))updateHistogramCalibration(a);else if(isHeatmap(p))updateHeatmapCalibration(a);else{p.axes[a].calibrated=!!(p.axes[a].point1&&p.axes[a].point2);if(p.axes[a].calibrated)recalculate();}},{form:true});toast(`已取 ${calTarget.toUpperCase()}，请填写真实刻度值`);return;}
 if(isHistogram(p)&&tool==='point'){if(e.button===0)measureHistogram(raw);return;}
 if(isArea(p)&&areaTool()){measureArea(raw);return;}
 if(tool==='point'&&hasErrors(p)&&!isStack(p)){measureError(raw);return;}
@@ -2307,7 +3194,7 @@ if(tool==='lower'||tool==='upper'){if(isComposite(p)&&selected>=0&&compositeRole
 if(tool==='point'&&isBox(p)){const pt=constrainAdd(raw);calibrated();change(()=>measureBox(pt));return;}
 if(tool==='point'){const a=assist();if(categorical()&&a.sequence!=='manual'&&targetIndex(a)>=0){selected=targetIndex(a);selectedHandle='pixel';hover=null;refresh();throw Error('当前目标已经标注；可拖动修改，或选择下一个待标目标');}const pt=constrainAdd(raw),data=measureAt(pt);if(categorical()&&!a.category)throw Error('请先填写类别并选择当前类别');if(isStack(p)&&!pendingStart){const previous=p.rows.findIndex(r=>categoryIdentity(r)===a.category&&identity(r)===p.series[p.series.findIndex(s=>s.key===a.series)-1]?.key);if(previous>=0&&p.evidence?.[previous]?.pixel)pendingStart={...p.evidence[previous].pixel};}if(isStack(p)&&!pendingStart){pendingStart=pt;draw();toast('起点已取，请依次点击各段交界点和最终终点');return;}change(()=>{const row={...data,series:seriesName(p,a.series),_seriesKey:a.series,...(categorical()?{_categoryKey:a.category}:{})};if(p.kind.startsWith('line'))row.path_order=p.rows.filter(r=>identity(r)===identity(row)).length;const ev={pixel:pt,role:$('role').value,source:'pixel_measurement',createdAt:new Date().toISOString()};if(a.lockX&&!categorical())ev.fixedX={value:a.fixedXValue,pixel:pt.x};else if(a.lockCategory&&categorical()){if(horizontal())ev.fixedY={pixel:pt.y};else ev.fixedX={pixel:pt.x};}if(pendingStart){row.start=pixelToValue(pendingStart[horizontal()?'x':'y'],p.axes[horizontal()?'x':'y']);row.end=data.value;row.value=row.end-row.start;ev.startPixel={...pendingStart};pendingStart=null;}p.rows.push(row);p.evidence??=[];p.evidence.push(ev);selected=p.rows.length-1;selectedHandle='pixel';if(categorical()&&a.sequence!=='manual'){const previousCategory=a.category;const advanced=nextTarget();if(isStack(p)&&advanced&&a.category===previousCategory)pendingStart={...pt};}});}}
 catch(err){toast(err.message);}});
-canvas.addEventListener('pointermove',e=>{if(!image)return;const pt=coords(e);hover=pt;let val='';try{const area=isArea(p)&&areaTool(),i=area?areaTargetIndex():-1;const v=measureAt(area?areaPoint(pt):tool==='point'&&!isHistogram(p)?constrainAdd(pt):pt,i>=0?i:null);val=isHistogram(p)?` · X ${v.x.toFixed(2)} / Y ${v.y.toFixed(2)}`:isBox(p)?` · ${v.category} / ${assist().boxField}: ${v.value.toFixed(2)}`:bar()?` · ${v.category}: ${v.value.toPrecision(6)}`:` · X ${typeof v.x==='number'?Number(v.x.toPrecision(6)):v.x??v.category} / Y ${Number(v.y.toPrecision(6))}`;}catch{}$('cursorInfo').textContent=`原图 px: ${pt.x.toFixed(1)}, ${pt.y.toFixed(1)}${val}`;if(drag!==null){try{const next=constrainDrag(pt,drag.i,drag.kind,e.shiftKey),old=p.evidence[drag.i][drag.kind];if(next.x!==old.x||next.y!==old.y){if(!drag.checkpointed){checkpoint();drag.checkpointed=true;}editHandle(drag.i,drag.kind,next);dirty();table();}}catch(err){toast(err.message);}}draw();});
+canvas.addEventListener('pointermove',e=>{if(!image)return;const pt=coords(e);hover=pt;let val='';if(!isHeatmap(p))try{const area=isArea(p)&&areaTool(),i=area?areaTargetIndex():-1;const v=measureAt(area?areaPoint(pt):tool==='point'&&!isHistogram(p)?constrainAdd(pt):pt,i>=0?i:null);val=isHistogram(p)?` · X ${v.x.toFixed(2)} / Y ${v.y.toFixed(2)}`:isBox(p)?` · ${v.category} / ${assist().boxField}: ${v.value.toFixed(2)}`:bar()?` · ${v.category}: ${v.value.toPrecision(6)}`:` · X ${typeof v.x==='number'?Number(v.x.toPrecision(6)):v.x??v.category} / Y ${Number(v.y.toPrecision(6))}`;}catch{}$('cursorInfo').textContent=`原图 px: ${pt.x.toFixed(1)}, ${pt.y.toFixed(1)}${val}`;if(drag!==null){try{const next=constrainDrag(pt,drag.i,drag.kind,e.shiftKey),old=p.evidence[drag.i][drag.kind];if(next.x!==old.x||next.y!==old.y){if(!drag.checkpointed){checkpoint();drag.checkpointed=true;}editHandle(drag.i,drag.kind,next);dirty();table();}}catch(err){toast(err.message);}}draw();});
 function endDrag(){if(drag!==null){drag=null;dragOrigin=null;refresh();}}
 canvas.addEventListener('pointerup',endDrag);canvas.addEventListener('pointercancel',endDrag);canvas.addEventListener('lostpointercapture',endDrag);
 canvas.addEventListener('pointerleave',()=>{if(drag===null){hover=null;$('magnifier').hidden=true;draw();}});
@@ -2339,7 +3226,7 @@ if(isHistogram(p)&&key){editHistogramCell(+i,key,e.target.value);return;}if(isSt
 }
 if(isComposite(p)&&object==='series'){const role=compositeRole(p,e.target.value);if(role==='line'&&['lower','upper'].some(k=>present(p.rows[i][k]))||role==='bar'&&present(p.rows[i].path_order))throw Error('请先清除与目标系列角色不兼容的字段');if(p.evidence?.[i]){delete p.evidence[i].pixel;delete p.evidence[i].lowerPixel;delete p.evidence[i].upperPixel;}}
 p.rows[i][ref]=e.target.value;p.rows[i][field]=object==='series'?seriesName(p,e.target.value):categoryName(p,e.target.value);return;}const raw=e.target.value;const numeric=!(key==='category'||key==='series'||key==='x'&&categorical());if(raw===''&&['lower','upper','start','end','stack_order','path_order'].includes(key))delete p.rows[i][key];else p.rows[i][key]=numeric?(raw===''?null:Number(raw)):raw;if(isStack(p)){const r=p.rows[i];if(['start','end'].includes(key)&&Number.isFinite(r.start)&&Number.isFinite(r.end))r.value=r.end-r.start;else if(key==='value'&&Number.isFinite(r.start)&&Number.isFinite(r.value))r.end=r.start+r.value;}p.evidence??=[];p.evidence[i]??={};p.evidence[i].role='transcribed';p.evidence[i].source='manual_edit';delete p.evidence[i].pixel;delete p.evidence[i].startPixel;delete p.evidence[i].lowerPixel;delete p.evidence[i].upperPixel;});});
-for(const key of ['title','xTitle','yTitle','notes'])$(key).addEventListener('change',()=>change(()=>p[key]=$(key).value,{form:true}));
+for(const key of ['title','xTitle','yTitle','notes','heatmapTitle'])$(key).addEventListener('change',()=>change(()=>p[key]=$(key).value,{form:true}));
 $('xType').onchange=()=>{
   const next=$('xType').value;
   if(!isArea(p)){change(()=>p.xType=next,{form:true});return;}
@@ -2369,7 +3256,7 @@ $('addSeries').onclick=()=>{if(p.kind.endsWith('_1')){toast('单系列类型只�
   addObject(p,'series','Series '+n);
 },{form:true});};
 $('axisFields').onclick=e=>{if(e.target.dataset.tick){calTarget=e.target.dataset.tick;setTool('calibrate');}};
-$('axisFields').onchange=e=>{const {axis,field}=e.target.dataset;if(!axis)return;if(isHistogram(p)){
+$('axisFields').onchange=e=>{const {axis,field}=e.target.dataset;if(!axis)return;if(isHistogram(p)||isHeatmap(p)){
   const raw=e.target.value;
   change(()=>{
     const calibration=p.axes[axis];
@@ -2379,8 +3266,9 @@ $('axisFields').onchange=e=>{const {axis,field}=e.target.dataset;if(!axis)return
       if(pixel===null)delete calibration[key];
       else calibration[key]=axis==='x'?{x:pixel,y:p.axes.y.p1??0}:{x:p.axes.x.p1??0,y:pixel};
     }
-    updateHistogramCalibration(axis);
-  });
+    if(isHeatmap(p))updateHeatmapCalibration(axis);
+    else updateHistogramCalibration(axis);
+  },{form:isHeatmap(p)});
   syncCalibrationStatus();
   return;
 }try{change(()=>{if(field!=='type'&&e.target.value==='')throw Error('刻度值不能为空');p.axes[axis][field]=field==='type'?e.target.value:Number(e.target.value);if(field==='p1'||field==='p2'){const n=field.slice(1);p.axes[axis]['point'+n]=axis==='x'?{x:p.axes[axis][field],y:p.axes.y.p1}:{x:p.axes.x.p1,y:p.axes[axis][field]};}p.axes[axis].calibrated=!!(p.axes[axis].point1&&p.axes[axis].point2)&&p.axes[axis].p1!==p.axes[axis].p2&&p.axes[axis].v1!==p.axes[axis].v2;recalculate();},{form:true});}catch(err){toast(err.message);syncForm();}};
@@ -2397,7 +3285,7 @@ $('addRow').onclick=()=>{if(isHistogram(p)){addHistogramRow();return;}if(isArea(
 }if(isStat(p)){change(()=>{const a=assist(),c=isBox(p)&&a.category&&targetIndex(a)<0?p.categoryObjects.find(c=>c.key===a.category):addObject(p,'category',nextCategory());p.rows.push({...isPie(p)?{category:c.name,value:null}:emptyBox(c.name),_categoryKey:c.key,_seriesKey:a.series,series:seriesName(p,a.series)});p.evidence??=[];p.evidence.push({role:'transcribed',source:'manual_entry'});selected=p.rows.length-1;a.category=c.key;selectedHandle=isBox(p)?boxHandle('lower'):'pixel';},{form:true});return;}if(categorical()&&assist().sequence!=='manual'&&targetIndex(assist())>=0){toast('当前目标已标注，请选择其他目标或切换手动模式');return;}change(()=>{const row=bar()?{category:categoryName(p,assist().category)||'A',value:0,series:seriesName(p,assist().series),_categoryKey:assist().category,_seriesKey:assist().series}:{x:p.xType==='ordinal'?categoryName(p,assist().category)||'A':0,y:0,series:seriesName(p,assist().series),_seriesKey:assist().series,...(categorical()?{_categoryKey:assist().category}:{})};if(isStack(p)){row.start=0;row.end=0;}if(p.kind.startsWith('line'))row.path_order=p.rows.length;p.rows.push(row);p.evidence??=[];p.evidence.push({role:$('role').value,source:'manual_entry'});selected=p.rows.length-1;selectedHandle='pixel';if(categorical()&&assist().sequence!=='manual')nextTarget();});const field=document.querySelector('[data-i="'+selected+'"][data-key="'+(bar()?'value':'y')+'"]');field?.focus();field?.select();};
 $('deleteRow').onclick=()=>{if(selected<0)return;change(()=>{p.rows.splice(selected,1);p.evidence?.splice(selected,1);selected=-1;});};
 $('undo').onclick=()=>{if(!history.length)return;future.push(clone(p));p=history.pop();selected=-1;pendingStart=null;selectHistogramRunTarget();refresh(true);};$('redo').onclick=()=>{if(!future.length)return;history.push(clone(p));p=future.pop();selected=-1;pendingStart=null;selectHistogramRunTarget();refresh(true);};
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&focusMode){e.preventDefault();exitFocus();return;}if(e.target.matches?.('input,textarea,select,[contenteditable=true]'))return;if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();$(e.shiftKey?'redo':'undo').click();}if(e.key==='Escape'){if(focusMode){exitFocus();return;}if(tool==='pie-angle'){cancelPieAngles();return;}pendingStart=null;setTool('select');}if((!isBox(p)&&!isArea(p)&&!isHistogram(p)||tool==='select')&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)&&selected>=0&&p.evidence?.[selected]?.[selectedHandle]){e.preventDefault();const step=e.altKey?.1:e.shiftKey?10:1;const pt={...p.evidence[selected][selectedHandle]||p.evidence[selected].pixel};pt.x+=(e.key==='ArrowRight'?step:e.key==='ArrowLeft'?-step:0);pt.y+=(e.key==='ArrowDown'?step:e.key==='ArrowUp'?-step:0);change(()=>editHandle(selected,selectedHandle,constrainDrag(pt,selected,selectedHandle)));}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&focusMode){e.preventDefault();exitFocus();return;}if(e.target.matches?.('input,textarea,select,[contenteditable=true]'))return;if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();$(e.shiftKey?'redo':'undo').click();}if(e.key==='Escape'){if(focusMode){exitFocus();return;}if(tool==='pie-angle'){cancelPieAngles();return;}pendingStart=null;setTool('select');}if(!isHeatmap(p)&&(!isBox(p)&&!isArea(p)&&!isHistogram(p)||tool==='select')&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)&&selected>=0&&p.evidence?.[selected]?.[selectedHandle]){e.preventDefault();const step=e.altKey?.1:e.shiftKey?10:1;const pt={...p.evidence[selected][selectedHandle]||p.evidence[selected].pixel};pt.x+=(e.key==='ArrowRight'?step:e.key==='ArrowLeft'?-step:0);pt.y+=(e.key==='ArrowDown'?step:e.key==='ArrowUp'?-step:0);change(()=>editHandle(selected,selectedHandle,constrainDrag(pt,selected,selectedHandle)));}});
 function setZoom(z){zoom=Math.max(.08,Math.min(8,z));draw();}function fit(){if(image)setZoom(Math.min(($('canvasWrap').clientWidth-20)/image.width,($('canvasWrap').clientHeight-20)/image.height,1));}
 $('zoomIn').onclick=()=>setZoom(zoom*1.3);$('zoomOut').onclick=()=>setZoom(zoom/1.3);$('fit').onclick=fit;$('overlay').onchange=draw;$('connect').onchange=draw;
 function readFile(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file);});}
@@ -2428,7 +3316,7 @@ $('exportGT').onclick=async()=>{await render();const errors=validate(p).filter(i
 $('batchExport').onclick=async()=>{stash();const items=visibleQueue();if(!items.length){toast('当前项目还没有图像');return;}const report=[],entries=[],names=new Set();for(const q of items){let reason='',spec;try{if(!q.project.reviewed)throw Error('尚未核对');spec=makeSpec(q.project);window.vega.parse(window.vegaLite.compile(spec).spec);}catch(e){reason=e.message;}let name=safeExportName(q.name);for(let n=2;names.has(name);n++)name=safeExportName(q.name).replace(/\.gt\.json$/,'-'+n+'.gt.json');if(!reason){names.add(name);if($('withSchema').checked)spec.$schema='https://vega.github.io/schema/vega-lite/v6.json';entries.push({name:'gt/'+name,text:JSON.stringify(spec,null,2)});}report.push({image:q.name,id:q.id,status:reason?'skipped':'exported',file:reason?null:'gt/'+name,reason:reason||null});}entries.push({name:'export-report.json',text:JSON.stringify({project:projectName(),exported:entries.length,skipped:report.filter(q=>q.status==='skipped').length,images:report},null,2)});downloadBlob(projectName().replace(/[<>:"/\\|?*]/g,'_')+'.gt.zip',new Blob([zipBytes(entries)],{type:'application/zip'}));toast('批量导出 '+(entries.length-1)+' 张；跳过 '+report.filter(q=>q.status==='skipped').length+' 张（原因见 ZIP 内清单）');queueUI();};
 $('copyGT').onclick=async()=>{if(!lastSpec){toast('暂无有效 GT');return;}try{await navigator.clipboard.writeText(JSON.stringify(lastSpec,null,2));toast('JSON 已复制');}catch{toast('无法访问剪贴板，请使用导出 GT');}};
 $('openProject').onclick=()=>$('projectInput').click();$('importSpec').onclick=()=>$('specInput').click();
-async function restore(data){if(data.format!=='chart-studio-project'||![1,2].includes(data.version)||!data.current?.project||!Array.isArray(data.queue))throw Error('不是受支持的 Chart Studio 工程');const all=[data.current.project,...data.queue.map(q=>q.project)];for(const item of all){if(!labels[item.kind]||!Array.isArray(item.rows)||!item.axes?.x||!item.axes?.y||!Array.isArray(item.series))throw Error('工程结构不完整');}const nextProjects=data.version===2?data.projects||[]:[];if(!Array.isArray(nextProjects)||nextProjects.some(q=>!q.id||typeof q.name!=='string')||new Set(nextProjects.map(q=>q.id)).size!==nextProjects.length)throw Error('项目列表无效');if(new Set(data.queue.map(q=>q.id)).size!==data.queue.length||data.queue.some(q=>typeof q.id!=='string'))throw Error('图像列表 ID 无效');const projectIds=new Set(nextProjects.map(q=>q.id));const active=data.queue.find(q=>q.id===data.activeId);if(data.activeId&&!active)throw Error('当前图像 ID 不存在');if(data.version===2&&active&&(active.projectId??null)!==(data.currentProjectId||null))throw Error('当前图像与所选项目不一致');if(data.version===2&&(data.currentProjectId&&!projectIds.has(data.currentProjectId)||data.queue.some(q=>q.projectId&&!projectIds.has(q.projectId))))throw Error('图像所属项目不存在');if(data.current.image)await new Promise((resolve,reject)=>{const im=new Image();im.onload=resolve;im.onerror=()=>reject(Error('工程原图无法读取'));im.src=data.current.image;});activationVersion++;queue=clone(data.queue);for(const q of queue){restoreHistogramBins(ensureIdentities(q.project));restoreAreaMeasurementPrecision(q.project);}projects=clone(nextProjects);currentProjectId=data.version===2?data.currentProjectId||null:null;activeId=data.activeId;p=restoreHistogramBins(ensureIdentities(clone(data.current.project)));restoreAreaMeasurementPrecision(p);p.errorBars=hasErrors(p);imageData=data.current.image;fileName=data.current.name||'';image=null;hover=null;pendingStart=null;drag=null;history=[];future=[];selected=-1;if(imageData)await loadImage(imageData);else{$('empty').style.display='flex';$('magnifier').hidden=true;draw();}$('fileName').textContent=fileName||'未命名工程';queueUI();refresh(true);resumeTool();}
+async function restore(data){if(data.format!=='chart-studio-project'||![1,2].includes(data.version)||!data.current?.project||!Array.isArray(data.queue))throw Error('不是受支持的 Chart Studio 工程');const all=[data.current.project,...data.queue.map(q=>q.project)];for(const item of all){if(!labels[item.kind]||!Array.isArray(item.rows)||!item.axes?.x||!item.axes?.y||!Array.isArray(item.series))throw Error('工程结构不完整');if(isHeatmap(item))checkHeatmapProject(item);}const nextProjects=data.version===2?data.projects||[]:[];if(!Array.isArray(nextProjects)||nextProjects.some(q=>!q.id||typeof q.name!=='string')||new Set(nextProjects.map(q=>q.id)).size!==nextProjects.length)throw Error('项目列表无效');if(new Set(data.queue.map(q=>q.id)).size!==data.queue.length||data.queue.some(q=>typeof q.id!=='string'))throw Error('图像列表 ID 无效');const projectIds=new Set(nextProjects.map(q=>q.id));const active=data.queue.find(q=>q.id===data.activeId);if(data.activeId&&!active)throw Error('当前图像 ID 不存在');if(data.version===2&&active&&(active.projectId??null)!==(data.currentProjectId||null))throw Error('当前图像与所选项目不一致');if(data.version===2&&(data.currentProjectId&&!projectIds.has(data.currentProjectId)||data.queue.some(q=>q.projectId&&!projectIds.has(q.projectId))))throw Error('图像所属项目不存在');if(data.current.image)await new Promise((resolve,reject)=>{const im=new Image();im.onload=resolve;im.onerror=()=>reject(Error('工程原图无法读取'));im.src=data.current.image;});activationVersion++;queue=clone(data.queue);for(const q of queue){restoreHistogramBins(ensureIdentities(q.project));restoreAreaMeasurementPrecision(q.project);}projects=clone(nextProjects);currentProjectId=data.version===2?data.currentProjectId||null:null;activeId=data.activeId;p=restoreHistogramBins(ensureIdentities(clone(data.current.project)));restoreAreaMeasurementPrecision(p);p.errorBars=hasErrors(p);imageData=data.current.image;fileName=data.current.name||'';image=null;hover=null;pendingStart=null;drag=null;history=[];future=[];selected=-1;if(imageData)await loadImage(imageData);else{$('empty').style.display='flex';$('magnifier').hidden=true;draw();}$('fileName').textContent=fileName||'未命名工程';queueUI();refresh(true);resumeTool();}
 $('projectInput').onchange=async e=>{try{await restore(JSON.parse(await e.target.files[0].text()));toast('工程已恢复');}catch(err){toast('打开失败：'+err.message);}e.target.value='';};
 $('specInput').onchange=async e=>{try{const next=importSpec(JSON.parse(await e.target.files[0].text()));next.errorBars=hasErrors(next);change(()=>{keepOtherAreaMode(p,next);p={...next,evidence:next.rows.map(()=>({role:'transcribed',source:'imported_gt'})),reviewed:false};for(const a of Object.values(p.axes))a.calibrated=false;selected=-1;},{form:true});setTool('select');toast('GT 已导入；像素证据需重新标注');}catch(err){toast('导入失败：'+err.message);}e.target.value='';};
 function db(){return new Promise((resolve,reject)=>{const r=indexedDB.open('chart-studio',1);r.onupgradeneeded=()=>r.result.createObjectStore('drafts');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});}
