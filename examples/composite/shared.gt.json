@@ -1,0 +1,101 @@
+{
+  "title": "2021",
+  "data": {
+    "values": [
+      {
+        "category": "May-23",
+        "value": 44,
+        "series_role": "bar",
+        "series": "WORD-SELLING_1"
+      },
+      {
+        "category": "Orthotonus Davout",
+        "value": 64,
+        "series_role": "bar",
+        "series": "WORD-SELLING_1"
+      },
+      {
+        "category": "2025",
+        "value": 85,
+        "series_role": "bar",
+        "series": "WORD-SELLING_1"
+      },
+      {
+        "category": "Delly",
+        "value": 100,
+        "series_role": "bar",
+        "series": "WORD-SELLING_1"
+      },
+      {
+        "category": "May-23",
+        "value": 110,
+        "series_role": "line",
+        "series": "Trial 2"
+      },
+      {
+        "category": "Orthotonus Davout",
+        "value": 96,
+        "series_role": "line",
+        "series": "Trial 2"
+      },
+      {
+        "category": "2025",
+        "value": 82.3,
+        "series_role": "line",
+        "series": "Trial 2"
+      },
+      {
+        "category": "Delly",
+        "value": 68.8,
+        "series_role": "line",
+        "series": "Trial 2"
+      }
+    ]
+  },
+  "encoding": {
+    "x": {
+      "field": "category",
+      "type": "nominal",
+      "sort": null,
+      "title": "Scenario (ms)"
+    },
+    "y": {
+      "field": "value",
+      "type": "quantitative",
+      "title": "Latency"
+    },
+    "color": {
+      "field": "series",
+      "type": "nominal",
+      "sort": null
+    }
+  },
+  "layer": [
+    {
+      "mark": {
+        "type": "bar"
+      },
+      "transform": [
+        {
+          "filter": {
+            "field": "series_role",
+            "equal": "bar"
+          }
+        }
+      ]
+    },
+    {
+      "transform": [
+        {
+          "filter": {
+            "field": "series_role",
+            "equal": "line"
+          }
+        }
+      ],
+      "mark": {
+        "type": "line"
+      }
+    }
+  ]
+}

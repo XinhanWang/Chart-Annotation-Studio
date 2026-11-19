@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "build": "node build.mjs",
-    "test": "node build.mjs && node tests/point-order.cjs && node tests/point-order.mjs --headless && node tests/area.cjs && node tests/area-browser.cjs && node tests/histogram-browser.cjs && node tests/errorbar.cjs && node tests/stack-contract.cjs && node tests/identity.cjs && node tests/names-colors.cjs && node tests/names-colors.mjs --headless && node tests/interactions.mjs --headless && node tests/workflows.mjs --headless && node tests/edges.mjs --headless && node tests/stacks.mjs --headless && node --test tests/semantic.test.cjs && node tests/pie-angle-browser.cjs && node tests/browser.cjs",
+    "test": "node build.mjs && node tests/point-order.cjs && node tests/point-order.mjs --headless && node tests/area.cjs && node tests/area-browser.cjs && node tests/histogram-browser.cjs && node tests/errorbar.cjs && node tests/stack-contract.cjs && node tests/identity.cjs && node tests/names-colors.cjs && node tests/names-colors.mjs --headless && node tests/interactions.mjs --headless && node tests/workflows.mjs --headless && node tests/edges.mjs --headless && node tests/stacks.mjs --headless && node --test tests/semantic.test.cjs && node tests/pie-angle-browser.cjs && node tests/browser.cjs && node tests/composite.cjs && node tests/composite-browser.mjs --headless",
     "test:statistical": "node build.mjs && node --test tests/semantic.test.cjs",
-    "test:browser": "node build.mjs && node tests/pie-angle-browser.cjs && node tests/browser.cjs"
+    "test:browser": "node build.mjs && node tests/pie-angle-browser.cjs && node tests/browser.cjs",
+    "test:composite": "node build.mjs && node tests/composite.cjs && node tests/composite-browser.mjs --headless"
   },
   "devDependencies": {
     "playwright": "1.62.1"

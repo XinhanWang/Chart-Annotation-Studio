@@ -1,0 +1,239 @@
+{
+  "title": "Japeth I",
+  "data": {
+    "values": [
+      {
+        "category": "Jan-20",
+        "category_id": "C1",
+        "value": 13.1,
+        "series_role": "bar",
+        "series": "Datapunch / Gentlewomen"
+      },
+      {
+        "category": "Q2 2024",
+        "category_id": "C2",
+        "value": 14,
+        "series_role": "bar",
+        "series": "Datapunch / Gentlewomen"
+      },
+      {
+        "category": "2024",
+        "category_id": "C3",
+        "value": 12.8,
+        "series_role": "bar",
+        "series": "Datapunch / Gentlewomen"
+      },
+      {
+        "category": "2018",
+        "category_id": "C4",
+        "value": 12,
+        "series_role": "bar",
+        "series": "Datapunch / Gentlewomen"
+      },
+      {
+        "category": "2018",
+        "category_id": "C5",
+        "value": 12,
+        "series_role": "bar",
+        "series": "Datapunch / Gentlewomen"
+      },
+      {
+        "category": "Roose Mistletoes",
+        "category_id": "C6",
+        "value": 12,
+        "series_role": "bar",
+        "series": "Datapunch / Gentlewomen"
+      },
+      {
+        "category": "Jan-20",
+        "category_id": "C1",
+        "value": 12,
+        "series_role": "line",
+        "series": "Trial 2"
+      },
+      {
+        "category": "Jan-20",
+        "category_id": "C1",
+        "value": 13,
+        "series_role": "line",
+        "series": "Run 3"
+      },
+      {
+        "category": "Jan-20",
+        "category_id": "C1",
+        "value": 13,
+        "series_role": "line",
+        "series": "Batch 4"
+      },
+      {
+        "category": "Q2 2024",
+        "category_id": "C2",
+        "value": 13,
+        "series_role": "line",
+        "series": "Trial 2"
+      },
+      {
+        "category": "Q2 2024",
+        "category_id": "C2",
+        "value": 12.8,
+        "series_role": "line",
+        "series": "Run 3"
+      },
+      {
+        "category": "Q2 2024",
+        "category_id": "C2",
+        "value": 12.9,
+        "series_role": "line",
+        "series": "Batch 4"
+      },
+      {
+        "category": "2024",
+        "category_id": "C3",
+        "value": 12.9,
+        "series_role": "line",
+        "series": "Trial 2"
+      },
+      {
+        "category": "2024",
+        "category_id": "C3",
+        "value": 12,
+        "series_role": "line",
+        "series": "Run 3"
+      },
+      {
+        "category": "2024",
+        "category_id": "C3",
+        "value": 13,
+        "series_role": "line",
+        "series": "Batch 4"
+      },
+      {
+        "category": "2018",
+        "category_id": "C4",
+        "value": 12,
+        "series_role": "line",
+        "series": "Trial 2"
+      },
+      {
+        "category": "2018",
+        "category_id": "C4",
+        "value": 12,
+        "series_role": "line",
+        "series": "Run 3"
+      },
+      {
+        "category": "2018",
+        "category_id": "C4",
+        "value": 12.6,
+        "series_role": "line",
+        "series": "Batch 4"
+      },
+      {
+        "category": "2018",
+        "category_id": "C5",
+        "value": 12,
+        "series_role": "line",
+        "series": "Trial 2"
+      },
+      {
+        "category": "2018",
+        "category_id": "C5",
+        "value": 13,
+        "series_role": "line",
+        "series": "Run 3"
+      },
+      {
+        "category": "2018",
+        "category_id": "C5",
+        "value": 12.8,
+        "series_role": "line",
+        "series": "Batch 4"
+      },
+      {
+        "category": "Roose Mistletoes",
+        "category_id": "C6",
+        "value": 12,
+        "series_role": "line",
+        "series": "Trial 2"
+      },
+      {
+        "category": "Roose Mistletoes",
+        "category_id": "C6",
+        "value": 12.3,
+        "series_role": "line",
+        "series": "Run 3"
+      },
+      {
+        "category": "Roose Mistletoes",
+        "category_id": "C6",
+        "value": 12,
+        "series_role": "line",
+        "series": "Batch 4"
+      }
+    ]
+  },
+  "encoding": {
+    "x": {
+      "field": "category_id",
+      "type": "nominal",
+      "sort": null
+    },
+    "y": {
+      "field": "value",
+      "type": "quantitative",
+      "title": "Revenue (USD)"
+    },
+    "color": {
+      "field": "series",
+      "type": "nominal",
+      "sort": null
+    }
+  },
+  "layer": [
+    {
+      "transform": [
+        {
+          "filter": {
+            "field": "series_role",
+            "equal": "bar"
+          }
+        }
+      ],
+      "layer": [
+        {
+          "mark": {
+            "type": "bar"
+          }
+        }
+      ]
+    },
+    {
+      "transform": [
+        {
+          "filter": {
+            "field": "series_role",
+            "equal": "line"
+          }
+        }
+      ],
+      "mark": {
+        "type": "line"
+      },
+      "encoding": {
+        "y": {
+          "field": "value",
+          "type": "quantitative",
+          "title": "Load (USD)",
+          "scale": {
+            "type": "linear"
+          }
+        }
+      }
+    }
+  ],
+  "resolve": {
+    "scale": {
+      "y": "independent"
+    }
+  }
+}
