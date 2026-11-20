@@ -1,0 +1,429 @@
+{
+  "discrete": {
+    "title": "Material response",
+    "data": {
+      "values": [
+        {
+          "x": "A",
+          "x_id": "X1",
+          "y": "Low",
+          "y_id": "Y1",
+          "value": 0.2
+        },
+        {
+          "x": "B",
+          "x_id": "X2",
+          "y": "Low",
+          "y_id": "Y1",
+          "value": 0.7
+        },
+        {
+          "x": "A",
+          "x_id": "X1",
+          "y": "High",
+          "y_id": "Y2",
+          "value": 0.4
+        },
+        {
+          "x": "B",
+          "x_id": "X2",
+          "y": "High",
+          "y_id": "Y2",
+          "value": 0.9
+        }
+      ]
+    },
+    "mark": {
+      "type": "rect"
+    },
+    "encoding": {
+      "x": {
+        "field": "x_id",
+        "type": "ordinal",
+        "sort": null
+      },
+      "y": {
+        "field": "y_id",
+        "type": "ordinal",
+        "sort": null
+      },
+      "color": {
+        "field": "value",
+        "type": "quantitative"
+      }
+    }
+  },
+  "confusion_matrix": {
+    "title": "Confusion matrix",
+    "data": {
+      "values": [
+        {
+          "x": "Cat",
+          "x_id": "X1",
+          "y": "Cat",
+          "y_id": "Y1",
+          "value": 90
+        },
+        {
+          "x": "Dog",
+          "x_id": "X2",
+          "y": "Cat",
+          "y_id": "Y1",
+          "value": 10
+        },
+        {
+          "x": "Cat",
+          "x_id": "X1",
+          "y": "Dog",
+          "y_id": "Y2",
+          "value": 15
+        },
+        {
+          "x": "Dog",
+          "x_id": "X2",
+          "y": "Dog",
+          "y_id": "Y2",
+          "value": 85
+        }
+      ]
+    },
+    "mark": {
+      "type": "rect"
+    },
+    "encoding": {
+      "x": {
+        "field": "x_id",
+        "type": "ordinal",
+        "sort": null,
+        "title": "Predicted"
+      },
+      "y": {
+        "field": "y_id",
+        "type": "ordinal",
+        "sort": null,
+        "title": "Actual"
+      },
+      "color": {
+        "field": "value",
+        "type": "quantitative",
+        "title": "Count"
+      }
+    }
+  },
+  "correlation_triangle_missing": {
+    "title": "Correlation matrix",
+    "data": {
+      "values": [
+        {
+          "x": "A",
+          "x_id": "X1",
+          "y": "A",
+          "y_id": "Y1",
+          "value": 1
+        },
+        {
+          "x": "A",
+          "x_id": "X1",
+          "y": "B",
+          "y_id": "Y2",
+          "value": -0.4
+        },
+        {
+          "x": "B",
+          "x_id": "X2",
+          "y": "B",
+          "y_id": "Y2",
+          "value": 1
+        },
+        {
+          "x": "A",
+          "x_id": "X1",
+          "y": "C",
+          "y_id": "Y3",
+          "value": 0.3
+        },
+        {
+          "x": "B",
+          "x_id": "X2",
+          "y": "C",
+          "y_id": "Y3",
+          "value": null
+        },
+        {
+          "x": "C",
+          "x_id": "X3",
+          "y": "C",
+          "y_id": "Y3",
+          "value": 1
+        }
+      ]
+    },
+    "mark": {
+      "type": "rect"
+    },
+    "encoding": {
+      "x": {
+        "field": "x_id",
+        "type": "ordinal",
+        "sort": null
+      },
+      "y": {
+        "field": "y_id",
+        "type": "ordinal",
+        "sort": null
+      },
+      "color": {
+        "field": "value",
+        "type": "quantitative",
+        "title": "Correlation (r)"
+      }
+    }
+  },
+  "continuous_bins": {
+    "title": "Intensity by time and depth",
+    "data": {
+      "values": [
+        {
+          "x": 0,
+          "x_id": "X1",
+          "x2": 3,
+          "y": 5,
+          "y_id": "Y1",
+          "y2": 15,
+          "value": 2.1
+        },
+        {
+          "x": 3,
+          "x_id": "X2",
+          "x2": 10,
+          "y": 5,
+          "y_id": "Y1",
+          "y2": 15,
+          "value": 3.4
+        },
+        {
+          "x": 0,
+          "x_id": "X1",
+          "x2": 3,
+          "y": 0,
+          "y_id": "Y2",
+          "y2": 5,
+          "value": 1.2
+        },
+        {
+          "x": 3,
+          "x_id": "X2",
+          "x2": 10,
+          "y": 0,
+          "y_id": "Y2",
+          "y2": 5,
+          "value": 2.7
+        }
+      ]
+    },
+    "mark": {
+      "type": "rect"
+    },
+    "encoding": {
+      "x": {
+        "field": "x",
+        "type": "quantitative",
+        "title": "Time (s)"
+      },
+      "x2": {
+        "field": "x2"
+      },
+      "y": {
+        "field": "y",
+        "type": "quantitative",
+        "title": "Depth (m)"
+      },
+      "y2": {
+        "field": "y2"
+      },
+      "color": {
+        "field": "value",
+        "type": "quantitative",
+        "title": "Intensity"
+      }
+    }
+  },
+  "mixed_x_discrete_y_continuous": {
+    "title": "Material response by temperature",
+    "data": {
+      "values": [
+        {
+          "x": "A",
+          "x_id": "X1",
+          "y": 10,
+          "y_id": "Y1",
+          "y2": 25,
+          "value": 0.2
+        },
+        {
+          "x": "B",
+          "x_id": "X2",
+          "y": 10,
+          "y_id": "Y1",
+          "y2": 25,
+          "value": 0.7
+        },
+        {
+          "x": "A",
+          "x_id": "X1",
+          "y": 0,
+          "y_id": "Y2",
+          "y2": 10,
+          "value": 0.4
+        },
+        {
+          "x": "B",
+          "x_id": "X2",
+          "y": 0,
+          "y_id": "Y2",
+          "y2": 10,
+          "value": 0.9
+        }
+      ]
+    },
+    "mark": {
+      "type": "rect"
+    },
+    "encoding": {
+      "x": {
+        "field": "x_id",
+        "type": "ordinal",
+        "sort": null,
+        "title": "Material"
+      },
+      "y": {
+        "field": "y",
+        "type": "quantitative",
+        "title": "Temperature (°C)"
+      },
+      "y2": {
+        "field": "y2"
+      },
+      "color": {
+        "field": "value",
+        "type": "quantitative"
+      }
+    }
+  },
+  "mixed_x_continuous_y_discrete": {
+    "title": "Energy response by treatment",
+    "data": {
+      "values": [
+        {
+          "x": 0,
+          "x_id": "X1",
+          "x2": 5,
+          "y": "Control",
+          "y_id": "Y1",
+          "value": 1.2
+        },
+        {
+          "x": 5,
+          "x_id": "X2",
+          "x2": 12,
+          "y": "Control",
+          "y_id": "Y1",
+          "value": 1.6
+        },
+        {
+          "x": 0,
+          "x_id": "X1",
+          "x2": 5,
+          "y": "Treated",
+          "y_id": "Y2",
+          "value": 2.3
+        },
+        {
+          "x": 5,
+          "x_id": "X2",
+          "x2": 12,
+          "y": "Treated",
+          "y_id": "Y2",
+          "value": 2.8
+        }
+      ]
+    },
+    "mark": {
+      "type": "rect"
+    },
+    "encoding": {
+      "x": {
+        "field": "x",
+        "type": "quantitative",
+        "title": "Time (s)"
+      },
+      "x2": {
+        "field": "x2"
+      },
+      "y": {
+        "field": "y_id",
+        "type": "ordinal",
+        "sort": null,
+        "title": "Treatment"
+      },
+      "color": {
+        "field": "value",
+        "type": "quantitative"
+      }
+    }
+  },
+  "duplicate_labels": {
+    "title": "Repeated-label matrix",
+    "data": {
+      "values": [
+        {
+          "x": "A",
+          "x_id": "X1",
+          "y": "Low",
+          "y_id": "Y1",
+          "value": 0.2
+        },
+        {
+          "x": "A",
+          "x_id": "X2",
+          "y": "Low",
+          "y_id": "Y1",
+          "value": 0.7
+        },
+        {
+          "x": "A",
+          "x_id": "X1",
+          "y": "Low",
+          "y_id": "Y2",
+          "value": 0.4
+        },
+        {
+          "x": "A",
+          "x_id": "X2",
+          "y": "Low",
+          "y_id": "Y2",
+          "value": 0.9
+        }
+      ]
+    },
+    "mark": {
+      "type": "rect"
+    },
+    "encoding": {
+      "x": {
+        "field": "x_id",
+        "type": "ordinal",
+        "sort": null
+      },
+      "y": {
+        "field": "y_id",
+        "type": "ordinal",
+        "sort": null
+      },
+      "color": {
+        "field": "value",
+        "type": "quantitative"
+      }
+    }
+  }
+}
