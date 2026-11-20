@@ -9,6 +9,8 @@
 @media(max-width:1350px){.image-stage,.focus-mode .image-stage{grid-template-columns:minmax(0,1fr)}.lens-dock{grid-row:1;display:flex;align-items:center;gap:12px;min-height:0;height:156px;overflow:hidden}.lens-dock #magnifier{width:140px;flex:none}.lens-dock #magnifier canvas{width:140px;height:140px}.lens-dock p{margin:0}.canvas-wrap{height:400px}}
 @media(max-width:740px){.focus-mode .workspace{padding:10px}.focus-mode .image-stage{grid-template-columns:minmax(0,1fr)}.focus-mode .canvas-wrap{height:46dvh}.workspace-heading{flex-wrap:wrap;gap:4px}.target-summary{max-width:100%}.lens-dock{height:156px;gap:6px}.canvas-wrap{height:340px}.tick-row{flex-wrap:wrap}.tick-row label{min-width:80px}.canvas-toolbar .segmented button{padding:7px}.brand small{display:none}}
 .focus-only{display:none}.focus-mode .focus-only{display:inline-block}.image-stage.no-lens,.focus-mode .image-stage.no-lens{grid-template-columns:minmax(0,1fr)}
+#percentStackHeightCategories{max-height:250px;overflow:auto}
+#percentStackHeightCategories input[type=number]{width:120px;margin:0}
 #heatmapStructure input,#heatmapMeasurement input,#heatmapMeasurement select{padding:5px}
 .heatmap-axes{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
 .heatmap-bands{max-height:230px;overflow:auto}
@@ -134,7 +136,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 </section>
 <section class="assist-panel" aria-label="连续标注与精度辅助">
 <div class="assist-heading"><strong id="targetHint">选择取点目标</strong><span id="targetProgress" class="badge"></span></div>
-<div class="assist-controls"><label id="errorOrderLabel">误差棒取点顺序<select id="errorOrder"><option value="per-bar">逐柱：数值 → 上界 → 下界</option><option value="passes">分轮：全部数值 → 全部上界 → 全部下界</option></select></label><label id="sequenceLabel">连续标注顺序<select id="sequence"><option value="category">逐类别：类别内依次标各系列</option><option value="series">逐系列：系列内依次标各类别</option><option value="manual">手动选择，不自动切换</option></select></label><button id="nextTarget">下一个待标目标 →</button><label class="check"><input type="checkbox" id="projections" checked> X / Y 投影线</label><label class="check"><input type="checkbox" id="magnify" checked> 局部放大</label></div>
+<div class="assist-controls"><label id="errorOrderLabel">误差棒取点顺序<select id="errorOrder"><option value="per-bar">逐柱：数值 → 上界 → 下界</option><option value="passes">分轮：全部数值 → 全部上界 → 全部下界</option></select></label><label id="sequenceLabel">连续标注顺序<select id="sequence"><option value="category">逐类别：类别内依次标各系列</option><option value="series">逐系列：系列内依次标各类别</option><option value="manual">手动选择，不自动切换</option></select></label><button id="nextTarget">下一个待标目标 →</button><button id="skipPercentStack" hidden>跳过缺失系列</button><div id="percentStackEndpoints" class="segmented" role="group" aria-label="当前段端点" hidden><button data-percent-endpoint="start" aria-pressed="false">取段起点</button><button data-percent-endpoint="end" aria-pressed="false">取段终点</button></div><label class="check"><input type="checkbox" id="projections" checked> X / Y 投影线</label><label class="check"><input type="checkbox" id="magnify" checked> 局部放大</label></div>
 <section id="histogramWorkflow" aria-label="直方图连续录入" hidden>
 <div id="histogramOrdinarySetup">
 <div id="histogramBinSetup" class="assist-controls">
@@ -161,6 +163,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 <div class="precision-controls"><div id="numericLock"><label class="check"><input type="checkbox" id="lockX"> 固定 X，只寻找 Y</label><input id="fixedX" type="number" step="any" aria-label="固定X数值" placeholder="已知 X 数值"><button id="pickX">在原图定位 X 刻度</button></div><div id="categoryLock"><label class="check"><input type="checkbox" id="lockCategory"> 固定类别位置，只测数值</label><button id="pickCategory">定位当前类别刻度</button><span id="anchorStatus" class="muted"></span></div><label>拖动方向<select id="dragAxis"><option value="free">自由移动</option><option value="y">只修改 Y（固定 X）</option><option value="x">只修改 X（固定 Y）</option></select></label><button id="unlockPoint">解除选中点的 X 约束</button></div>
 <p class="muted precision-tip">柱图、折线和散点在取点模式下也可直接拖动已有标记。箱线图请切换「选择 / 拖动」编辑。方向键微调 1 原图像素；Shift＋方向键 10 像素，Alt＋方向键 0.1 像素。按住 Shift 拖动可临时限制为水平或竖直。固定 X 后，可在数值框输入标签值，并点击该刻度位置建立竖直参考线。</p></section>
 <details id="calibrationPanel"><summary>坐标轴校准 <span id="calibrationStatus">尚未校准</span></summary><p id="categoryAxisNote" class="muted"></p><p id="heatmapCalibrationNote" class="muted" hidden>两个像素框留空时，可直接填写网格两端的真实数值。按画面顺序，X 从左到右，Y 从上到下。也可另取原图上两个已知刻度。</p><div class="calibration-grid" id="axisFields"></div><p class="muted">选择 X1 / X2 / Y1 / Y2 后点击原图对应刻度，再输入该刻度的真实值。像素坐标使用原图尺寸；对数轴必须为正数。反向轴由刻度值和像素顺序自然确定。修改校准后已有测量点会重新计算。</p></details>
+<section id="percentStackHeightControls" class="assist-panel" aria-labelledby="percentStackHeightTitle" hidden>
+<div class="section-head"><h3 id="percentStackHeightTitle">类别高度</h3><button id="cancelPercentStackHeight" type="button" class="small" hidden>取消取点</button></div>
+<div class="assist-controls"><button id="selectAllPercentStackHeights" type="button" class="small">全选</button><button id="clearPercentStackHeights" type="button" class="small">全不选</button><label class="check"><input type="checkbox" id="percentStackSharedHeight"> 高度一致</label></div>
+<p class="muted">勾选需要记录整柱高度的类别。取点沿已校准的数值轴计算高度。开启高度一致后，其余勾选项共用第一个勾选项的高度。</p>
+<div id="percentStackHeightCategories"></div>
+<p id="percentStackHeightStatus" class="muted" role="status" hidden></p>
+</section>
 <details id="heatmapStructure" hidden open>
 <summary>热力图行列</summary>
 <div class="assist-controls">
@@ -195,7 +204,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 <div id="histogramStackBinSetup"></div>
 <div class="table-scroll"><table><thead><tr><th>分箱</th><th>分箱起始</th><th>分箱结束</th><th>操作</th></tr></thead><tbody id="histogramBinsBody"></tbody></table></div>
 </section>
-<section class="table-section"><div class="section-head"><div><h2>数据记录 <small>数值可直接编辑</small></h2></div><div><button id="importSpec">导入 GT</button><button id="addRow">＋ 添加记录</button><button id="deleteRow">删除选中</button></div></div><label class="check" id="advancedFieldsLabel"><input type="checkbox" id="advancedFields"> 展开高级路径顺序</label><div id="heatmapCellControls" hidden>
+<section class="table-section"><div class="section-head"><div><h2>数据记录 <small>数值可直接编辑</small></h2></div><div><button id="importSpec">导入 GT</button><button id="addRow">＋ 添加记录</button><button id="deleteRow">删除选中</button></div></div><fieldset id="percentStackRatioControls" hidden>
+<legend>按类别自动计算比值（总量 100%）</legend>
+<div class="assist-controls"><button id="selectAllPercentRatios" type="button" class="small">全选</button><button id="clearPercentRatios" type="button" class="small">全不选</button></div>
+<div id="percentStackRatioCategories" class="target-grid"></div>
+</fieldset><label class="check" id="advancedFieldsLabel"><input type="checkbox" id="advancedFields"> 展开高级路径顺序</label><div id="heatmapCellControls" hidden>
 <div class="assist-controls">
 <button id="heatmapMissing">标记选中格缺测</button><button id="heatmapOmit">标为结构空格</button><button id="heatmapClearCell">清空选中格</button>
 <button id="heatmapAcceptEstimate" hidden>采用选中格估值</button>
