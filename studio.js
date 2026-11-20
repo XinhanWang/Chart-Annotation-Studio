@@ -1140,13 +1140,41 @@ function newHeatmapBand(p,axis) {
   return {key:newKey(axis),...(heatmapContinuous(p,axis)?{start:null,end:null,fromPixels:true}:{label:''})};
 }
 
-function heatmapInterval(p,axis,index) {
-  const band=p.heatmap[axis][index];
-  if(!band.fromPixels)return [band.start,band.end];
-  const pixel=p.heatmap.pixels[axis].slice(index,index+2),calibration=p.axes[axis];
-  if(!calibration.calibrated||!pixel.every(finite)||pixel[0]>=pixel[1])return [null,null];
-  try{return pixel.map(v=>pixelToValue(v,calibration)).sort((a,b)=>a-b);}
-  catch{return [null,null];}
+function heatmapPixelBoundaries(p,axis) {
+  const pixels=[...p.heatmap.pixels[axis]];
+  let previous=-1;
+  for(let i=0;i<pixels.length;i++){
+    if(!finite(pixels[i]))continue;
+    if(previous>=0&&pixels[i]>pixels[previous]){
+      const step=(pixels[i]-pixels[previous])/(i-previous);
+      for(let j=previous+1;j<i;j++)pixels[j]=pixels[previous]+step*(j-previous);
+    }
+    previous=i;
+  }
+  return pixels;
+}
+
+function heatmapAxisCalibration(p,axis) {
+  const calibration=p.axes[axis];
+  const pixels=p.heatmap.pixels[axis],p1=pixels[0],p2=pixels.at(-1);
+  return !finite(calibration.p1)&&!finite(calibration.p2)&&finite(p1)&&finite(p2)&&p1<p2?
+    {...calibration,p1,p2}:calibration;
+}
+
+function validHeatmapCalibration(calibration) {
+  try{axisTransform(calibration);return true;}
+  catch{return false;}
+}
+
+function heatmapIntervals(p,axis) {
+  const calibration=heatmapAxisCalibration(p,axis),pixels=heatmapPixelBoundaries(p,axis);
+  const values=validHeatmapCalibration(calibration)?
+    pixels.map(pixel=>finite(pixel)?pixelToValue(pixel,calibration):null):[];
+  return p.heatmap[axis].map((band,i)=>{
+    if(!band.fromPixels)return [band.start,band.end];
+    const start=values[i],end=values[i+1];
+    return finite(start)&&finite(end)&&pixels[i]<pixels[i+1]?[Math.min(start,end),Math.max(start,end)]:[null,null];
+  });
 }
 
 function heatmapRecords(p) {
@@ -1186,14 +1214,15 @@ function validateHeatmap(p) {
   for(const axis of heatmapAxes){
     const name=axis.toUpperCase(),used=new Set(rows.map(r=>r['_'+axis+'Key']));
     let previous, direction=0, incomplete=0, unordered=false, overlap=false;
-    const bands=p.heatmap[axis];
+    const bands=p.heatmap[axis],continuous=heatmapContinuous(p,axis);
+    const intervals=continuous?heatmapIntervals(p,axis):[];
     for(const [i,band] of bands.entries()){
       if(!used.has(band.key))continue;
-      if(!heatmapContinuous(p,axis)){
+      if(!continuous){
         if(!heatmapLabel(band.label))incomplete++;
         continue;
       }
-      const interval=heatmapInterval(p,axis,i);
+      const interval=intervals[i];
       if(!interval.every(finite)||interval[0]>=interval[1]){incomplete++;continue;}
       if(previous){
         const step=Math.sign(interval[0]-previous[0]);
@@ -1221,8 +1250,8 @@ function validateHeatmap(p) {
 
 function makeHeatmapSpec(p) {
   const records=heatmapRecords(p),values=[];
-  const x=p.heatmap.x.map((band,i)=>heatmapContinuous(p,'x')?heatmapInterval(p,'x',i):[band.label]);
-  const y=p.heatmap.y.map((band,i)=>heatmapContinuous(p,'y')?heatmapInterval(p,'y',i):[band.label]);
+  const coordinates=axis=>heatmapContinuous(p,axis)?heatmapIntervals(p,axis):p.heatmap[axis].map(band=>[band.label]);
+  const x=coordinates('x'),y=coordinates('y');
   for(const [j,yBand] of p.heatmap.y.entries())for(const [i,xBand] of p.heatmap.x.entries()){
     const record=records.get(heatmapCellKey(xBand.key,yBand.key))?.row;
     if(!record||!Object.hasOwn(record,'value'))continue;
@@ -1321,7 +1350,7 @@ function renderHeatmapSpec(gt,p) {
     }else{
       const first=byId.get(ids[0])[axis],last=byId.get(ids.at(-1))[axis];
       const reverse=ids.length>1&&(axis==='x'?last<first:last>first);
-      const values=p?p.heatmap[axis].flatMap((_,i)=>heatmapInterval(p,axis,i)).filter(finite):[];
+      const values=p?heatmapIntervals(p,axis).flat().filter(finite):[];
       enc.scale={zero:false,nice:false,reverse,...(values.length&&Math.min(...values)<Math.max(...values)?{domain:[Math.min(...values),Math.max(...values)]}:{})};
       tooltips.push({field:axis+'2',type:'quantitative',title:axis.toUpperCase()+' 结束'});
     }
@@ -1432,25 +1461,20 @@ function measureHeatmapColor(read,ramp,bounds,point) {
 }
 
 function heatmapPixelRanges(p,axis) {
-  const pixels=[...p.heatmap.pixels[axis]],bands=p.heatmap[axis];
-  if(!heatmapContinuous(p,axis)){
-    let previous=-1;
-    for(let i=0;i<pixels.length;i++)if(finite(pixels[i])){
-      if(previous>=0&&pixels[i]>pixels[previous])for(let j=previous+1;j<i;j++)
-        pixels[j]=pixels[previous]+(pixels[i]-pixels[previous])*(j-previous)/(i-previous);
-      previous=i;
-    }
-  }
-  return bands.map((_,i)=>{
-    const measured=pixels.slice(i,i+2),calibration=p.axes[axis];
-    if(!measured.every(finite)&&heatmapContinuous(p,axis)&&calibration.calibrated){
-      const values=heatmapInterval(p,axis,i);
-      if(values.every(finite))try{
-        const fromScale=values.map(value=>valueToPixel(value,calibration)).sort((a,b)=>a-b);
-        measured.forEach((v,j)=>{if(!finite(v))measured[j]=fromScale[j];});
+  const picked=p.heatmap.pixels[axis],pixels=heatmapPixelBoundaries(p,axis);
+  const calibration=heatmapAxisCalibration(p,axis);
+  const projectIntervals=heatmapContinuous(p,axis)&&validHeatmapCalibration(calibration);
+  return p.heatmap[axis].map((band,i)=>{
+    let range=pixels.slice(i,i+2);
+    if(projectIntervals&&!band.fromPixels&&finite(band.start)&&finite(band.end)&&
+        (!finite(picked[i])||!finite(picked[i+1]))){
+      try{
+        const projected=[valueToPixel(band.start,calibration),valueToPixel(band.end,calibration)].sort((a,b)=>a-b);
+        const combined=projected.map((pixel,j)=>picked[i+j]??pixel);
+        if(combined.every(finite)&&combined[0]<combined[1])range=combined;
       }catch{/* The table remains editable while the numeric calibration is incomplete. */}
     }
-    return measured.every(finite)&&measured[0]<measured[1]?measured:null;
+    return range.every(finite)&&range[0]<range[1]?range:null;
   });
 }
 
@@ -1482,11 +1506,9 @@ let heatmapCapture=null;
 const heatmapImages=new WeakMap();
 const heatmapAxisName=axis=>axis==='x'?'列':'行';
 
-function heatmapBandText(axis,i) {
-  const band=p.heatmap[axis][i];
-  if(!heatmapContinuous(p,axis))return String(band.label??'');
-  const [start,end]=heatmapInterval(p,axis,i);
-  return finite(start)&&finite(end)?start+' – '+end:'';
+function heatmapBandLabels(axis) {
+  if(!heatmapContinuous(p,axis))return p.heatmap[axis].map(band=>String(band.label??''));
+  return heatmapIntervals(p,axis).map(([start,end])=>finite(start)&&finite(end)?start+' – '+end:'');
 }
 
 function heatmapCell(index) {
@@ -1522,13 +1544,14 @@ function updateHeatmapCellInput(input,row,evidence) {
 
 function syncHeatmapTable() {
   const {x,y}=p.heatmap, records=heatmapRecords(p);
-  $('tableHead').innerHTML='<tr><th scope="col">行 / 列</th>'+x.map((_,i)=>'<th scope="col"><small>'+heatmapId('x',i)+'</small>'+esc(heatmapBandText('x',i))+'</th>').join('')+'</tr>';
-  $('tableBody').innerHTML=y.map((yBand,j)=>'<tr><th scope="row"><small>'+heatmapId('y',j)+'</small>'+esc(heatmapBandText('y',j))+'</th>'+
+  const columns=heatmapBandLabels('x').map(esc),rows=heatmapBandLabels('y').map(esc);
+  $('tableHead').innerHTML='<tr><th scope="col">行 / 列</th>'+columns.map((label,i)=>'<th scope="col"><small>'+heatmapId('x',i)+'</small>'+label+'</th>').join('')+'</tr>';
+  $('tableBody').innerHTML=y.map((yBand,j)=>'<tr><th scope="row"><small>'+heatmapId('y',j)+'</small>'+rows[j]+'</th>'+
     x.map((xBand,i)=>{
       const {row,evidence}=records.get(heatmapCellKey(xBand.key,yBand.key))??{};
       const pending=evidence?.warning&&!evidence.accepted,omitted=evidence?.source==='heatmap_omitted';
       return '<td><input type="text" inputmode="decimal" data-heatmap-cell="'+(j*x.length+i)+'"'+
-        ' aria-label="第 '+(j+1)+' 行第 '+(i+1)+' 列 '+esc(heatmapBandText('y',j)+' '+heatmapBandText('x',i))+'"'+
+        ' aria-label="第 '+(j+1)+' 行第 '+(i+1)+' 列 '+rows[j]+' '+columns[i]+'"'+
         (row?.value===null||omitted?' data-heatmap-missing':'')+(pending?' data-heatmap-warning':'')+
         (omitted?' placeholder="跳过"':'')+
         ' title="'+esc(pending?evidence.warning:evidence?.source==='heatmap_color'?'色标估值':omitted?'结构空格':row?.value===null?'显式缺测':'')+'" value="'+
@@ -1550,7 +1573,7 @@ function syncHeatmapSelection() {
   $('countBadge').textContent=recorded+' / '+total+' 格已记录';
   $('heatmapSelection').textContent=cell?
     '第 '+(cell.row+1)+' 行、第 '+(cell.column+1)+' 列'+(pending?' · '+estimate.warning+(finite(estimate.value)?' · 建议值 '+estimate.value.toFixed(2):''):estimate?' · 色标估值':'')+
-    (row?.value===null?' · 缺测':evidence?.source==='heatmap_omitted'?' · 跳过批量测量':''):'点击单元格选中。输入数值后按 Enter 前进；null 表示缺测。';
+    (row?.value===null?' · 缺测':evidence?.source==='heatmap_omitted'?' · 跳过批量测量':''):'点击单元格选中。';
   $('targetTop').textContent=cell?'第 '+(cell.row+1)+' 行 · 第 '+(cell.column+1)+' 列':'';
   $('heatmapMissing').disabled=$('heatmapOmit').disabled=!cell;
   $('heatmapClearCell').disabled=!row;
@@ -1571,6 +1594,7 @@ function syncHeatmapBoundaryOptions() {
 function syncHeatmapForm() {
   const heatmap=isHeatmap(p);
   for(const id of ['heatmapTitleLabel','heatmapStructure','heatmapMeasurement','heatmapCellControls'])$(id).hidden=!heatmap;
+  $('heatmapCalibrationNote').hidden=!heatmap||!requiredAxes(p).length;
   for(const id of ['addRow','deleteRow'])$(id).hidden=heatmap;
   $('dataTable').classList.toggle('heatmap-matrix',heatmap);
   document.querySelector('[data-tool="heatmap-measure"]').hidden=!heatmap;
@@ -1582,16 +1606,17 @@ function syncHeatmapForm() {
   document.querySelector('[data-tool="point"]').hidden=true;
   document.querySelector('[data-tool="calibrate"]').hidden=$('calibrationPanel').hidden=!requiredAxes(p).length;
   $('orderGuide').textContent='列按左到右、行按上到下。标签可以重名。';
-  $('tableNote').textContent='留空表示省略该格，null 表示显式缺测。色标估值保留两位小数。';
+  $('tableNote').textContent='方向键切换相邻格，Enter 前进到下一格。留空省略该格，null 表示显式缺测。色标估值保留两位小数。';
   $('heatmapRows').value=y.length||'';
   $('heatmapColumns').value=x.length||'';
   $('heatmapAxes').innerHTML=heatmapAxes.map(axis=>{
     const bands=p.heatmap[axis], continuous=heatmapContinuous(p,axis), name=heatmapAxisName(axis);
+    const intervals=continuous?heatmapIntervals(p,axis):[];
     const bandRows=bands.map((band,i)=>{
       const attrs=' data-hm-axis="'+axis+'" data-hm-index="'+i+'"';
       const input=(field,label,value)=>'<input'+attrs+' data-hm-field="'+field+'" aria-label="'+label+'" '+
         (continuous?'type="number" step="any" placeholder="'+(field==='start'?'起点':'终点')+'"':'type="text" placeholder="原始标签"')+' value="'+esc(value)+'">';
-      const [start,end]=continuous?heatmapInterval(p,axis,i):[];
+      const [start,end]=intervals[i]??[];
       const button=(action,text,title,disabled=false)=>'<button class="small"'+attrs+' data-hm-action="'+action+'" title="'+title+'" aria-label="'+title+'" '+(disabled?'disabled':'')+'>'+text+'</button>';
       return '<div class="heatmap-band"><span>'+heatmapId(axis,i)+'</span>'+
         (continuous?input('start',name+(i+1)+' 起点',start)+input('end',name+(i+1)+' 终点',end)+
@@ -1620,7 +1645,8 @@ function syncHeatmapForm() {
 function syncHeatmapGridStatus() {
   const [columns,rows]=heatmapAxes.map(axis=>heatmapPixelRanges(p,axis).filter(Boolean).length);
   $('heatmapGridStatus').textContent='已定位 '+columns+' / '+p.heatmap.x.length+' 列、'+rows+' / '+p.heatmap.y.length+
-    ' 行。离散轴可用两角等分，连续轴可点取共享边界或用已知区间和数值轴校准定位。';
+    ' 行。定位两角后自动等分。不等宽时请点取共享边界。'+
+    (requiredAxes(p).length?'连续轴校准后，自动按网格边界计算各区间的起止值。':'');
   $('heatmapMeasureBatch').disabled=!image||!columns||!rows;
 }
 
@@ -1668,14 +1694,24 @@ function advanceHeatmapCell(focus=false) {
   if(heatmapCell(next))selectHeatmapCell(next,focus);
 }
 
+const heatmapArrowSteps={ArrowUp:[-1,0],ArrowDown:[1,0],ArrowLeft:[0,-1],ArrowRight:[0,1]};
+function moveHeatmapSelection(index,key,focus=false) {
+  const cell=heatmapCell(index);
+  if(!cell)return;
+  const [dy,dx]=heatmapArrowSteps[key],row=cell.row+dy,column=cell.column+dx;
+  const {x,y}=p.heatmap;
+  if(row>=0&&row<y.length&&column>=0&&column<x.length)selectHeatmapCell(row*x.length+column,focus);
+}
+
 function keepHeatmapBands(axis,bands) {
   const keys=new Set(bands.map(b=>b.key)),ref='_'+axis+'Key',old=p.heatmap[axis];
   if(heatmapContinuous(p,axis)){
     const oldIndex=new Map(old.map((b,i)=>[b.key,i]));
+    const intervals=heatmapIntervals(p,axis);
     bands.forEach(band=>{
       const index=oldIndex.get(band.key);
       if(index===undefined||!band.fromPixels)return;
-      const [start,end]=heatmapInterval(p,axis,index);
+      const [start,end]=intervals[index];
       if(finite(start)&&finite(end))Object.assign(band,{start,end,fromPixels:false});
     });
   }
@@ -1724,7 +1760,8 @@ function reshapeHeatmapAxis(axis,action,index) {
     bands.splice(index,1);
   }else if(action==='ascending'||action==='descending'){
     if(heatmapContinuous(p,axis)){
-      const anchors=new Map(bands.map((b,i)=>[b.key,heatmapInterval(p,axis,i)[0]]));
+      const intervals=heatmapIntervals(p,axis);
+      const anchors=new Map(bands.map((b,i)=>[b.key,intervals[i][0]]));
       if([...anchors.values()].some(v=>!finite(v)))throw Error('请先填写所有区间起点');
       const sign=action==='ascending'?1:-1;
       bands.sort((a,b)=>sign*(anchors.get(a.key)-anchors.get(b.key)));
@@ -1836,6 +1873,8 @@ function handleHeatmapPointer(raw) {
         bounds[0]=Math.min(first[axis],pt[axis]);bounds[bounds.length-1]=Math.max(first[axis],pt[axis]);
       }
     },{form:true});
+    if(p.heatmap[$('heatmapBoundaryAxis').value].length>1)$('heatmapBoundaryIndex').value='1';
+    if(requiredAxes(p).some(axis=>!validHeatmapCalibration(heatmapAxisCalibration(p,axis))))$('calibrationPanel').open=true;
     setTool('select');
     return;
   }
@@ -1845,7 +1884,8 @@ function handleHeatmapPointer(raw) {
     if(finite(previous)&&previous>=pt[axis]||finite(next)&&next<=pt[axis])
       throw Error('共享边界须按从左到右或从上到下排列');
     change(()=>bounds[index]=pt[axis],{form:true});
-    if(index===bounds.length-1)setTool('select');
+    const last=bounds.length-1;
+    if(index===last||index+1===last&&finite(bounds[last]))setTool('select');
     else{
       heatmapCapture.index++;
       $('heatmapBoundaryIndex').value=heatmapCapture.index;
@@ -1916,7 +1956,7 @@ $('heatmapAxes').onchange=e=>{
   change(()=>{
     if(hmField==='label')band.label=input.value;
     else{
-      const [start,end]=heatmapInterval(p,hmAxis,Number(hmIndex));
+      const [start,end]=heatmapIntervals(p,hmAxis)[Number(hmIndex)];
       Object.assign(band,{start,end,fromPixels:false,[hmField]:input.value===''?null:input.valueAsNumber});
     }
   });
@@ -1970,9 +2010,19 @@ $('tableBody').addEventListener('change',e=>{
   if(e.target.dataset.heatmapCell!==undefined)editHeatmapValue(Number(e.target.dataset.heatmapCell),e.target.value);
 });
 $('tableBody').addEventListener('keydown',e=>{
-  if(e.key!=='Enter'||e.target.dataset.heatmapCell===undefined)return;
+  const index=e.target.dataset.heatmapCell;
+  if(index===undefined||e.isComposing||e.ctrlKey||e.metaKey||e.altKey||e.shiftKey)return;
+  const arrow=Object.hasOwn(heatmapArrowSteps,e.key);
+  if(!arrow&&e.key!=='Enter')return;
   e.preventDefault();
-  if(editHeatmapValue(Number(e.target.dataset.heatmapCell),e.target.value))advanceHeatmapCell(true);
+  if(!editHeatmapValue(Number(index),e.target.value))return;
+  if(arrow)moveHeatmapSelection(Number(index),e.key,true);
+  else advanceHeatmapCell(true);
+});
+canvas.addEventListener('keydown',e=>{
+  if(!isHeatmap(p)||tool!=='select'||selected<0||!Object.hasOwn(heatmapArrowSteps,e.key))return;
+  e.preventDefault();
+  moveHeatmapSelection(selected,e.key);
 });
 $('tableBody').addEventListener('paste',e=>{
   const index=e.target.dataset.heatmapCell,raw=e.clipboardData?.getData('text/plain');
@@ -2016,16 +2066,31 @@ function syncCompositeForm(){
 $('dualYAxis').onchange=()=>change(()=>{p.dualYAxis=$('dualYAxis').checked;recalculate();},{form:true});
 $('rightYTitle').onchange=()=>change(()=>p.rightYTitle=$('rightYTitle').value,{form:true});
 $('compositeErrors').onchange=()=>change(()=>{if(!$('compositeErrors').checked&&p.rows.some(r=>present(r.lower)||present(r.upper)))throw Error('请先清除已有误差上下界再关闭误差棒');p.errorBars=$('compositeErrors').checked;},{form:true});
-function axisForm(){ const required=requiredAxes(p);$('categoryAxisNote').hidden=required.length===2;$('categoryAxisNote').textContent=required.length===1?(required[0]==='x'?'Y':'X')+' 轴是类别轴，无需数值标定；在类别顺序中填写标签即可。':'';$('axisFields').innerHTML=required.map(a=>`<div class="axis-group"><h4>${isComposite(p)?a==='r'?'右 Y（折线）':'左 Y（柱）':a.toUpperCase()} 轴 <small data-axis-status="${a}"></small></h4><label>坐标类型<select data-axis="${a}" data-field="type"><option value="linear" ${p.axes[a].type!=='log'?'selected':''}>线性</option><option value="log" ${p.axes[a].type==='log'?'selected':''}>对数</option></select></label>${[1,2].map(n=>`<div class="tick-row"><button data-tick="${a}${n}" class="${tool==='calibrate'&&calTarget===a+n?'active':''}">${isComposite(p)?a==='r'?'右Y':'左Y':a.toUpperCase()}${n} 取刻度</button><label>原图像素<input type="number" step="any" data-axis="${a}" data-field="p${n}" value="${p.axes[a]['p'+n]??''}"></label><label>真实数值<input type="number" step="any" data-axis="${a}" data-field="v${n}" value="${p.axes[a]['v'+n]??''}"></label></div>`).join('')}</div>`).join('');syncCalibrationStatus();}
+function axisForm(){
+  const required=requiredAxes(p);
+  $('categoryAxisNote').hidden=required.length===2;
+  $('categoryAxisNote').textContent=required.length===1?
+    (required[0]==='x'?'Y':'X')+' 轴是类别轴，无需数值标定；在类别顺序中填写标签即可。':'';
+  $('axisFields').innerHTML=required.map(a=>{
+    const axis=p.axes[a],effective=isHeatmap(p)?heatmapAxisCalibration(p,a):axis;
+    const ticks=[1,2].map(n=>{
+      const pixel=axis['p'+n],gridPixel=effective['p'+n];
+      const placeholder=!finite(pixel)&&finite(gridPixel)?` placeholder="网格边界 ${gridPixel.toFixed(1)}"`:'';
+      return `<div class="tick-row"><button data-tick="${a}${n}" class="${tool==='calibrate'&&calTarget===a+n?'active':''}">${isComposite(p)?a==='r'?'右Y':'左Y':a.toUpperCase()}${n} 取刻度</button><label>原图像素<input type="number" step="any" data-axis="${a}" data-field="p${n}" value="${pixel??''}"${placeholder}></label><label>真实数值<input type="number" step="any" data-axis="${a}" data-field="v${n}" value="${axis['v'+n]??''}"></label></div>`;
+    }).join('');
+    return `<div class="axis-group"><h4>${isComposite(p)?a==='r'?'右 Y（折线）':'左 Y（柱）':a.toUpperCase()} 轴 <small data-axis-status="${a}"></small></h4><label>坐标类型<select data-axis="${a}" data-field="type"><option value="linear" ${axis.type!=='log'?'selected':''}>线性</option><option value="log" ${axis.type==='log'?'selected':''}>对数</option></select></label>${ticks}</div>`;
+  }).join('');
+  syncCalibrationStatus();
+}
 function updateHeatmapCalibration(axis){
-  const calibration=p.axes[axis];
-  try{axisTransform(calibration);calibration.calibrated=true;}
-  catch{calibration.calibrated=false;}
+  p.axes[axis].calibrated=validHeatmapCalibration(p.axes[axis]);
 }
 function syncCalibrationStatus(){
   const required=requiredAxes(p);
-  for(const axis of required)document.querySelector('[data-axis-status="'+axis+'"]').textContent=p.axes[axis].calibrated?'已校准':'待校准';
-  $('calibrationStatus').textContent=required.every(axis=>p.axes[axis].calibrated)?'所需数值轴已校准':'先取两个刻度再测量';
+  const calibrated=required.filter(axis=>isHeatmap(p)?
+    validHeatmapCalibration(heatmapAxisCalibration(p,axis)):p.axes[axis].calibrated);
+  for(const axis of required)document.querySelector('[data-axis-status="'+axis+'"]').textContent=calibrated.includes(axis)?'已校准':'待校准';
+  $('calibrationStatus').textContent=calibrated.length===required.length?'所需数值轴已校准':'先取两个刻度再测量';
 }
 function columns(){if(isComposite(p))return ['category','value','series',...(hasErrors(p)?['lower','upper']:[]),...($('advancedFields').checked?['path_order']:[])];if(isPie(p))return ['category','value'];if(isBox(p))return ['category',...BOX_FIELDS,'outliers'];const series=p.kind.endsWith('_1')?[]:['series'];if(isArea(p))return [categoryField(p),'y','baseline',...series,...(p.kind==='area_stack'?['stack_order']:[])];if(isHistogramStack(p))return ['histogram_bin','value','series','stack_order'];if(isHistogram(p))return [...HISTOGRAM_FIELDS,...series];return bar()?['category','value',...series,...(isStack(p)?['start','end']:[]),...(hasErrors(p)?['lower','upper']:[])]:['x','y',...series,...(p.kind.startsWith('line')&&$('advancedFields').checked?['path_order']:[])];}
 const columnNames={category:'类别',histogram_bin:'所属分箱',bin_start:'分箱起始 bin_start',bin_end:'分箱结束 bin_end',value:'数值',series:'系列',x:'X',y:'Y',baseline:'下界 baseline',start:'段起点',end:'段终点',stack_order:'堆叠顺序',path_order:'路径顺序',lower:'下限',upper:'上限',q1:'Q1',median:'中位数',q3:'Q3',outliers:'异常值'};

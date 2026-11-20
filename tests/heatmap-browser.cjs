@@ -113,6 +113,10 @@ async function run(){
     const locate=async(source,gt)=>{
       await page.click('#heatmapCorners');
       await clickPixel(plot.x[0],plot.y[0]);await clickPixel(plot.x[1],plot.y[1]);
+      const columns=source.boundaries.x.length-1,rows=source.boundaries.y.length-1;
+      await waitText('#heatmapGridStatus','已定位 '+columns+' / '+columns+' 列、'+rows+' / '+rows+' 行');
+      await clickPixel(plot.x[1]-10,plot.y[1]-10);
+      assert.equal((await snapshot()).selected,columns*rows-1,'all pixel cells are selectable after picking two corners');
       for(const axis of ['x','y'].filter(axis=>gt.encoding[axis].type==='quantitative')){
         await page.selectOption('#heatmapBoundaryAxis',axis);
         await page.selectOption('#heatmapBoundaryIndex','1');
@@ -204,6 +208,8 @@ async function run(){
 
     const source=await sourceImage(page,examples.discrete,{override:{0:[20,235,55]}});
     await load('#imageInput',source.buffer,'manual.png');
+    assert.deepEqual(await page.locator('#family option').allTextContents(),
+      ['柱线复合图','柱状图','折线图','散点图','热力图','直方图','面积图','饼图','箱线图']);
     await page.selectOption('#kind','heatmap_cc');
     assert.equal(await page.locator('#kind option').count(),4);
     await page.selectOption('#kind','heatmap_dd');
@@ -312,6 +318,66 @@ async function run(){
     assert.equal(entries(calibrated)[0].x2,entries(calibrated)[1].x);
     assert.ok(!JSON.stringify(calibrated).includes('calibrated'));
     console.log('PASS shared pixel boundaries and numeric recalibration');
+
+    const cellFocus=async(index)=>{
+      assert.equal((await snapshot()).selected,index);
+      assert.equal(await page.locator(':focus').getAttribute('data-heatmap-cell'),String(index));
+    };
+    const coordinate=(axis,i)=>'[data-axis="'+axis+'"][data-field="v'+i+'"]';
+    for(const kind of ['heatmap_dd','heatmap_cc','heatmap_dc','heatmap_cd']){
+      await page.selectOption('#kind',kind);
+      await page.fill('#heatmapColumns','2');await page.fill('#heatmapRows','2');await page.click('#heatmapResize');
+      await page.click('#heatmapCorners');
+      await clickPixel(plot.x[0],plot.y[0]);await clickPixel(plot.x[1],plot.y[1]);
+      await waitText('#heatmapGridStatus','已定位 2 / 2 列、2 / 2 行');
+      await clickPixel(plot.x[1]-10,plot.y[1]-10);
+      assert.equal((await snapshot()).selected,3);
+      await page.locator('#canvas').press('ArrowUp');
+      assert.equal((await snapshot()).selected,1);
+      await page.locator(cell(0)).fill('0.123456789012');
+      await page.locator(cell(0)).press('ArrowDown');await cellFocus(2);
+      assert.equal((await record(0)).row.value,.123456789012);
+      await page.locator(cell(2)).press('ArrowLeft');await cellFocus(2);
+      await page.locator(cell(2)).press('ArrowRight');await cellFocus(3);
+      await page.locator(cell(3)).press('ArrowDown');await cellFocus(3);
+      await page.locator(cell(3)).press('ArrowUp');await cellFocus(1);
+      await page.locator(cell(1)).press('ArrowRight');await cellFocus(1);
+      await page.locator(cell(1)).press('ArrowLeft');await cellFocus(0);
+      await page.locator(cell(0)).press('ArrowUp');await cellFocus(0);
+
+      const axes=await page.locator('#axisFields [data-field="v1"]').evaluateAll(inputs=>inputs.map(input=>input.dataset.axis));
+      for(const axis of ['x','y']){
+        if(axes.includes(axis)){
+          const start=page.locator('[data-hm-axis="'+axis+'"][data-hm-index="0"][data-hm-field="start"]');
+          assert.equal(await start.inputValue(),'','pixel locations alone do not create scientific values');
+          const reference=axis==='x'?[0,12]:[20,0];
+          await edit(coordinate(axis,1),reference[0]);await edit(coordinate(axis,2),reference[1]);
+          assert.ok(Math.abs(Number(await start.inputValue())-(axis==='x'?0:10))<1e-10);
+          assert.equal(await page.locator('[data-axis-status="'+axis+'"]').textContent(),'已校准');
+        }else{
+          for(let i=0;i<2;i++)await edit('[data-hm-axis="'+axis+'"][data-hm-index="'+i+'"][data-hm-field="label"]',axis+i);
+        }
+      }
+      await page.fill('#heatmapPaste','0,1\n2,3');await page.click('#heatmapApplyPaste');
+      await page.waitForFunction(()=>window.chartStudio.snapshot().renderOk&&window.chartStudio.snapshot().lastSpec.data.values.length===4);
+      for(const axis of axes){
+        const records=entries((await snapshot()).lastSpec);
+        const [first,second]=[records[0],records[axis==='x'?1:2]];
+        assert.equal(axis==='x'?first.x2:first.y,axis==='x'?second.x:second.y2);
+        await page.selectOption('#heatmapBoundaryAxis',axis);
+        await page.selectOption('#heatmapBoundaryIndex','1');
+        await page.click('#heatmapBoundary');
+        await clickPixel(axis==='x'?127:60,axis==='y'?91:45);
+        await page.waitForFunction(axis=>{
+          const row=window.chartStudio.snapshot().lastSpec?.data.values[0];
+          return axis==='x'?row?.x2<4:row?.y>14;
+        },axis);
+        const updated=entries((await snapshot()).lastSpec);
+        assert.equal(axis==='x'?updated[0].x2:updated[0].y,axis==='x'?updated[1].x:updated[2].y2);
+        assert.ok(Math.abs((axis==='x'?updated[0].x2:updated[0].y)-(axis==='x'?3:15))<.1);
+      }
+    }
+    console.log('PASS four-way matrix navigation and corner-based grids in all four modes');
 
     const nullOnly={data:{values:[{x:'A: "A"',x_id:'X2',y:'B',y_id:'Y1',value:null}]},
       mark:{type:'rect'},encoding:structuredClone(examples.discrete.encoding)};

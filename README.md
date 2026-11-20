@@ -6,7 +6,7 @@ Browser-based scientific chart annotation with original-pixel calibration, inter
 
 ### 热力图
 
-选择「Heatmap / 热力图」标注离散矩阵、连续二维分箱及两种混合方向。支持粘贴矩阵、共享像素边界及人工色标校准。见 [热力图标注说明](docs/heatmap-annotation.md)。
+选择「热力图」标注离散矩阵、连续二维分箱及两种混合方向。支持粘贴矩阵、共享像素边界及人工色标校准。见 [热力图标注说明](docs/heatmap-annotation.md)。
 
 ### 柱线复合图
 
