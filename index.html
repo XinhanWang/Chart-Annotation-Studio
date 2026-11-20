@@ -1346,6 +1346,7 @@ const heatmapId=(axis,index)=>axis.toUpperCase()+(index+1);
 const heatmapTitle=value=>typeof value==='string'||Array.isArray(value)&&value.length>0&&value.every(v=>typeof v==='string');
 const heatmapLabel=value=>typeof value==='string'&&value.trim()!==''||finite(value);
 const heatmapValueToken=/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
+const roundHeatmapMeasurement=value=>Number(value.toFixed(2));
 
 function checkHeatmapSize(x,y) {
   if(![x,y].every(n=>Number.isInteger(n)&&n>=0&&n<=1000)||x*y>10000)
@@ -1393,7 +1394,7 @@ function validHeatmapCalibration(calibration) {
 function heatmapIntervals(p,axis) {
   const calibration=heatmapAxisCalibration(p,axis),pixels=heatmapPixelBoundaries(p,axis);
   const values=validHeatmapCalibration(calibration)?
-    pixels.map(pixel=>finite(pixel)?pixelToValue(pixel,calibration):null):[];
+    pixels.map(pixel=>finite(pixel)?roundHeatmapMeasurement(pixelToValue(pixel,calibration)):null):[];
   return p.heatmap[axis].map((band,i)=>{
     if(!band.fromPixels)return [band.start,band.end];
     const start=values[i],end=values[i+1];
@@ -1437,7 +1438,7 @@ function validateHeatmap(p) {
   if(rows.some(r=>r.value!==null&&!finite(r.value)))issue('error','热力图格值必须是有限数字或 null');
   for(const axis of heatmapAxes){
     const name=axis.toUpperCase(),used=new Set(rows.map(r=>r['_'+axis+'Key']));
-    let previous, direction=0, incomplete=0, unordered=false, overlap=false;
+    let previous, direction=0, incomplete=0, collapsed=0, unordered=false, overlap=false;
     const bands=p.heatmap[axis],continuous=heatmapContinuous(p,axis);
     const intervals=continuous?heatmapIntervals(p,axis):[];
     for(const [i,band] of bands.entries()){
@@ -1447,6 +1448,7 @@ function validateHeatmap(p) {
         continue;
       }
       const interval=intervals[i];
+      if(band.fromPixels&&finite(interval[0])&&interval[0]===interval[1]){collapsed++;continue;}
       if(!interval.every(finite)||interval[0]>=interval[1]){incomplete++;continue;}
       if(previous){
         const step=Math.sign(interval[0]-previous[0]);
@@ -1458,6 +1460,7 @@ function validateHeatmap(p) {
       previous=interval;
     }
     if(incomplete)issue('error',name+' 轴有 '+incomplete+(heatmapContinuous(p,axis)?' 个已使用区间缺少有效的起止值（起点须小于终点）':' 个已使用位置未填写原始标签'));
+    if(collapsed)issue('error',name+' 轴有 '+collapsed+' 个自动区间保留两位小数后起止值相同，请手填更高精度的起止值');
     if(overlap||unordered)issue('error',name+' 轴区间不能重叠，须按视觉方向递增或递减排列');
     if(rows.length&&used.size<bands.length)issue('warning',name+' 轴有整行或整列没有 GT 记录；可将其中一格标为缺测以保留该位置的标签或区间');
     const pixels=p.heatmap.pixels[axis].filter(finite);
@@ -1660,12 +1663,17 @@ function heatmapColorRamp(points,read) {
 }
 
 function measureHeatmapColor(read,ramp,bounds,point) {
-  const positions=[.12,.24,.37,.50,.63,.76,.88];
-  const points=bounds?positions.flatMap(fy=>positions.map(fx=>({
-    x:bounds.x[0]+fx*(bounds.x[1]-bounds.x[0]),y:bounds.y[0]+fy*(bounds.y[1]-bounds.y[0])
-  }))):[-1,0,1].flatMap(dy=>[-1,0,1].map(dx=>({x:point.x+dx,y:point.y+dy})));
+  const width=bounds?bounds.x[1]-bounds.x[0]:1,height=bounds?bounds.y[1]-bounds.y[0]:1;
+  const center=bounds?{x:bounds.x[0]+width/2,y:bounds.y[0]+height/2}:point;
+  const positions=bounds?[0,-.06,.06,-.12,.12,-.18,.18]:[0,-1,1];
+  const points=positions.flatMap(dy=>positions.map(dx=>({x:center.x+dx*width,y:center.y+dy*height})));
+  const location={bounds,point,...(bounds?{center}:{})};
   const sample=dominantHeatmapColor(read,points);
-  if(!sample)return {warning:'区域无可用像素',bounds,point};
+  if(!sample)return {warning:'区域无可用像素',...location};
+  // Use the center pixel when nearby pixels corroborate it, and fall back to the
+  // local majority when a label or an anomalous pixel covers the center.
+  const pixel={x:Math.floor(center.x),y:Math.floor(center.y)},rgb=read(pixel.x,pixel.y);
+  if(rgb&&heatmapColorDistance(rgb,sample.rgb)<=6)Object.assign(sample,{pixel,rgb});
   let best, distance=Infinity;
   for(let i=1;i<ramp.length;i++){
     const a=ramp[i-1],b=ramp[i],delta=b.rgb.map((v,j)=>v-a.rgb[j]);
@@ -1678,10 +1686,10 @@ function measureHeatmapColor(read,ramp,bounds,point) {
       best={t:a.t+t*(b.t-a.t),value:a.value*(1-t)+b.value*t,pixel:t<.5?a.pixel:b.pixel};
     }
   }
-  if(!best)return {warning:'色标上缺少连续可用像素',...sample,bounds,point};
+  if(!best)return {warning:'色标上缺少连续可用像素',...sample,...location};
   const ambiguous=ramp.some(q=>Math.abs(q.t-best.t)>.08&&heatmapColorDistance(sample.rgb,q.rgb)<=distance+6);
   const warning=distance>36?'格内颜色偏离色标':sample.agreement<.60?'格内颜色不一致':ambiguous?'相似颜色对应多个色标位置':'';
-  return {value:Number(best.value.toFixed(2)),...sample,bounds,point,distance,legendPixel:best.pixel,warning};
+  return {value:roundHeatmapMeasurement(best.value),...sample,...location,distance,legendPixel:best.pixel,warning};
 }
 
 function heatmapPixelRanges(p,axis) {
@@ -1729,10 +1737,13 @@ syncTypes();
 let heatmapCapture=null;
 const heatmapImages=new WeakMap();
 const heatmapAxisName=axis=>axis==='x'?'列':'行';
+const displayHeatmapBoundary=(band,value)=>band.fromPixels&&finite(value)?value.toFixed(2):value;
 
 function heatmapBandLabels(axis) {
-  if(!heatmapContinuous(p,axis))return p.heatmap[axis].map(band=>String(band.label??''));
-  return heatmapIntervals(p,axis).map(([start,end])=>finite(start)&&finite(end)?start+' – '+end:'');
+  const bands=p.heatmap[axis];
+  if(!heatmapContinuous(p,axis))return bands.map(band=>String(band.label??''));
+  return heatmapIntervals(p,axis).map(([start,end],i)=>finite(start)&&finite(end)?
+    displayHeatmapBoundary(bands[i],start)+' – '+displayHeatmapBoundary(bands[i],end):'');
 }
 
 function heatmapCell(index) {
@@ -1830,7 +1841,7 @@ function syncHeatmapForm() {
   document.querySelector('[data-tool="point"]').hidden=true;
   document.querySelector('[data-tool="calibrate"]').hidden=$('calibrationPanel').hidden=!requiredAxes(p).length;
   $('orderGuide').textContent='列按左到右、行按上到下。标签可以重名。';
-  $('tableNote').textContent='方向键切换相邻格，Enter 前进到下一格。留空省略该格，null 表示显式缺测。色标估值保留两位小数。';
+  $('tableNote').textContent='方向键切换相邻格，Enter 前进到下一格。留空省略该格，null 表示显式缺测。自动测量保留两位小数。';
   $('heatmapRows').value=y.length||'';
   $('heatmapColumns').value=x.length||'';
   $('heatmapAxes').innerHTML=heatmapAxes.map(axis=>{
@@ -1843,7 +1854,8 @@ function syncHeatmapForm() {
       const [start,end]=intervals[i]??[];
       const button=(action,text,title,disabled=false)=>'<button class="small"'+attrs+' data-hm-action="'+action+'" title="'+title+'" aria-label="'+title+'" '+(disabled?'disabled':'')+'>'+text+'</button>';
       return '<div class="heatmap-band"><span>'+heatmapId(axis,i)+'</span>'+
-        (continuous?input('start',name+(i+1)+' 起点',start)+input('end',name+(i+1)+' 终点',end)+
+        (continuous?input('start',name+(i+1)+' 起点',displayHeatmapBoundary(band,start))+
+          input('end',name+(i+1)+' 终点',displayHeatmapBoundary(band,end))+
           button('pixels','↺','使用校准后的像素边界',band.fromPixels):input('label',name+(i+1)+' 标签',band.label))+
         button('previous','↑','前移'+name,i===0)+button('next','↓','后移'+name,i===bands.length-1)+button('delete','×','删除'+name)+'</div>';
     }).join('');
@@ -1936,7 +1948,7 @@ function keepHeatmapBands(axis,bands) {
       const index=oldIndex.get(band.key);
       if(index===undefined||!band.fromPixels)return;
       const [start,end]=intervals[index];
-      if(finite(start)&&finite(end))Object.assign(band,{start,end,fromPixels:false});
+      if(finite(start)&&finite(end)&&start<end)Object.assign(band,{start,end,fromPixels:false});
     });
   }
   p.heatmap[axis]=bands;
@@ -2155,7 +2167,7 @@ function drawHeatmap(mark) {
   if(heatmapCapture?.first)mark(heatmapCapture.first,'#007bea','网格第一角');
   p.heatmap.colorPoints.forEach((q,i)=>mark(q,'#e85b35','色标 '+(i+1)));
   const cell=heatmapCell(selected),evidence=cell&&heatmapCellRecord(cell).evidence;
-  if(evidence?.source==='heatmap_color'&&evidence.pixel)mark(evidence.pixel,'#00b2bb','采样');
+  if(evidence?.source==='heatmap_color')mark(evidence.center??evidence.pixel,'#00b2bb',evidence.center?'采样中心':'采样');
   for(const axis of requiredAxes(p))for(const n of [1,2])
     if(p.axes[axis]['point'+n])mark(p.axes[axis]['point'+n],'#007bea',axis.toUpperCase()+n);
 }

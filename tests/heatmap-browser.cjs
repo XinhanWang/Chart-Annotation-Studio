@@ -18,7 +18,7 @@ const palette=(position,diverging)=>{
   return steps[k].map((component,i)=>Math.round(component*(1-t)+steps[k+1][i]*t));
 };
 
-async function sourceImage(page,gt,{vertical=false,reverse=false,diverging=false,override={}}={}){
+async function sourceImage(page,gt,{vertical=false,reverse=false,diverging=false,centered=false,override={}}={}){
   const boundaries=Object.fromEntries(['x','y'].map(axis=>{
     const [start,end]=plot[axis],rows=entries(gt);
     const count=Math.max(...rows.map(r=>idIndex(r[axis+'_id'])))+1;
@@ -45,24 +45,31 @@ async function sourceImage(page,gt,{vertical=false,reverse=false,diverging=false
       rgb:override[key]??(row.value===null?[230,230,230]:palette(tFor(row.value),diverging))};
   });
   const ramp=Array.from({length:legend.length+1},(_,i)=>palette(i/legend.length,diverging));
-  const url=await page.evaluate(({legend,vertical,ramp,cells})=>{
+  const url=await page.evaluate(({legend,vertical,ramp,cells,centered})=>{
     const canvas=document.createElement('canvas');
     canvas.width=442;canvas.height=344;
     const c=canvas.getContext('2d');
     c.fillStyle='#fff';c.fillRect(0,0,canvas.width,canvas.height);
-    for(const {x,y,rgb} of cells){
+    for(const [i,{x,y,rgb}] of cells.entries()){
+      const w=x[1]-x[0],h=y[1]-y[0],cx=x[0]+w/2,cy=y[0]+h/2;
+      if(centered){
+        c.fillStyle='#14eb37';c.fillRect(x[0],y[0],w,h);
+      }
       c.fillStyle='rgb('+rgb.join(',')+')';
-      c.fillRect(x[0],y[0],x[1]-x[0],y[1]-y[0]);
+      if(centered)c.fillRect(cx-w*.22,cy-h*.22,w*.44,h*.44);
+      else c.fillRect(x[0],y[0],w,h);
       c.strokeStyle='#101010';c.lineWidth=2;
-      c.strokeRect(x[0],y[0],x[1]-x[0],y[1]-y[0]);
-      c.fillStyle='#101010';c.font='20px sans-serif';c.fillText('1.23',(x[0]+x[1])/2-12,(y[0]+y[1])/2+5);
+      c.strokeRect(x[0],y[0],w,h);
+      c.fillStyle='#101010';c.font='20px sans-serif';
+      if(!centered)c.fillText('1.23',cx-12,cy+5);
+      else if(i===1)c.fillRect(cx-3,cy-3,7,7);
     }
     ramp.forEach((rgb,i)=>{
       c.fillStyle='rgb('+rgb.join(',')+')';
       c.fillRect(legend.x+(vertical?0:i),legend.y+(vertical?i:0),vertical?13:1,vertical?1:13);
     });
     return canvas.toDataURL();
-  },{legend,vertical,ramp,cells});
+  },{legend,vertical,ramp,cells,centered});
   const anchorPoints=anchors.map((value,i)=>{
     const offset=legend.length*i/(anchors.length-1);
     return {value,x:legend.x+(vertical?6:offset),y:legend.y+(vertical?offset:6)};
@@ -146,7 +153,8 @@ async function run(){
     }
 
     for(const [i,[name,gt]] of Object.entries(examples).entries()){
-      const source=await sourceImage(page,gt,{vertical:i%2===1,reverse:i%3===1,diverging:i%3===2});
+      const centered=name==='continuous_bins';
+      const source=await sourceImage(page,gt,{vertical:i%2===1,reverse:i%3===1,diverging:i%3===2,centered});
       await load('#imageInput',source.buffer,name+'.png');
       if(i===0){
         await page.selectOption('#family','heatmap');
@@ -194,6 +202,17 @@ async function run(){
       assert.equal(batch.evidence.warning,'',name+': '+JSON.stringify(batch.evidence));
       assert.ok(Math.abs(batch.row.value-finite[1].value)<(name==='confusion_matrix'?1.25:.065),JSON.stringify(batch));
       assert.ok(batch.evidence.legendPixel&&batch.evidence.bounds&&batch.evidence.samples>1,name);
+      for(const {evidence} of [single,batch]){
+        for(const axis of ['x','y']){
+          const [lo,hi]=evidence.bounds[axis];
+          assert.ok(Math.abs(evidence.center[axis]-(lo+hi)/2)<1e-9,'measurements use each cell’s geometric center');
+        }
+      }
+      if(centered){
+        const centerPixel=evidence=>({x:Math.floor(evidence.center.x),y:Math.floor(evidence.center.y)});
+        assert.deepEqual(single.evidence.pixel,centerPixel(single.evidence));
+        assert.notDeepEqual(batch.evidence.pixel,centerPixel(batch.evidence),'occluded center uses a nearby pixel');
+      }
       for(const row of missing)assert.equal((await record(cellIndex(row,width))).row.value,null,name);
       await page.click('#undo');
       assert.equal((await record(second)).row,undefined);
@@ -259,7 +278,9 @@ async function run(){
     await clickPixel(100,100);
     assert.equal((await record(0)).row.value,undefined);
     await waitIssue('估值待核对');
-    assert.match((await record(0)).evidence.warning,/偏离色标/);
+    const offPalette=(await record(0)).evidence;
+    assert.match(offPalette.warning,/偏离色标/);
+    assert.ok(Math.abs(offPalette.center.x-127)<1&&Math.abs(offPalette.point.x-100)<1,'image clicks still use the cell center');
     assert.ok(await page.locator('#heatmapAcceptEstimate').isVisible());
     await page.click('#heatmapAcceptEstimate');
     assert.ok((await record(0)).evidence.accepted);
@@ -312,12 +333,25 @@ async function run(){
     assert.equal(a.x2,b.x);
     assert.equal(a.y,c.y2);
     assert.ok(Math.abs(a.x2-3)<.05&&Math.abs(a.y-10)<.06);
-    await edit('[data-axis="x"][data-field="v2"]',24);
+    const xEnd='[data-axis="x"][data-field="v2"]';
+    await edit(xEnd,24.123456);
     await page.waitForFunction(()=>window.chartStudio.snapshot().lastSpec?.data.values[0].x2>5.9);
     const calibrated=(await snapshot()).lastSpec;
-    assert.equal(entries(calibrated)[0].x2,entries(calibrated)[1].x);
+    const {axes,heatmap}=await project(),{p1,p2,v1,v2}=axes.x;
+    const rounded=((heatmap.pixels.x[1]-p1)/(p2-p1)*(v2-v1)+v1).toFixed(2);
+    assert.equal(entries(calibrated)[0].x2,Number(rounded));
+    assert.equal(entries(calibrated)[1].x,Number(rounded));
+    assert.equal(await page.inputValue('[data-hm-axis="x"][data-hm-index="0"][data-hm-field="end"]'),rounded);
+    assert.equal(await page.inputValue('[data-hm-axis="y"][data-hm-index="0"][data-hm-field="end"]'),entries(calibrated)[0].y2.toFixed(2));
     assert.ok(!JSON.stringify(calibrated).includes('calibrated'));
-    console.log('PASS shared pixel boundaries and numeric recalibration');
+    await edit(xEnd,.004);
+    await waitIssue('自动区间保留两位小数后起止值相同');
+    await edit(xEnd,24.123456);
+    const manualStart='[data-hm-axis="x"][data-hm-index="0"][data-hm-field="start"]';
+    await edit(manualStart,-.123456789);
+    await page.waitForFunction(()=>window.chartStudio.snapshot().lastSpec?.data.values[0].x===-.123456789);
+    assert.equal(await page.inputValue(manualStart),'-0.123456789');
+    console.log('PASS rounded shared boundaries, manual precision and numeric recalibration');
 
     const cellFocus=async(index)=>{
       assert.equal((await snapshot()).selected,index);
@@ -352,7 +386,7 @@ async function run(){
           assert.equal(await start.inputValue(),'','pixel locations alone do not create scientific values');
           const reference=axis==='x'?[0,12]:[20,0];
           await edit(coordinate(axis,1),reference[0]);await edit(coordinate(axis,2),reference[1]);
-          assert.ok(Math.abs(Number(await start.inputValue())-(axis==='x'?0:10))<1e-10);
+          assert.equal(await start.inputValue(),axis==='x'?'0.00':'10.00');
           assert.equal(await page.locator('[data-axis-status="'+axis+'"]').textContent(),'已校准');
         }else{
           for(let i=0;i<2;i++)await edit('[data-hm-axis="'+axis+'"][data-hm-index="'+i+'"][data-hm-field="label"]',axis+i);
