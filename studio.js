@@ -1439,17 +1439,12 @@ function heatmapColorRamp(points,read) {
 }
 
 function measureHeatmapColor(read,ramp,bounds,point) {
-  const width=bounds?bounds.x[1]-bounds.x[0]:1,height=bounds?bounds.y[1]-bounds.y[0]:1;
-  const center=bounds?{x:bounds.x[0]+width/2,y:bounds.y[0]+height/2}:point;
-  const positions=bounds?[0,-.06,.06,-.12,.12,-.18,.18]:[0,-1,1];
-  const points=positions.flatMap(dy=>positions.map(dx=>({x:center.x+dx*width,y:center.y+dy*height})));
-  const location={bounds,point,...(bounds?{center}:{})};
+  const positions=[.12,.24,.37,.50,.63,.76,.88];
+  const points=bounds?positions.flatMap(fy=>positions.map(fx=>({
+    x:bounds.x[0]+fx*(bounds.x[1]-bounds.x[0]),y:bounds.y[0]+fy*(bounds.y[1]-bounds.y[0])
+  }))):[-1,0,1].flatMap(dy=>[-1,0,1].map(dx=>({x:point.x+dx,y:point.y+dy})));
   const sample=dominantHeatmapColor(read,points);
-  if(!sample)return {warning:'区域无可用像素',...location};
-  // Use the center pixel when nearby pixels corroborate it, and fall back to the
-  // local majority when a label or an anomalous pixel covers the center.
-  const pixel={x:Math.floor(center.x),y:Math.floor(center.y)},rgb=read(pixel.x,pixel.y);
-  if(rgb&&heatmapColorDistance(rgb,sample.rgb)<=6)Object.assign(sample,{pixel,rgb});
+  if(!sample)return {warning:'区域无可用像素',bounds,point};
   let best, distance=Infinity;
   for(let i=1;i<ramp.length;i++){
     const a=ramp[i-1],b=ramp[i],delta=b.rgb.map((v,j)=>v-a.rgb[j]);
@@ -1462,10 +1457,10 @@ function measureHeatmapColor(read,ramp,bounds,point) {
       best={t:a.t+t*(b.t-a.t),value:a.value*(1-t)+b.value*t,pixel:t<.5?a.pixel:b.pixel};
     }
   }
-  if(!best)return {warning:'色标上缺少连续可用像素',...sample,...location};
+  if(!best)return {warning:'色标上缺少连续可用像素',...sample,bounds,point};
   const ambiguous=ramp.some(q=>Math.abs(q.t-best.t)>.08&&heatmapColorDistance(sample.rgb,q.rgb)<=distance+6);
   const warning=distance>36?'格内颜色偏离色标':sample.agreement<.60?'格内颜色不一致':ambiguous?'相似颜色对应多个色标位置':'';
-  return {value:roundHeatmapMeasurement(best.value),...sample,...location,distance,legendPixel:best.pixel,warning};
+  return {value:Number(best.value.toFixed(2)),...sample,bounds,point,distance,legendPixel:best.pixel,warning};
 }
 
 function heatmapPixelRanges(p,axis) {
@@ -1943,7 +1938,7 @@ function drawHeatmap(mark) {
   if(heatmapCapture?.first)mark(heatmapCapture.first,'#007bea','网格第一角');
   p.heatmap.colorPoints.forEach((q,i)=>mark(q,'#e85b35','色标 '+(i+1)));
   const cell=heatmapCell(selected),evidence=cell&&heatmapCellRecord(cell).evidence;
-  if(evidence?.source==='heatmap_color')mark(evidence.center??evidence.pixel,'#00b2bb',evidence.center?'采样中心':'采样');
+  if(evidence?.source==='heatmap_color'&&evidence.pixel)mark(evidence.pixel,'#00b2bb','采样');
   for(const axis of requiredAxes(p))for(const n of [1,2])
     if(p.axes[axis]['point'+n])mark(p.axes[axis]['point'+n],'#007bea',axis.toUpperCase()+n);
 }

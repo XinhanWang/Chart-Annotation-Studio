@@ -18,7 +18,7 @@ const palette=(position,diverging)=>{
   return steps[k].map((component,i)=>Math.round(component*(1-t)+steps[k+1][i]*t));
 };
 
-async function sourceImage(page,gt,{vertical=false,reverse=false,diverging=false,centered=false,override={}}={}){
+async function sourceImage(page,gt,{vertical=false,reverse=false,diverging=false,centerOutlier=false,override={}}={}){
   const boundaries=Object.fromEntries(['x','y'].map(axis=>{
     const [start,end]=plot[axis],rows=entries(gt);
     const count=Math.max(...rows.map(r=>idIndex(r[axis+'_id'])))+1;
@@ -45,31 +45,29 @@ async function sourceImage(page,gt,{vertical=false,reverse=false,diverging=false
       rgb:override[key]??(row.value===null?[230,230,230]:palette(tFor(row.value),diverging))};
   });
   const ramp=Array.from({length:legend.length+1},(_,i)=>palette(i/legend.length,diverging));
-  const url=await page.evaluate(({legend,vertical,ramp,cells,centered})=>{
+  const url=await page.evaluate(({legend,vertical,ramp,cells,centerOutlier})=>{
     const canvas=document.createElement('canvas');
     canvas.width=442;canvas.height=344;
     const c=canvas.getContext('2d');
     c.fillStyle='#fff';c.fillRect(0,0,canvas.width,canvas.height);
-    for(const [i,{x,y,rgb}] of cells.entries()){
+    for(const {x,y,rgb} of cells){
       const w=x[1]-x[0],h=y[1]-y[0],cx=x[0]+w/2,cy=y[0]+h/2;
-      if(centered){
-        c.fillStyle='#14eb37';c.fillRect(x[0],y[0],w,h);
-      }
       c.fillStyle='rgb('+rgb.join(',')+')';
-      if(centered)c.fillRect(cx-w*.22,cy-h*.22,w*.44,h*.44);
-      else c.fillRect(x[0],y[0],w,h);
+      c.fillRect(x[0],y[0],w,h);
       c.strokeStyle='#101010';c.lineWidth=2;
       c.strokeRect(x[0],y[0],w,h);
-      c.fillStyle='#101010';c.font='20px sans-serif';
-      if(!centered)c.fillText('1.23',cx-12,cy+5);
-      else if(i===1)c.fillRect(cx-3,cy-3,7,7);
+      if(centerOutlier){
+        c.fillStyle='#14eb37';c.fillRect(cx-w*.22,cy-h*.22,w*.44,h*.44);
+      }else{
+        c.fillStyle='#101010';c.font='20px sans-serif';c.fillText('1.23',cx-12,cy+5);
+      }
     }
     ramp.forEach((rgb,i)=>{
       c.fillStyle='rgb('+rgb.join(',')+')';
       c.fillRect(legend.x+(vertical?0:i),legend.y+(vertical?i:0),vertical?13:1,vertical?1:13);
     });
     return canvas.toDataURL();
-  },{legend,vertical,ramp,cells,centered});
+  },{legend,vertical,ramp,cells,centerOutlier});
   const anchorPoints=anchors.map((value,i)=>{
     const offset=legend.length*i/(anchors.length-1);
     return {value,x:legend.x+(vertical?6:offset),y:legend.y+(vertical?offset:6)};
@@ -153,8 +151,8 @@ async function run(){
     }
 
     for(const [i,[name,gt]] of Object.entries(examples).entries()){
-      const centered=name==='continuous_bins';
-      const source=await sourceImage(page,gt,{vertical:i%2===1,reverse:i%3===1,diverging:i%3===2,centered});
+      const centerOutlier=name==='continuous_bins';
+      const source=await sourceImage(page,gt,{vertical:i%2===1,reverse:i%3===1,diverging:i%3===2,centerOutlier});
       await load('#imageInput',source.buffer,name+'.png');
       if(i===0){
         await page.selectOption('#family','heatmap');
@@ -202,16 +200,14 @@ async function run(){
       assert.equal(batch.evidence.warning,'',name+': '+JSON.stringify(batch.evidence));
       assert.ok(Math.abs(batch.row.value-finite[1].value)<(name==='confusion_matrix'?1.25:.065),JSON.stringify(batch));
       assert.ok(batch.evidence.legendPixel&&batch.evidence.bounds&&batch.evidence.samples>1,name);
-      for(const {evidence} of [single,batch]){
-        for(const axis of ['x','y']){
-          const [lo,hi]=evidence.bounds[axis];
-          assert.ok(Math.abs(evidence.center[axis]-(lo+hi)/2)<1e-9,'measurements use each cell’s geometric center');
+      if(centerOutlier){
+        for(const {evidence} of [single,batch]){
+          assert.equal(evidence.samples,49);
+          for(const axis of ['x','y']){
+            const [lo,hi]=evidence.bounds[axis];
+            assert.equal(evidence.pixel[axis],Math.floor(lo+.12*(hi-lo)),'use the first pixel of the dominant color');
+          }
         }
-      }
-      if(centered){
-        const centerPixel=evidence=>({x:Math.floor(evidence.center.x),y:Math.floor(evidence.center.y)});
-        assert.deepEqual(single.evidence.pixel,centerPixel(single.evidence));
-        assert.notDeepEqual(batch.evidence.pixel,centerPixel(batch.evidence),'occluded center uses a nearby pixel');
       }
       for(const row of missing)assert.equal((await record(cellIndex(row,width))).row.value,null,name);
       await page.click('#undo');
@@ -278,9 +274,7 @@ async function run(){
     await clickPixel(100,100);
     assert.equal((await record(0)).row.value,undefined);
     await waitIssue('估值待核对');
-    const offPalette=(await record(0)).evidence;
-    assert.match(offPalette.warning,/偏离色标/);
-    assert.ok(Math.abs(offPalette.center.x-127)<1&&Math.abs(offPalette.point.x-100)<1,'image clicks still use the cell center');
+    assert.match((await record(0)).evidence.warning,/偏离色标/);
     assert.ok(await page.locator('#heatmapAcceptEstimate').isVisible());
     await page.click('#heatmapAcceptEstimate');
     assert.ok((await record(0)).evidence.accepted);
