@@ -65,6 +65,12 @@ async function checkPercentStack(horizontal){
  const ordinary=plain(gt);ordinary.encoding[axis].title='Efficiency (%)';
  assert.equal(importSpec(ordinary).kind,horizontal?'barh_stack':'barv_stack');
  assert.deepEqual(plain(makeSpec(importSpec(ordinary))),ordinary);
+ const signed=plain(gt);
+ signed.data.values[0].value=-20;
+ const signedProject=importSpec(signed);
+ assert.equal(signedProject.kind,horizontal?'barh_stack':'barv_stack');
+ assert.deepEqual(plain(makeSpec(signedProject)),signed);
+ assert.throws(()=>importSpec(signed,kind),/段占比不能为负数/);
  const normalized=plain(gt);normalized.encoding[axis].stack='normalize';
  assert.throws(()=>importSpec(normalized,kind),/zero/);
  const badRank=plain(gt);badRank.data.values.at(-1).stack_order=9;

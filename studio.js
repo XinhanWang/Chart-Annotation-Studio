@@ -486,12 +486,14 @@ function importSpec(input,preferredKind) {
   const prefix=horizontal?'barh':'barv',percentKind=prefix+'_stack_percent';
   // Compact GT has no subtype field. Honor an explicit stack selection and recognize the legacy title.
   const axisTitle=enc[val].title??enc[val].axis?.title;
+  const legacyPercent=preferredKind!==prefix+'_stack'&&axisTitle==='Share (%)'&&
+    !s.data.values.some(row=>finite(row?.value)&&row.value<0);
   const percent=type==='bar'&&!s.layer&&!enc[val+'2']&&!enc[cat+'Offset']&&
     enc[val].field==='value'&&enc[val].type==='quantitative'&&enc[val].stack==='zero'&&
     ['category','category_id','category_instance'].includes(enc[cat].field)&&
     ['series','series_id','series_instance'].includes(seriesField)&&
     enc.order?.field==='stack_order'&&enc.order.type==='quantitative'&&
-    (preferredKind===percentKind||preferredKind!==prefix+'_stack'&&axisTitle==='Share (%)');
+    (preferredKind===percentKind||legacyPercent);
   const kind=type==='bar'?(stacked?(percent?percentKind:prefix+'_stack'):`${prefix}_${ids.length>1||enc[cat+'Offset']?'n':'1'}`):`${type==='line'?'line':'scatter'}_${ids.length>1?'n':'1'}`;
   const p=defaultProject(kind);
   p.title=typeof s.title==='object'&&!Array.isArray(s.title)?s.title.text??'':s.title??'';
