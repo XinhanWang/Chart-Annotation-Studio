@@ -49,6 +49,7 @@ async function run(){
       const input=JSON.parse(await fs.readFile(path.join(root,name+' Area.json'),'utf8'));
       numeric[name]=structuredClone(input);
       if(numeric[name].encoding.order)delete numeric[name].encoding.order.sort;
+      for(const gt of [nominal,numeric[name]])gt.usermeta={table_export:{tables:[{id:'data',path:'/data/values'}]}};
       for(const [mode,source,gt] of [['nominal',nominal,nominal],['quantitative',input,numeric[name]]]){
         await load('#specInput',source);
         await waitGT(gt);

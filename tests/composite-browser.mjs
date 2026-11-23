@@ -54,7 +54,7 @@ const task=async()=>{
  // Save/download and GT import through same controls as all other chart types.
  let downloaded;const click=HTMLAnchorElement.prototype.click,url=URL.createObjectURL;URL.createObjectURL=blob=>{downloaded=blob;return 'blob:test';};HTMLAnchorElement.prototype.click=function(){};
  try{
- change('reviewed',true);await $('exportGT').onclick();await wait();const exported=JSON.parse(await downloaded.text());ok(exported.data.values.some(r=>r.series_role==='line'),'normal reviewed GT download contains both roles');
+ change('reviewed',true);await $('exportGT').onclick();await wait();const exported=JSON.parse(await downloaded.text());ok(exported.data.values.every(r=>r.series_role==='bar')&&exported.layer.at(-1).data.values.some(r=>r.series_role==='line'),'normal reviewed GT download contains both roles');
  await $('batchExport').onclick();const archive=await downloaded.text();ok(archive.includes('series_role')&&archive.includes('export-report.json'),'existing batch ZIP includes reviewed composite GT and its report');
  const dt=new DataTransfer();dt.items.add(new File([JSON.stringify(exported)],'composite.gt.json',{type:'application/json'}));$('specInput').files=dt.files;await $('specInput').onchange({target:$('specInput')});await wait();ok(snap().project.kind==='barline_n'&&!snap().project.reviewed,'existing GT importer restores composite and requires re-review');
  await $('saveProject').onclick();const saved=JSON.parse(await downloaded.text());ok(saved.current.project.kind==='barline_n','normal workspace download supports composites');

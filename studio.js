@@ -145,7 +145,7 @@ function applyObjectNames(p,kind,text){
 }
 function renderSpec(gt,p){
   if(markType(gt.mark)==='rect')return renderHeatmapSpec(gt,p);
-  const out=copy(gt),rows=out.data.values;
+  const out=copy(gt),rows=allTableRows(out);
   function view(node){for(const [channel,d] of Object.entries(node.encoding||{})){
     const field=d.field,label={category_id:'category',x_id:'x',series_id:'series'}[field];
     if(label&&['x','y','color'].includes(channel)){
@@ -389,7 +389,114 @@ function orderEncoding(enc) {
   return Object.fromEntries([...keys,...Object.keys(enc).filter(k=>!keys.includes(k))].map(k=>[k,enc[k]]));
 }
 
-function makeSpec(p) {
+function allTableRows(spec){
+  return spec.usermeta?.table_export?.tables?.flatMap(({path})=>path.slice(1).split('/').reduce((v,k)=>v[k],spec))??spec.data.values;
+}
+function tableMetadata(p,s){
+  if(isBox(p))return [{id:'box_plot_summaries',path:'/data/values'},{id:'outliers',path:'/layer/3/data/values'}];
+  if(isComposite(p))return [{id:'bars',path:'/data/values'},{id:'lines',path:'/layer/'+(s.layer.length-1)+'/data/values'}];
+  return [{id:'data',path:'/data/values'}];
+}
+function percentLabels(p,key){
+  if(key==='theta')return p.valueMode==='percent';
+  return p.percentLabels?.[key]===true;
+}
+// Process each physical data source once per field, including secondary axis endpoints.
+function shiftDecimal(value,places){const [digits,exponent]=String(value).split('e');return Number(digits+'e'+(Number(exponent||0)+places));}
+function mapPercentScales(spec,project,reading){
+  const flags={},guides={},fields=new Map(),formatTargets=[];
+  function scan(node,right=false){
+    for(const ch of ['x','y','theta','color']){
+      const def=node.encoding?.[ch],format=def?.axis?.format??def?.legend?.format??def?.format;
+      if(def?.type==='quantitative'&&typeof format==='string'&&/%$/.test(format)){
+        const key=right&&ch==='y'?'r':ch,guide=def.axis??def.legend;
+        flags[key]=true;
+        const saved=guides[key]??={format};
+        if(Array.isArray(def.scale?.domain)&&def.scale.domain.every(finite))saved.domain=copy(def.scale.domain);
+        if(Array.isArray(guide?.values)&&guide.values.every(finite))saved.values=copy(guide.values);
+      }
+    }
+    for(const layer of node.layer||[])scan(layer,right||!!node.resolve?.scale?.y&&markType(layer.mark)==='line');
+  }
+  if(reading)scan(spec);
+  function walk(node,parentEncoding,inheritedData,right=false){
+    const data=node.data?.values??inheritedData,enc={...parentEncoding,...node.encoding};
+    if(!Array.isArray(data))return;
+    if(!fields.has(data))fields.set(data,new Set());
+    for(const ch of ['x','y','color','theta']){
+      const key=right&&ch==='y'?'r':ch,def=enc[ch];
+      if(def?.type!=='quantitative')continue;
+      const guide=ch==='color'?'legend':ch==='theta'?null:'axis';
+      const active=reading?flags[key]:percentLabels(project,key);
+      if(!active)continue;
+      flags[key]=true;
+      for(const f of [def.field,enc[ch+'2']?.field])if(f)fields.get(data).add(f);
+      if(def.field==='end'&&enc[ch+'2']?.field==='start')fields.get(data).add('value');
+      // Legacy compact boxplots flatten outlier arrays in the point layer.
+      if(reading)for(const t of node.transform??[]){
+        const index=(t.as??t.flatten??[]).indexOf(def.field);
+        if(index>=0&&t.flatten?.[index])fields.get(data).add(t.flatten[index]);
+      }
+      if(!reading&&node.encoding?.[ch]&&(!guide||def[guide]!==null)){
+        formatTargets.push({def,guide,key});
+      }
+    }
+    for(const l of node.layer||[])walk(l,enc,data,right||!!node.resolve?.scale?.y&&markType(l.mark)==='line');
+  }
+  walk(spec,{},null);
+  const restoredGuides=new Set();
+  for(const {def,guide,key} of formatTargets){
+    const saved=project.percentGuides?.[key];
+    const format=saved?.format??'.12~%';
+    if(guide)def[guide]={...def[guide],format};
+    else def.format=format;
+    if(!saved||restoredGuides.has(key))continue;
+    if(saved.domain)def.scale={...def.scale,domain:copy(saved.domain)};
+    if(saved.values&&guide)def[guide].values=copy(saved.values);
+    restoredGuides.add(key);
+  }
+  const convert=value=>{
+    if(!finite(value))return value;
+    const result=shiftDecimal(value,reading?2:-2);
+    if(!finite(result))throw Error('百分比数值超出支持范围');
+    return result;
+  };
+  for(const [rows,keys] of fields)for(const row of rows)for(const k of keys){
+    if(Object.hasOwn(row,k))row[k]=Array.isArray(row[k])?row[k].map(convert):convert(row[k]);
+  }
+  if(reading){
+    function clean(node){
+      for(const def of Object.values(node.encoding||{}))for(const guide of ['axis','legend',null]){
+        const obj=guide?def[guide]:def;
+        if(typeof obj?.format==='string'&&/%$/.test(obj.format)){delete obj.format;if(guide&&!Object.keys(obj).length)delete def[guide];}
+      }
+      (node.layer||[]).forEach(clean);
+    }
+    clean(spec);
+  }
+  return {flags,guides};
+}
+function makeSpec(p){
+  const spec=baseSpec(p);
+  spec.usermeta={...spec.usermeta,table_export:{tables:tableMetadata(p,spec)}};
+  mapPercentScales(spec,p,false);
+  return spec;
+}
+function importSpec(input,preferredKind){
+  const spec=copy(input);
+  const {flags,guides}=mapPercentScales(spec,null,true);
+  const tables=spec.usermeta?.table_export?.tables;
+  if(Array.isArray(tables)&&!spec.usermeta.semantic)delete spec.usermeta.table_export;
+  if(spec.usermeta&&!Object.keys(spec.usermeta).length)delete spec.usermeta;
+  const p=baseImport(spec,preferredKind);
+  p.percentLabels=flags;
+  if(Object.keys(guides).length)p.percentGuides=guides;
+  if(isPie(p))p.valueMode=flags.theta?'percent':'absolute';
+  if(isPercentStack(p)&&!flags[valueAxis(p)])p.percentLabels[valueAxis(p)]=false;
+  return p;
+}
+
+function baseSpec(p) {
   if(isComposite(p))return makeCompositeSpec(p);
   const errors=validate(p).filter(x=>x.severity==='error');
   if(errors.length) throw Error(errors.map(x=>x.message).join('\n'));
@@ -451,7 +558,7 @@ function makeSpec(p) {
   return out;
 }
 
-function importSpec(input,preferredKind) {
+function baseImport(input,preferredKind) {
   if(input?.data?.values?.some?.(r=>r&&Object.hasOwn(r,'series_role')))return importCompositeSpec(input);
   const s=copy(input);
   if(!s||typeof s!=='object'||Array.isArray(s))throw Error('GT 必须为 JSON 对象');
@@ -960,7 +1067,7 @@ function validateStat(p){
   return issues;
 }
 function makeStatSpec(p){
-  const fields=isPie(p)?['category','value']:['category',...BOX_FIELDS,'outliers'];
+  const fields=isPie(p)?['category','value']:['category',...BOX_FIELDS];
   const spec={data:{values:p.rows.map(r=>Object.fromEntries(fields.map(k=>[k,copy(r[k])])) )}};
   if(present(p.title))spec.title=copy(p.title);
   if(isPie(p)){
@@ -975,7 +1082,7 @@ function makeStatSpec(p){
       {mark:{type:'rule'},encoding:{[v]:position,[v+'2']:{field:'upper'}}},
       {mark:{type:'bar'},encoding:{[v]:{field:'q1',type:'quantitative'},[v+'2']:{field:'q3'}}},
       {mark:{type:'tick'},encoding:{[v]:{field:'median',type:'quantitative'}}},
-      {transform:[{flatten:['outliers']}],mark:{type:'point'},encoding:{[v]:{field:'outliers',type:'quantitative'}}}
+      {data:{values:p.rows.flatMap(r=>r.outliers.map(value=>({category:r.category,value})))},mark:{type:'point'},encoding:{[v]:{field:'value',type:'quantitative'}}}
     ];
   }
   return spec;
@@ -993,6 +1100,28 @@ function importStatSpec(s){
     checkDef(enc.theta);checkDef(enc.color);
     if(enc.theta.type!=='quantitative'||!['nominal','ordinal'].includes(enc.color.type))throw Error('Pie 字段类型不正确');
     mapping={category:enc.color.field,value:enc.theta.field};p.valueTitle=title(enc.theta);p.valueMode=String(p.valueTitle).includes('%')?'percent':'absolute';p.donut=!!s.mark?.innerRadius;
+  }else if(layers.some(l=>markType(l.mark)==='point'&&Array.isArray(l.data?.values))){
+    if(layers.some(l=>l.transform||l.layer)||layers.some(l=>l.data&&markType(l.mark)!=='point'))throw Error('独立离群点表必须直接绑定到点层');
+    const points=layers.filter(l=>markType(l.mark)==='point'),rules=layers.filter(l=>markType(l.mark)==='rule'),
+      bars=layers.filter(l=>markType(l.mark)==='bar'),ticks=layers.filter(l=>markType(l.mark)==='tick');
+    if(points.length!==1||bars.length!==1||!rules.length||!ticks.length||layers.length!==points.length+bars.length+rules.length+ticks.length)throw Error('箱线图缺少明确的五数统计或离群点映射');
+    const limits=bars[0].encoding,q1=limits[v]?.field,q3=limits[v+'2']?.field;
+    const ends=rules.map(l=>[l.encoding[v]?.field,l.encoding[v+'2']?.field]);
+    const lower=ends.length===1?ends[0][0]:ends.find(pair=>pair[1]===q1)?.[0];
+    const upper=ends.length===1?ends[0][1]:ends.find(pair=>pair[0]===q3)?.[1];
+    const medians=ticks.map(l=>l.encoding[v]?.field).filter(field=>field!==lower&&field!==upper);
+    if(medians.length!==1)throw Error('箱线图中位数映射不明确');
+    mapping={category:enc[c]?.field,lower,q1,median:medians[0],q3,upper};
+    const layer=points[0],pointCategory=(layer.encoding[c]??enc[c]).field,pointValue=layer.encoding[v].field;
+    const groups=new Map(s.data.values.map(r=>[r[mapping.category],[]]));
+    for(const observation of layer.data.values){
+      if(!groups.has(observation[pointCategory])||!finite(observation[pointValue]))throw Error('离群点类别或数值无效');
+      groups.get(observation[pointCategory]).push(observation[pointValue]);
+    }
+    const pos=rules[0].encoding[v];
+    p[v+'Title']=title(pos);p[c+'Title']=title(enc[c]);p.valueFormat=pos.axis?.format??'';
+    p.axes[v].type=pos.scale?.type??'linear';
+    p.rows=s.data.values.map(r=>({...Object.fromEntries(Object.entries(mapping).map(([k,f])=>[k,r[f]])),outliers:groups.get(r[mapping.category])}));
   }else{
     if(layers.length!==4||!['rule','bar','tick','point'].every((k,i)=>markType(layers[i].mark)===k)||!enc[c]||Object.keys(enc).some(k=>![c,v].includes(k)))throw Error('Box Plot 需要类别映射和 rule + bar + tick + point 四层');
     checkDef(enc[c]);
@@ -1013,7 +1142,7 @@ function importStatSpec(s){
   }
   if(Object.values(mapping).some(k=>typeof k!=='string'))throw Error('统计字段映射不完整');
   p.title=typeof s.title==='object'&&!Array.isArray(s.title)?s.title.text??'':s.title??'';
-  p.rows=s.data.values.map(r=>Object.fromEntries(Object.entries(mapping).map(([k,f])=>[k,copy(r[f]===undefined?null:r[f])])));
+  if(!p.rows.length)p.rows=s.data.values.map(r=>Object.fromEntries(Object.entries(mapping).map(([k,f])=>[k,copy(r[f]===undefined?null:r[f])])));
   p.categories=p.rows.map(r=>r.category);delete p.categoryObjects;ensureIdentities(p);
   const errors=validate(p).filter(i=>i.severity==='error');if(errors.length)throw Error(errors.map(i=>i.message).join('\n'));
   return p;
@@ -1076,32 +1205,36 @@ function makeCompositeSpec(input){
   const color={field,type:'nominal',sort:null,...(!p.legend?{legend:null}:{})};
   const barKeys=seriesKeys.filter(key=>compositeRole(p,key)==='bar');
   const offset=barKeys.length>1?{field,type:'nominal',sort:null,scale:{domain:barKeys.map(key=>duplicateSeries?seriesID(key):seriesLabel(key))}}:null;
-  const filter=role=>[{filter:{field:'series_role',equal:role}}];
+  const barRows=rows.filter(r=>r.series_role==='bar'),lineRows=rows.filter(r=>r.series_role==='line');
   const bars=[{mark:{type:'bar'},...(offset?{encoding:{xOffset:copy(offset)}}:{})}];
   if(rows.some(r=>r.series_role==='bar'&&present(r.lower)))bars.push({mark:{type:'errorbar'},encoding:orderEncoding({y:{field:'lower',type:'quantitative'},y2:{field:'upper'},...(offset?{xOffset:copy(offset)}:{})})});
-  const lineGT=makeSpec(parts.line),lineMark=copy(lineGT.mark);
-  const line={transform:filter('line'),mark:lineMark};
+  const lineGT=baseSpec(parts.line),lineMark=copy(lineGT.mark);
+  const line={data:{values:lineRows},mark:lineMark};
   const overrides={};if(p.dualYAxis)overrides.y={...y('r',p.rightYTitle),scale:{...y('r',p.rightYTitle).scale,type:p.axes.r.type}};
   if(JSON.stringify(unique(rows.map(r=>r.category_id??r.category)))!==JSON.stringify(categories.map(c=>duplicateCategory?categoryID(c.key):c.name)))x.sort=categories.map(c=>duplicateCategory?categoryID(c.key):c.name);
   if(rows.some(r=>r.series_role==='line'&&present(r.path_order))){overrides.order={field:'path_order',type:'quantitative'};x.sort=categories.map(c=>duplicateCategory?categoryID(c.key):c.name);}
   if(Object.keys(overrides).length)line.encoding=orderEncoding(overrides);
-  const out={...(present(p.title)?{title:copy(p.title)}:{}),data:{values:rows},encoding:{x,y:y('y',p.yTitle),color}};
-  if(p.dualYAxis){out.layer=[{transform:filter('bar'),layer:bars},line];out.resolve={scale:{y:'independent'}};}
-  else out.layer=[...bars.map(l=>({...l,transform:filter('bar')})),line];
+  const out={...(present(p.title)?{title:copy(p.title)}:{}),data:{values:barRows},encoding:{x,y:y('y',p.yTitle),color}};
+  if(p.dualYAxis){out.layer=[{layer:bars},line];out.resolve={scale:{y:'independent'}};}
+  else out.layer=[...bars,line];
   return out;
 }
 function importCompositeSpec(input){
   const s=copy(input),allowed=new Set(['$schema','title','data','encoding','layer','resolve']);
   if(Object.keys(s).some(k=>!allowed.has(k))||!Array.isArray(s.data?.values)||!s.data.values.length||!Array.isArray(s.layer))throw Error('仅支持内联柱线复合精简 GT');
-  const enc=s.encoding||{},rows=s.data.values;
+  const enc=s.encoding||{},lineNode=s.layer.find(l=>markType(l.mark)==='line');
+  const separate=Array.isArray(lineNode?.data?.values);
+  const rows=separate?[...s.data.values,...lineNode.data.values]:s.data.values;
+  if(separate&&(s.data.values.some(r=>r.series_role!=='bar')||lineNode.data.values.some(r=>r.series_role!=='line')))throw Error('柱线层与数据角色不符');
   if(!['category','category_id','category_instance'].includes(enc.x?.field)||!['nominal','ordinal'].includes(enc.x?.type)||enc.y?.field!=='value'||enc.y?.type!=='quantitative'||!['series','series_id','series_instance'].includes(enc.color?.field))throw Error('复合图必须映射 category/value 和 series');
   if(Object.keys(enc).some(k=>!['x','y','color'].includes(k)))throw Error('复合图含不支持的共享编码');
   const dual=!!s.resolve;
   if(dual&&JSON.stringify(s.resolve)!==JSON.stringify({scale:{y:'independent'}}))throw Error('仅支持独立 Y 轴');
   const bars=[],lines=[];
   function visit(node,inheritedRole){
-    if(Object.keys(node).some(k=>!['transform','layer','mark','encoding'].includes(k)))throw Error('复合图层包含未知配置');
-    let role=inheritedRole;
+    if(Object.keys(node).some(k=>!['transform','layer','mark','encoding',...(separate&&node===lineNode?['data']:[])].includes(k)))throw Error('复合图层包含未知配置');
+    let role=separate?(node===lineNode?'line':'bar'):inheritedRole;
+    if(separate&&node.transform)throw Error('独立柱线表不能包含 transform');
     if(node.transform){const f=node.transform;if(f.length!==1||f[0].filter?.field!=='series_role'||!['bar','line'].includes(f[0].filter.equal)||Object.keys(f[0]).length!==1||Object.keys(f[0].filter).length!==2)throw Error('复合图只接受明确的 series_role 筛选');role=f[0].filter.equal;}
     if(node.layer){if(role!=='bar'||node.mark||node.encoding||!Array.isArray(node.layer))throw Error('仅柱和误差棒可共用嵌套轴');for(const child of node.layer)visit(child,role);return;}
     const type=markType(node.mark);if(role==='bar'&&['bar','rule','errorbar'].includes(type))bars.push(node);else if(role==='line'&&type==='line')lines.push(node);else throw Error('图层角色与标记不匹配');
@@ -1499,7 +1632,8 @@ function renderHeatmapSpec(gt,p) {
   const out=copy(gt),{color,...position}=out.encoding,tooltips=[];
   const axisText=axis=>position[axis].title??axis.toUpperCase();
   const describe=(row,axis)=>axisText(axis)+' '+row[axis]+(position[axis+'2']?' – '+row[axis+'2']:'');
-  for(const row of out.data.values)
+  const displayRows=out.data.values.map(row=>({...row}));
+  for(const row of displayRows)
     row.__heatmapDescription=describe(row,'x')+'，'+describe(row,'y')+'，'+(row.value===null?'缺测':(color.title??'数值')+' '+row.value);
   const description={field:'__heatmapDescription',type:'nominal'};
   for(const axis of heatmapAxes){
@@ -1528,19 +1662,39 @@ function renderHeatmapSpec(gt,p) {
   const tooltip=[...tooltips,{field:'value',type:'quantitative',title:color.title}];
   delete out.mark;
   out.encoding=position;
-  const missing={mark:{type:'rect'},transform:[{filter:'datum.value === null'}],
+  const missing={mark:{type:'rect'},data:{values:displayRows.filter(row=>row.value===null)},
     encoding:{color:{value:'#d8dee5'},tooltip:tooltips,description}};
-  const measured={mark:{type:'rect'},transform:[{filter:'isValid(datum.value)'}],encoding:{color,tooltip,description}};
+  const measured={mark:{type:'rect'},data:{values:displayRows.filter(row=>row.value!==null)},encoding:{color,tooltip,description}};
   out.layer=[];
   if(out.data.values.some(row=>row.value===null))out.layer.push(missing);
   if(out.data.values.some(row=>row.value!==null))out.layer.push(measured);
   return out;
 }
 
+function printedPercent(raw){
+  const text=String(raw).trim().replaceAll('−','-').replaceAll('％','%');
+  const match=/^(\()?([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?)\s*%(\))?$/i.exec(text);
+  if(!match||Boolean(match[1])!==Boolean(match[3])||match[1]&&/^[+-]/.test(match[2]))return null;
+  const value=Number(match[2])*(match[1]?-1:1);
+  return finite(value)?value:null;
+}
+function recordPercentScale(key){
+  if(key==='theta')p.valueMode='percent';
+  else if(key)(p.percentLabels??={})[key]=true;
+}
+function fieldScale(project,row,key){
+  if(isPie(project))return key==='value'?'theta':null;
+  if(isHistogram(project)&&['bin_start','bin_end'].includes(key))return isHorizontal(project)?'y':'x';
+  if(key==='x'||key==='y')return key;
+  if(['baseline','value','start','end','lower','upper','median','q1','q3','outliers'].includes(key))
+    return measurementAxis(project,identity(row));
+  return null;
+}
 function readHeatmapValue(raw) {
   const value=raw.trim().replaceAll('−','-');
   if(!value)return undefined;
   if(/^(?:null|na|n\/a|[-–—])$/i.test(value))return null;
+  const percent=printedPercent(value);if(percent!==null)return percent;
   if(!heatmapValueToken.test(value)||!finite(Number(value)))throw Error('请输入有限数值、null 或留空');
   return Number(value);
 }
@@ -1849,7 +2003,7 @@ function editHeatmapValue(index,raw) {
   let value;
   try{value=readHeatmapValue(raw);}
   catch(e){updateHeatmapCellInput(heatmapCellInput(index),row,evidence);toast(e.message);return false;}
-  change(()=>editHeatmapRecords([manualHeatmapRecord(cell,value)]),{keepTable:true});
+  change(()=>{if(printedPercent(raw)!==null)(p.percentLabels??={}).color=true;editHeatmapRecords([manualHeatmapRecord(cell,value)]);},{keepTable:true});
   const result=heatmapCellRecord(cell);
   updateHeatmapCellInput(heatmapCellInput(index),result.row,result.evidence);
   return true;
@@ -1960,6 +2114,7 @@ function pasteHeatmap(raw,start=selected) {
   change(()=>{
     for(const [axis,size] of [['x',width],['y',height]])if(p.heatmap[axis].length<size)
       keepHeatmapBands(axis,Array.from({length:size},(_,i)=>p.heatmap[axis][i]??newHeatmapBand(p,axis)));
+    if(/[%％]/.test(raw))(p.percentLabels??={}).color=true;
     const records=heatmapRecords(p);
     const updates=matrix.flatMap((line,j)=>line.map((value,i)=>{
       const cell=heatmapCell((row+j)*width+column+i);
@@ -2249,10 +2404,11 @@ function axisForm(){
     const ticks=[1,2].map(n=>{
       const pixel=axis['p'+n],gridPixel=effective['p'+n];
       const placeholder=!finite(pixel)&&finite(gridPixel)?` placeholder="网格边界 ${gridPixel.toFixed(1)}"`:'';
-      return `<div class="tick-row"><button data-tick="${a}${n}" class="${tool==='calibrate'&&calTarget===a+n?'active':''}">${isComposite(p)?a==='r'?'右Y':'左Y':a.toUpperCase()}${n} 取刻度</button><label>原图像素<input type="number" step="any" data-axis="${a}" data-field="p${n}" value="${pixel??''}"${placeholder}></label><label>真实数值<input type="number" step="any" data-axis="${a}" data-field="v${n}" value="${axis['v'+n]??''}"></label></div>`;
+      return `<div class="tick-row"><button data-tick="${a}${n}" class="${tool==='calibrate'&&calTarget===a+n?'active':''}">${isComposite(p)?a==='r'?'右Y':'左Y':a.toUpperCase()}${n} 取刻度</button><label>原图像素<input type="number" step="any" data-axis="${a}" data-field="p${n}" value="${pixel??''}"${placeholder}></label><label>真实数值<input type="text" inputmode="decimal" data-axis="${a}" data-field="v${n}" value="${axis['v'+n]??''}"></label></div>`;
     }).join('');
-    return `<div class="axis-group"><h4>${isComposite(p)?a==='r'?'右 Y（折线）':'左 Y（柱）':a.toUpperCase()} 轴 <small data-axis-status="${a}"></small></h4><label>坐标类型<select data-axis="${a}" data-field="type"><option value="linear" ${axis.type!=='log'?'selected':''}>线性</option><option value="log" ${axis.type==='log'?'selected':''}>对数</option></select></label>${ticks}</div>`;
+    return `<div class="axis-group"><label><input type="checkbox" data-percent-scale="${a}" ${percentLabels(p,a)?'checked':''}> 原图数字带 %（25% 录入 25）</label><h4>${isComposite(p)?a==='r'?'右 Y（折线）':'左 Y（柱）':a.toUpperCase()} 轴 <small data-axis-status="${a}"></small></h4><label>坐标类型<select data-axis="${a}" data-field="type"><option value="linear" ${axis.type!=='log'?'selected':''}>线性</option><option value="log" ${axis.type==='log'?'selected':''}>对数</option></select></label>${ticks}</div>`;
   }).join('');
+  if(isHeatmap(p))$('axisFields').insertAdjacentHTML('beforeend',`<label><input type="checkbox" data-percent-scale="color" ${percentLabels(p,'color')?'checked':''}> 色标数字带 %（25% 录入 25）</label>`);
   syncCalibrationStatus();
 }
 function updateHeatmapCalibration(axis){
@@ -2283,7 +2439,7 @@ const automaticPercent=k==='value'&&!p.evidence?.[i]?.valueOverride&&
 const measured=finite(r[k])&&(isHistogram(p)&&histogramHasEvidence(p,k,p.evidence?.[i])||
   isPercentStack(p)&&(['start','end'].includes(k)||automaticPercent));
 return `<td><input aria-label="第${i+1}行 ${columnNames[k]}" data-i="${i}" data-key="${k}"
-  value="${esc(measured?r[k].toFixed(2):r[k])}" type="number" step="any"></td>`;
+  value="${esc(measured?r[k].toFixed(2):r[k])}" type="text" inputmode="decimal"></td>`;
 }).join('')}</tr>`).join('');$('countBadge').textContent=`${p.rows.length} 条记录`;syncHistoryControls();}
 function syncHistoryControls(){$('undo').disabled=!history.length;$('redo').disabled=!future.length;}
 function rowSource(i){return histogramHandleKeys(p).some(k=>p.evidence?.[i]?.[k])?'⌖':'✎';}
@@ -2297,7 +2453,7 @@ function scheduleDraftSave(){clearTimeout(saveTimer);saveTimer=setTimeout(saveDr
 function refresh(form=false,keepTable=false){ensureIdentities(p);if(isPercentStack(p))syncPercentStackRatios(p);queueUI();if(form)syncForm();if(keepTable)syncHistoryControls();else table();syncAssist();syncPercentStackHeightPanel();draw();clearTimeout(renderTimer);renderTimer=setTimeout(render,130);scheduleDraftSave();}
 let renderVersion=0;
 async function render(){const version=++renderVersion;renderOk=false;let issues=validate(p);if(p.rows.length===0&&!isHeatmap(p))issues=[{severity:'warning',message:'添加数据记录后生成 GT。'}];$('issues').innerHTML=issues.length?issues.map(i=>`<li class="${i.severity}">${esc(i.message)}</li>`).join(''):'<li class="ok">数据结构检查通过。请继续核对原图与科学数值。</li>';$('validationBadge').textContent=issues.filter(i=>i.severity==='error').length+' 个错误';
-try{const gt=makeSpec(p);$('jsonPreview').textContent=JSON.stringify(gt,null,2);if(!window.vegaEmbed)throw Error('本地 Vega 渲染组件未加载');const spec={...renderSpec(gt,p),width:230,height:210};for(const a of ['x','y']){if(!isHeatmap(p)&&!isStat(p)&&!isArea(p)&&!isHistogram(p)&&spec.encoding[a])spec.encoding[a].title=isPercentStack(p)?spec.encoding[a].title??null:p[a+'Title']||null;}if(!isHeatmap(p)&&!isStat(p)&&!isArea(p)&&!isHistogram(p)&&spec.encoding.color){spec.encoding.color.legend=p.legend?{...(spec.encoding.color.legend||{}),title:null}:null;const keys=unique((isComposite(p)?['bar','line'].flatMap(role=>orderedRows(compositePart(p,role))):orderedRows(p)).map(identity));spec.encoding.color.scale={domain:unique(gt.data.values.map(r=>r.series_id??r.series)),range:keys.map(k=>p.series.find(s=>s.key===k)?.color||'#008b7e')};}if(isHistogram(p))styleHistogramPreview(spec);if(isPie(p)&&p.donut)spec.mark={type:'arc',innerRadius:55};if(isBox(p)){const v=valueAxis(p);spec.layer[1].mark={type:'bar',size:26};spec.layer[2].mark={type:'tick',orient:horizontal()?'vertical':'horizontal',color:'#243344',size:26,thickness:2};if(p.axes[v].type==='log')for(const l of spec.layer)l.encoding[v].scale={type:'log'};}const holder=document.createElement('div');const result=await window.vegaEmbed(holder,spec,{actions:false,renderer:'svg'});result.view.finalize();if(version!==renderVersion)return;$('preview').replaceChildren(holder);lastSpec=gt;renderOk=true;$('renderState').textContent='Vega-Lite v6 · 语义渲染成功';}catch(e){if(version!==renderVersion)return;lastSpec=null;$('jsonPreview').textContent='请先修正数据结构。';$('preview').replaceChildren();$('renderState').textContent=p.rows.length?'无法渲染：'+e.message:'添加记录后显示语义重绘';}}
+try{const gt=makeSpec(p);$('jsonPreview').textContent=JSON.stringify(gt,null,2);if(!window.vegaEmbed)throw Error('本地 Vega 渲染组件未加载');const spec={...renderSpec(gt,p),width:230,height:210};for(const a of ['x','y']){if(!isHeatmap(p)&&!isStat(p)&&!isArea(p)&&!isHistogram(p)&&spec.encoding[a])spec.encoding[a].title=isPercentStack(p)?spec.encoding[a].title??null:p[a+'Title']||null;}if(!isHeatmap(p)&&!isStat(p)&&!isArea(p)&&!isHistogram(p)&&spec.encoding.color){spec.encoding.color.legend=p.legend?{...(spec.encoding.color.legend||{}),title:null}:null;const keys=unique((isComposite(p)?['bar','line'].flatMap(role=>orderedRows(compositePart(p,role))):orderedRows(p)).map(identity));spec.encoding.color.scale={domain:unique(allTableRows(gt).map(r=>r.series_id??r.series)),range:keys.map(k=>p.series.find(s=>s.key===k)?.color||'#008b7e')};}if(isHistogram(p))styleHistogramPreview(spec);if(isPie(p)&&p.donut)spec.mark={type:'arc',innerRadius:55};if(isBox(p)){const v=valueAxis(p);spec.layer[1].mark={type:'bar',size:26};spec.layer[2].mark={type:'tick',orient:horizontal()?'vertical':'horizontal',color:'#243344',size:26,thickness:2};if(p.axes[v].type==='log')for(const l of spec.layer)l.encoding[v].scale={type:'log'};}const holder=document.createElement('div');const result=await window.vegaEmbed(holder,spec,{actions:false,renderer:'svg'});result.view.finalize();if(version!==renderVersion)return;$('preview').replaceChildren(holder);globalThis.VegaLiteTableExport.exportTables(gt);lastSpec=gt;renderOk=true;$('renderState').textContent='Vega-Lite v6 · 语义渲染成功';}catch(e){if(version!==renderVersion)return;lastSpec=null;$('jsonPreview').textContent='请先修正数据结构。';$('preview').replaceChildren();$('renderState').textContent=p.rows.length?'无法渲染：'+e.message:'添加记录后显示语义重绘';}}
 function assist(){
   ensureIdentities(p);p.assist??={};const a=p.assist;
   a.sequence??=bar()||isNominalArea(p)?'category':'series';if(isPercentStack(p)||isStack(p)&&a.sequence!=='manual')a.sequence='category';a.errorOrder??='per-bar';a.projections??=true;a.magnify??=true;a.dragAxis??='free';a.categoryPixels??={};if(isBox(p)){a.boxField??='lower';a.outlierTarget??='new';}
@@ -2702,8 +2858,9 @@ function recalculateArea(){
     }
   }
 }
-function editAreaCell(i,key,raw){
+function editAreaCell(i,key,raw,scale){
   change(()=>{
+    recordPercentScale(scale);
     p.rows[i][key]=raw===''?null:Number(raw);
     p.evidence??=[];
     const e=p.evidence[i]??={};
@@ -2849,13 +3006,14 @@ function measureHistogram(pt){
   });
 }
 
-function editHistogramCell(i,field,raw){
+function editHistogramCell(i,field,raw,scale){
   const row=p.rows[i],run=activeHistogramRun();
   const value=raw===''?null:Number(raw);
   const candidate={...row,[field]:value};
   const willAdvance=run&&!run.stacked&&histogramRunTarget(run).row===row&&
     completeHistogramBin(candidate)&&finite(candidate.value);
   change(()=>{
+    recordPercentScale(scale);
     row[field]=value;
     if(field==='bin_start')delete row._histogramPrevious;
     p.evidence??=[];
@@ -3177,7 +3335,11 @@ function removeHistogramBin(index){
 function editHistogramBin(input){
   const bin=p.histogramBins[Number(input.dataset.bin)],field=input.dataset.field;
   change(()=>{
-    bin[field]=input.value===''?null:input.valueAsNumber;
+    const display=printedPercent(input.value);
+    if(display!==null)recordPercentScale(isHorizontal(p)?'y':'x');
+    const value=input.value===''?null:display??Number(input.value);
+    if(value!==null&&!finite(value))throw Error('分箱边界需要有限数值');
+    bin[field]=value;
     delete bin.evidence[field+'Pixel'];
     if(field==='bin_start')bin.inheritStart=false;
     syncHistogramBoundaries();
@@ -3196,7 +3358,7 @@ function syncHistogramBinTable(){
   if(body.rows.length!==bins.length||bins.some((bin,i)=>body.rows[i].dataset.key!==bin.key)){
     body.innerHTML=bins.map(({key},i)=>`<tr data-key="${esc(key)}"><td><button type="button" class="small"
       data-select-bin="${i}" aria-label="选中第 ${i+1} 箱">${i+1}</button></td>${
-      HISTOGRAM_BOUNDARIES.map((field,j)=>`<td><input type="number" step="any" data-bin="${i}"
+      HISTOGRAM_BOUNDARIES.map((field,j)=>`<td><input type="text" inputmode="decimal" data-bin="${i}"
         data-field="${field}" aria-label="第 ${i+1} 箱${j?'结束':'起始'}边界"></td>`).join('')
     }<td><button type="button" class="small" data-delete-bin="${i}" aria-label="删除第 ${i+1} 箱">删除</button></td></tr>`).join('');
   }
@@ -3488,10 +3650,11 @@ function measureBox(pt){
     const at=BOX_FIELDS.indexOf(f);if(at<4)a.boxField=BOX_FIELDS[at+1];else {a.boxField='lower';nextTarget();}
   }
 }
-function outlierCells(r,i){return (r.outliers||[]).map((v,j)=>`<div class="series-row"><input type="number" step="any" data-i="${i}" data-key="outliers" data-outlier="${j}" aria-label="第${i+1}行 异常值${j+1}" value="${esc(v)}"><button class="small" data-delete-outlier="${j}" data-index="${i}" title="删除异常值">×</button></div>`).join('')+`<button class="small" data-add-outlier="${i}">＋ 异常值</button>`;}
-function editStatCell(input){
+function outlierCells(r,i){return (r.outliers||[]).map((v,j)=>`<div class="series-row"><input type="text" inputmode="decimal" data-i="${i}" data-key="outliers" data-outlier="${j}" aria-label="第${i+1}行 异常值${j+1}" value="${esc(v)}"><button class="small" data-delete-outlier="${j}" data-index="${i}" title="删除异常值">×</button></div>`).join('')+`<button class="small" data-add-outlier="${i}">＋ 异常值</button>`;}
+function editStatCell(input,scale){
   const {i,key,outlier}=input.dataset,raw=input.value;
   change(()=>{
+    recordPercentScale(scale);
     const r=p.rows[i];p.evidence??=[];const e=p.evidence[i]??={};
     if(key==='category'){
       renameObject(p,'category',r._categoryKey,raw);
@@ -3749,9 +3912,10 @@ if(isHistogramStack(p)&&!activeHistogramRun()){
   a.histogramHandle=evidence?.valueStartPixel&&!evidence.valueEndPixel?'valueEndPixel':'valueStartPixel';
 }
 if(isBox(p)){assist().category=p.rows[selected]._categoryKey;const k=e.target.dataset.key;if(BOX_FIELDS.includes(k))assist().boxField=k;if(k==='outliers'){assist().boxField='outliers';assist().outlierTarget=e.target.dataset.outlier;}selectedHandle=boxHandle(assist().boxField);}else{const key=e.target.dataset.key;selectedHandle=isHistogram(p)?(key?histogramHandles(p,key).at(-1):assist().histogramHandle):key==='start'?'startPixel':['lower','upper','baseline'].includes(key)?key+'Pixel':'pixel';}syncAssist();document.querySelectorAll('#tableBody tr').forEach((r,i)=>r.classList.toggle('selected',i===selected));draw();}});
-function editPercentStackCell(index,field,input){
+function editPercentStackCell(index,field,input,scale){
   const raw=input.value;
   change(()=>{
+    recordPercentScale(scale);
     const row=p.rows[index],target={category:categoryIdentity(row),series:identity(row)};
     const complete=validPercent(row.value);
     p.evidence??=[];
@@ -3779,14 +3943,22 @@ function editPercentStackCell(index,field,input){
   });
 }
 $('tableBody').addEventListener('change',e=>{const {i,key,object}=e.target.dataset;if(i===undefined)return;
+let scale;
+if(key&&!['category','series','path_order','stack_order'].includes(key)&&!(key==='x'&&categorical())){
+  const display=printedPercent(e.target.value);
+  if(display!==null){
+    scale=fieldScale(p,p.rows[i],key);
+    e.target.value=String(display);
+  }else if(e.target.value.trim()!==''&&!finite(Number(e.target.value))){toast('请输入有限数值或带 % 的原图标签');table();return;}
+}
 if(isHistogramStack(p)){
   if(e.target.hasAttribute('data-row-bin')){assignHistogramBin(e.target);return;}
   if(object==='series'&&hasHistogramSegment(p.rows[i]._histogramBin,e.target.value,p.rows[i])){
     e.target.value=identity(p.rows[i]);toast('该分箱和系列已有记录');return;
   }
 }
-if(isPercentStack(p)&&['value','start','end'].includes(key)){editPercentStackCell(+i,key,e.target);return;}
-if(isHistogram(p)&&key){editHistogramCell(+i,key,e.target.value);return;}if(isStat(p)&&key){editStatCell(e.target);return;}if(isArea(p)&&key){editAreaCell(+i,key,e.target.value);return;}change(()=>{if(object){
+if(isPercentStack(p)&&['value','start','end'].includes(key)){editPercentStackCell(+i,key,e.target,scale);return;}
+if(isHistogram(p)&&key){editHistogramCell(+i,key,e.target.value,scale);return;}if(isStat(p)&&key){editStatCell(e.target,scale);return;}if(isArea(p)&&key){editAreaCell(+i,key,e.target.value,scale);return;}change(()=>{recordPercentScale(scale);if(object){
 const row=p.rows[i],ref=object==='series'?'_seriesKey':'_categoryKey',field=object==='series'?'series':categoryField(p);
 const restoreDirectPercent=isPercentStack(p)&&object==='category'&&usesPercentStackRatio(p,categoryIdentity(row))&&!usesPercentStackRatio(p,e.target.value);
 if(isNominalArea(p)||isPercentStack(p)){
@@ -3835,9 +4007,17 @@ $('addSeries').onclick=()=>{if(p.kind.endsWith('_1')){toast('单系列类型只�
   addObject(p,'series','Series '+n);
 },{form:true});};
 $('axisFields').onclick=e=>{if(e.target.dataset.tick){calTarget=e.target.dataset.tick;setTool('calibrate');}};
-$('axisFields').onchange=e=>{const {axis,field}=e.target.dataset;if(!axis)return;if(isHistogram(p)||isHeatmap(p)||isPercentStack(p)){
+$('axisFields').onchange=e=>{const {axis,field,percentScale}=e.target.dataset;if(percentScale){change(()=>{p.percentLabels??={};p.percentLabels[percentScale]=e.target.checked;},{form:true});return;}if(!axis)return;
+let scale;
+if(['v1','v2'].includes(field)){
+  const display=printedPercent(e.target.value);
+  if(display!==null){scale=axis;e.target.value=String(display);}
+  else if(e.target.value!==''&&!finite(Number(e.target.value))){toast('刻度需要有限数值');axisForm();return;}
+}
+if(isHistogram(p)||isHeatmap(p)||isPercentStack(p)){
   const raw=e.target.value;
   change(()=>{
+    recordPercentScale(scale);
     const calibration=p.axes[axis];
     calibration[field]=field==='type'?raw:raw===''?null:Number(raw);
     if(field==='p1'||field==='p2'){
@@ -3851,7 +4031,7 @@ $('axisFields').onchange=e=>{const {axis,field}=e.target.dataset;if(!axis)return
   },{form:isHeatmap(p)||isPercentStack(p)});
   syncCalibrationStatus();
   return;
-}try{change(()=>{if(field!=='type'&&e.target.value==='')throw Error('刻度值不能为空');p.axes[axis][field]=field==='type'?e.target.value:Number(e.target.value);if(field==='p1'||field==='p2'){const n=field.slice(1);p.axes[axis]['point'+n]=axis==='x'?{x:p.axes[axis][field],y:p.axes.y.p1}:{x:p.axes.x.p1,y:p.axes[axis][field]};}p.axes[axis].calibrated=!!(p.axes[axis].point1&&p.axes[axis].point2)&&p.axes[axis].p1!==p.axes[axis].p2&&p.axes[axis].v1!==p.axes[axis].v2;recalculate();},{form:true});}catch(err){toast(err.message);syncForm();}};
+}try{change(()=>{recordPercentScale(scale);if(field!=='type'&&e.target.value==='')throw Error('刻度值不能为空');p.axes[axis][field]=field==='type'?e.target.value:Number(e.target.value);if(field==='p1'||field==='p2'){const n=field.slice(1);p.axes[axis]['point'+n]=axis==='x'?{x:p.axes[axis][field],y:p.axes.y.p1}:{x:p.axes.x.p1,y:p.axes[axis][field]};}p.axes[axis].calibrated=!!(p.axes[axis].point1&&p.axes[axis].point2)&&p.axes[axis].p1!==p.axes[axis].p2&&p.axes[axis].v1!==p.axes[axis].v2;recalculate();},{form:true});}catch(err){toast(err.message);syncForm();}};
 document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
 $('addRow').onclick=()=>{if(isHistogram(p)){addHistogramRow();return;}if(isArea(p)){
   const nominal=isNominalArea(p);
@@ -3889,11 +4069,23 @@ $('moveProject').onchange=async()=>{stash();const q=queue.find(q=>q.id===activeI
 $('removeImage').onclick=async()=>{if(!activeId||!confirm('移除当前图像和标注？请确认已保存工程备份。'))return;queue=queue.filter(q=>q.id!==activeId);activeId=null;imageData=null;p.rows=[];const next=visibleQueue()[0];if(next)await activate(next.id);else resetCurrent();};
 $('queue').onclick=async e=>{const button=e.target.closest('[data-queue]');if(button)try{await activate(button.dataset.queue);}catch(err){toast(err.message);}};
 function downloadBlob(name,blob){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function tableFiles(spec,stem){
+  return globalThis.VegaLiteTableExport.exportTables(spec).flatMap(t=>[
+    {name:stem+'/'+t.id+'.md',text:t.markdown},{name:stem+'/'+t.id+'.csv',text:t.csv}
+  ]);
+}
 function download(name,object){downloadBlob(name,new Blob([JSON.stringify(object,null,2)],{type:'application/json'}));}
 function bundle(){stash();return{format:'chart-studio-project',version:2,savedAt:new Date().toISOString(),projects:clone(projects),currentProjectId,activeId,queue:clone(queue),current:{project:clone(p),image:imageData,name:fileName}};}
 $('saveProject').onclick=()=>{download('chart-studio-workspace.project.json',bundle());toast('工作区已备份：包含全部项目、原图、标注和校准记录');};
 $('exportGT').onclick=async()=>{await render();const errors=validate(p).filter(i=>i.severity==='error');if(errors.length||!renderOk||!lastSpec){toast('请先修正质量检查错误并确认渲染成功');return;}if(!p.reviewed){toast('请先核对原图和数值来源，并勾选右侧确认');return;}const spec=clone(lastSpec);if($('withSchema').checked)spec.$schema='https://vega.github.io/schema/vega-lite/v6.json';download(safeExportName(fileName||p.kind).split('/').at(-1),spec);toast('已导出精简 GT；像素与来源请另存工程');};
-$('batchExport').onclick=async()=>{stash();const items=visibleQueue();if(!items.length){toast('当前项目还没有图像');return;}const report=[],entries=[],names=new Set();for(const q of items){let reason='',spec;try{if(!q.project.reviewed)throw Error('尚未核对');spec=makeSpec(q.project);window.vega.parse(window.vegaLite.compile(spec).spec);}catch(e){reason=e.message;}let name=safeExportName(q.name);for(let n=2;names.has(name);n++)name=safeExportName(q.name).replace(/\.gt\.json$/,'-'+n+'.gt.json');if(!reason){names.add(name);if($('withSchema').checked)spec.$schema='https://vega.github.io/schema/vega-lite/v6.json';entries.push({name:'gt/'+name,text:JSON.stringify(spec,null,2)});}report.push({image:q.name,id:q.id,status:reason?'skipped':'exported',file:reason?null:'gt/'+name,reason:reason||null});}entries.push({name:'export-report.json',text:JSON.stringify({project:projectName(),exported:entries.length,skipped:report.filter(q=>q.status==='skipped').length,images:report},null,2)});downloadBlob(projectName().replace(/[<>:"/\\|?*]/g,'_')+'.gt.zip',new Blob([zipBytes(entries)],{type:'application/zip'}));toast('批量导出 '+(entries.length-1)+' 张；跳过 '+report.filter(q=>q.status==='skipped').length+' 张（原因见 ZIP 内清单）');queueUI();};
+$('exportTables').onclick=async()=>{
+  await render();
+  if(!p.reviewed||!renderOk||!lastSpec){toast('请完成数据核对和渲染后导出');return;}
+  try{const stem=safeExportName(fileName||p.kind).split('/').at(-1).replace(/\.gt\.json$/,'');
+    downloadBlob(stem+'.tables.zip',new Blob([zipBytes(tableFiles(lastSpec,stem))],{type:'application/zip'}));
+  }catch(error){toast(error.message);}
+};
+$('batchExport').onclick=async()=>{stash();const items=visibleQueue();if(!items.length){toast('当前项目还没有图像');return;}const report=[],entries=[],names=new Set();for(const q of items){let reason='',spec,tables;try{if(!q.project.reviewed)throw Error('尚未核对');spec=makeSpec(q.project);window.vega.parse(window.vegaLite.compile(spec).spec);tables=tableFiles(spec,'tables');}catch(e){reason=e.message;}let name=safeExportName(q.name);for(let n=2;names.has(name);n++)name=safeExportName(q.name).replace(/\.gt\.json$/,'-'+n+'.gt.json');if(!reason){names.add(name);if($('withSchema').checked)spec.$schema='https://vega.github.io/schema/vega-lite/v6.json';entries.push({name:'gt/'+name,text:JSON.stringify(spec,null,2)},...tables.map(t=>({...t,name:'tables/'+name.slice(0,-8)+'/'+t.name.slice(7)})));}report.push({image:q.name,id:q.id,status:reason?'skipped':'exported',file:reason?null:'gt/'+name,reason:reason||null});}entries.push({name:'export-report.json',text:JSON.stringify({project:projectName(),exported:names.size,skipped:report.filter(q=>q.status==='skipped').length,images:report},null,2)});downloadBlob(projectName().replace(/[<>:"/\\|?*]/g,'_')+'.gt.zip',new Blob([zipBytes(entries)],{type:'application/zip'}));toast('批量导出 '+names.size+' 张；跳过 '+report.filter(q=>q.status==='skipped').length+' 张（原因见 ZIP 内清单）');queueUI();};
 $('copyGT').onclick=async()=>{if(!lastSpec){toast('暂无有效 GT');return;}try{await navigator.clipboard.writeText(JSON.stringify(lastSpec,null,2));toast('JSON 已复制');}catch{toast('无法访问剪贴板，请使用导出 GT');}};
 $('openProject').onclick=()=>$('projectInput').click();$('importSpec').onclick=()=>$('specInput').click();
 async function restore(data){if(data.format!=='chart-studio-project'||![1,2].includes(data.version)||!data.current?.project||!Array.isArray(data.queue))throw Error('不是受支持的 Chart Studio 工程');const all=[data.current.project,...data.queue.map(q=>q.project)];for(const item of all){if(!labels[item.kind]||!Array.isArray(item.rows)||!item.axes?.x||!item.axes?.y||!Array.isArray(item.series))throw Error('工程结构不完整');if(isHeatmap(item))checkHeatmapProject(item);}const nextProjects=data.version===2?data.projects||[]:[];if(!Array.isArray(nextProjects)||nextProjects.some(q=>!q.id||typeof q.name!=='string')||new Set(nextProjects.map(q=>q.id)).size!==nextProjects.length)throw Error('项目列表无效');if(new Set(data.queue.map(q=>q.id)).size!==data.queue.length||data.queue.some(q=>typeof q.id!=='string'))throw Error('图像列表 ID 无效');const projectIds=new Set(nextProjects.map(q=>q.id));const active=data.queue.find(q=>q.id===data.activeId);if(data.activeId&&!active)throw Error('当前图像 ID 不存在');if(data.version===2&&active&&(active.projectId??null)!==(data.currentProjectId||null))throw Error('当前图像与所选项目不一致');if(data.version===2&&(data.currentProjectId&&!projectIds.has(data.currentProjectId)||data.queue.some(q=>q.projectId&&!projectIds.has(q.projectId))))throw Error('图像所属项目不存在');if(data.current.image)await new Promise((resolve,reject)=>{const im=new Image();im.onload=resolve;im.onerror=()=>reject(Error('工程原图无法读取'));im.src=data.current.image;});activationVersion++;queue=clone(data.queue);for(const q of queue){restoreHistogramBins(ensureIdentities(q.project));restoreAreaMeasurementPrecision(q.project);}projects=clone(nextProjects);currentProjectId=data.version===2?data.currentProjectId||null:null;activeId=data.activeId;p=restoreHistogramBins(ensureIdentities(clone(data.current.project)));restoreAreaMeasurementPrecision(p);p.errorBars=hasErrors(p);imageData=data.current.image;fileName=data.current.name||'';image=null;hover=null;pendingStart=null;drag=null;history=[];future=[];selected=-1;if(imageData)await loadImage(imageData);else{$('empty').style.display='flex';$('magnifier').hidden=true;draw();}$('fileName').textContent=fileName||'未命名工程';queueUI();refresh(true);resumeTool();}

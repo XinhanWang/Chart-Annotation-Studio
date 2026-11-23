@@ -5,10 +5,11 @@ const {pathToFileURL}=require('node:url');
 const {chromium}=require('playwright');
 
 const original={
-  data:{values:[{category:'Control',value:10},{category:'Test',value:20},{category:'Other',value:70}]},
+  data:{values:[{category:'Control',value:0.1},{category:'Test',value:0.2},{category:'Other',value:0.7}]},
   title:'Pie angle test',
   mark:{type:'arc'},
-  encoding:{theta:{field:'value',type:'quantitative',title:'Share (%)'},color:{field:'category',type:'nominal'}}
+  encoding:{theta:{field:'value',type:'quantitative',title:'Share (%)',format:'.0%'},color:{field:'category',type:'nominal'}},
+  usermeta:{table_export:{tables:[{id:'data',path:'/data/values'}]}}
 };
 const center={x:300,y:200};
 const angles=[330,20,170];
@@ -126,7 +127,7 @@ async function run(){
       page.once('dialog',dialog=>dialog.accept());
       await apply.click();
       const expected=structuredClone(original);
-      expected.data.values.forEach((row,i)=>row.value=measured[(i+2)%3]);
+      expected.data.values.forEach((row,i)=>row.value=Number(measured[(i+2)%3]+'e-2'));
       await waitGT(expected);
       const applied=await readProject();
       assert.ok(applied.evidence.every(e=>e.source==='pie_angle_measurement'));

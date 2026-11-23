@@ -24,7 +24,7 @@ function percentFixture(horizontal){
 
 async function checkPercentStack(horizontal){
  const kind=horizontal?'barh_stack_percent':'barv_stack_percent',axis=horizontal?'x':'y';
- const gt=percentFixture(horizontal),project=importSpec(gt);
+ const gt={...percentFixture(horizontal),usermeta:{table_export:{tables:[{id:'data',path:'/data/values'}]}}},project=importSpec(gt);
  assert.equal(project.kind,kind);
  assert.deepEqual(plain(makeSpec(project)),gt);
  assert.equal(importSpec(gt,horizontal?'barh_stack':'barv_stack').kind,horizontal?'barh_stack':'barv_stack');
@@ -112,7 +112,7 @@ async function checkPercentStack(horizontal){
  assert.ok(validate(zero).some(issue=>issue.severity==='error'&&/系列高度必须为有限的非负数/.test(issue.message)));
  count++;
 }
-(async()=>{for(const kind of ['barv_stack','barh_stack']){const h=kind==='barh_stack',p=fixture(kind),before=JSON.stringify(p),gt=plain(makeSpec(p));assert.deepEqual(gt,expected(h));assert.equal(JSON.stringify(p),before,'export must not alter measurement evidence');assert.equal(JSON.stringify(makeSpec(importSpec(gt))),JSON.stringify(gt),'canonical serialized roundtrip');await render(plain(gt),h);count++;
+(async()=>{for(const kind of ['barv_stack','barh_stack']){const h=kind==='barh_stack',p=fixture(kind),before=JSON.stringify(p),gt=plain(makeSpec(p));assert.deepEqual(gt,{...expected(h),usermeta:{table_export:{tables:[{id:'data',path:'/data/values'}]}}});assert.equal(JSON.stringify(p),before,'export must not alter measurement evidence');assert.equal(JSON.stringify(makeSpec(importSpec(gt))),JSON.stringify(gt),'canonical serialized roundtrip');await render(plain(gt),h);count++;
  const both=fixture(kind);both.rows.forEach(r=>r.stack_order=r.series==='S1'?0:1);assert(!validate(both).some(x=>x.severity==='error'));assert.deepEqual(plain(makeSpec(both)),gt,'intermediate rank + boundaries are accepted, only rank exported');count++;
  const legacy=plain(gt),v=h?'x':'y';legacy.data.values.forEach(r=>{r.start=r.stack_order===0?0:r.category==='A'?3:4;r.end=r.start+r.value;delete r.stack_order;});legacy.encoding[v]={...legacy.encoding[v],field:'end',stack:null};legacy.encoding[v+'2']={field:'start'};delete legacy.encoding.order;assert.deepEqual(plain(makeSpec(importSpec(legacy))),gt,'legacy ordinary endpoint GT migrates to canonical values');count++;
  const exceptional=fixture(kind);exceptional.rows.forEach(r=>{r.start+=5;r.end+=5;});assert.deepEqual(plain(makeSpec(exceptional)),gt,'measured origin is intermediate evidence, not an exported offset');exceptional.stackEndpointMode='explicit';const e=plain(makeSpec(exceptional));assert(e.data.values.every(r=>'start' in r&&'end' in r&&!('stack_order' in r)));assert.equal(e.encoding[v].field,'end');assert.equal(e.encoding[v].stack,null);assert.deepEqual(e.encoding[v+'2'],{field:'start'});assert.equal(JSON.stringify(makeSpec(importSpec(e))),JSON.stringify(e),'explicit exceptional GT roundtrip');count++;

@@ -119,7 +119,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --></head>
 <body>
-<header><a class="brand" href="./"><span class="brand-icon">▧</span> Chart Studio <small>科学图表标注 · v1.7.0</small></a><span id="saveState" class="muted">浏览器本地工作区</span><div class="header-actions"><button id="help">使用指南</button><button id="openProject">打开工程</button><button id="saveProject">备份工作区</button><button id="batchExport">批量导出 ZIP</button><button id="exportGT" class="primary">导出 GT ↗</button></div></header>
+<header><a class="brand" href="./"><span class="brand-icon">▧</span> Chart Studio <small>科学图表标注 · v1.7.0</small></a><span id="saveState" class="muted">浏览器本地工作区</span><div class="header-actions"><button id="help">使用指南</button><button id="openProject">打开工程</button><button id="saveProject">备份工作区</button><button id="batchExport">批量导出 ZIP</button><button id="exportTables">导出表格 ZIP</button><button id="exportGT" class="primary">导出 GT ↗</button></div></header>
 <main>
 <aside class="sidebar"><div class="eyebrow">WORKSPACE / 标注工作区</div><h2>图像与结构</h2><section class="project-box"><label>标注项目<select id="projectSelect"><option value="">无项目</option></select></label><div class="project-actions"><button id="newProject">＋ 新建</button><button id="renameProject">改名</button><button id="deleteProject" title="移到无项目，保留所有图像">移除项目</button></div><p id="queueSummary" class="muted"></p></section><label class="upload" for="imageInput"><b>＋ 添加图像</b><span>PNG / JPG / WebP · 可多选</span></label><input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden><div class="import-actions"><label class="button" for="folderInput">导入文件夹</label><button id="removeImage">移除当前图</button></div><input id="folderInput" type="file" accept="image/png,image/jpeg,image/webp" webkitdirectory multiple hidden><div id="queue"></div><label id="moveProjectLabel">当前图像所属项目<select id="moveProject"></select></label>
 <div class="two"><label>图表大类<select id="family"><option value="composite">柱线复合图</option><option value="bar">柱状图</option><option value="line">折线图</option><option value="scatter">散点图</option><option value="heatmap">热力图</option><option value="histogram">直方图</option><option value="area">面积图</option><option value="pie">饼图</option><option value="boxplot">箱线图</option></select></label><label>图表子类<select id="kind"></select></label></div><p id="orderGuide" class="muted" role="note"></p><label>图表标题<input id="title" placeholder="没有标题则留空"></label><div class="two"><label>X 轴标题<input id="xTitle"></label><label>Y 轴标题<input id="yTitle"></label></div><label id="heatmapTitleLabel" hidden>色标指标名称及单位<input id="heatmapTitle" placeholder="如 Temperature (°C)"></label><div id="pieFields" hidden><label>数值模式<select id="valueMode"><option value="percent">百分比（按 0–100 录入）</option><option value="absolute">绝对数值</option></select></label><label>指标名称及单位<input id="valueTitle" placeholder="Share (%) / Revenue (万元)"></label><label class="check"><input type="checkbox" id="donut"> 环形图预览</label><p class="muted">按原图录入，不归一化。环形外观仅保存在工程中，GT 使用科学数据与 arc 映射。</p></div><label id="valueFormatLabel" hidden>数值轴格式（可选）<input id="valueFormat" placeholder="如 .0%（仅原图数值确为比例时）"></label><section id="compositeFields" hidden><label class="check"><input type="checkbox" id="dualYAxis"> 双 Y 轴：柱用左轴，折线用右轴</label><label id="rightYTitleLabel">右 Y 轴标题 / 单位<input id="rightYTitle"></label><label class="check"><input type="checkbox" id="compositeErrors"> 柱系列包含误差棒</label><p class="muted">每个系列选择柱或线；类别位置共用。双轴时分别标定左右 Y 轴，切换当前系列后取点。原有拖动、微调、撤销和核对流程均适用。</p></section><label id="xTypeLabel">X 轴类型<select id="xType"><option value="quantitative">连续数值</option><option value="ordinal">离散类别</option></select></label><p id="areaModeNote" class="muted" hidden>两种 X 轴模式各自保留标注记录，切回即可继续。</p><label class="check"><input type="checkbox" id="legend"> 原图中存在可读图例</label>
@@ -234,6 +234,494 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
      * MIT license
      */function T(e,t){void 0===t&&(t=!1);var n=N.get(e.object);C(n.value,e.object,e.patches,"",t),e.patches.length&&A(n.value,e.patches);var r=e.patches;return r.length>0&&(e.patches=[],e.callback&&e.callback(r)),r}function C(e,t,n,r,i){if(t!==e){"function"==typeof t.toJSON&&(t=t.toJSON());for(var o=c(t),a=c(e),s=!1,d=a.length-1;d>=0;d--){var h=e[g=a[d]];if(!l(t,g)||void 0===t[g]&&void 0!==h&&!1===Array.isArray(t))Array.isArray(e)===Array.isArray(t)?(i&&n.push({op:"test",path:r+"/"+p(g),value:f(h)}),n.push({op:"remove",path:r+"/"+p(g)}),s=!0):(i&&n.push({op:"test",path:r,value:e}),n.push({op:"replace",path:r,value:t}));else{var u=t[g];"object"==typeof h&&null!=h&&"object"==typeof u&&null!=u&&Array.isArray(h)===Array.isArray(u)?C(h,u,n,r+"/"+p(g),i):h!==u&&(i&&n.push({op:"test",path:r+"/"+p(g),value:f(h)}),n.push({op:"replace",path:r+"/"+p(g),value:f(u)}))}}if(s||o.length!=a.length)for(d=0;d<o.length;d++){var g;l(e,g=o[d])||void 0===t[g]||n.push({op:"add",path:r+"/"+p(g),value:f(t[g])})}}}var F=Object.freeze({__proto__:null,compare:function(e,t,n){void 0===n&&(n=!1);var r=[];return C(e,t,r,"",n),r},generate:T,observe:function(e,t){var n,r=function(e){return N.get(e)}(e);if(r){var i=function(e,t){return e.observers.get(t)}(r,t);n=i&&i.observer}else r=new R(e),N.set(e,r);if(n)return n;if(n={},r.value=f(e),t){n.callback=t,n.next=null;var o=function(){T(n)},a=function(){clearTimeout(n.next),n.next=setTimeout(o)};"undefined"!=typeof window&&(window.addEventListener("mouseup",a),window.addEventListener("keyup",a),window.addEventListener("mousedown",a),window.addEventListener("keydown",a),window.addEventListener("change",a))}return n.patches=[],n.object=e,n.unobserve=function(){T(n),clearTimeout(n.next),function(e,t){e.observers.delete(t.callback)}(r,n),"undefined"!=typeof window&&(window.removeEventListener("mouseup",a),window.removeEventListener("keyup",a),window.removeEventListener("mousedown",a),window.removeEventListener("keydown",a),window.removeEventListener("change",a))},r.observers.set(t,new S(t,n)),n},unobserve:function(e,t){t.unobserve()}});Object.assign({},$,F,{JsonPatchError:m,deepClone:f,escapePathComponent:p,unescapePathComponent:h});const D=/("(?:[^\\"]|\\.)*")|[:,]/g;function k(e,t={}){const n=JSON.stringify([1],void 0,void 0===t.indent?2:t.indent).slice(2,-3),r=""===n?1/0:void 0===t.maxLength?80:t.maxLength;let{replacer:i}=t;return function e(t,o,a){t&&"function"==typeof t.toJSON&&(t=t.toJSON());const s=JSON.stringify(t,i);if(void 0===s)return s;const l=r-o.length-a;if(s.length<=l){const e=s.replace(D,((e,t)=>t||`${e} `));if(e.length<=l)return e}if(null!=i&&(t=JSON.parse(s),i=void 0),"object"==typeof t&&null!==t){const r=o+n,i=[];let a,s,l=0;if(Array.isArray(t)){a="[",s="]";const{length:n}=t;for(;l<n;l++)i.push(e(t[l],r,l===n-1?0:1)||"null")}else{a="{",s="}";const n=Object.keys(t),{length:o}=n;for(;l<o;l++){const a=n[l],s=`${JSON.stringify(a)}: `,c=e(t[a],r,s.length+(l===o-1?0:1));void 0!==c&&i.push(s+c)}}if(i.length>0)return[a,n+i.join(`,\n${r}`),s].join(`\n${o}`)}return s}(e,"",0)}function P(e){return e&&e.__esModule&&Object.prototype.hasOwnProperty.call(e,"default")?e.default:e}var _,M,z,j;function U(){if(j)return z;j=1;const e=Object.freeze({loose:!0}),t=Object.freeze({});return z=n=>n?"object"!=typeof n?e:n:t}var G,B,W,X,V,H,Y,J,q,Q,Z,K,ee,te,ne,re,ie,oe,ae,se,le,ce,fe,de,pe,he,ue,ge,me,Ee,ve,be={exports:{}};function ye(){if(B)return G;B=1;const e=Number.MAX_SAFE_INTEGER||9007199254740991;return G={MAX_LENGTH:256,MAX_SAFE_COMPONENT_LENGTH:16,MAX_SAFE_BUILD_LENGTH:250,MAX_SAFE_INTEGER:e,RELEASE_TYPES:["major","premajor","minor","preminor","patch","prepatch","prerelease"],SEMVER_SPEC_VERSION:"2.0.0",FLAG_INCLUDE_PRERELEASE:1,FLAG_LOOSE:2}}function we(){if(X)return W;X=1;const e="object"==typeof process&&process.env&&process.env.NODE_DEBUG&&/\bsemver\b/i.test(process.env.NODE_DEBUG)?(...e)=>console.error("SEMVER",...e):()=>{};return W=e}function Oe(){return V||(V=1,function(e,t){const{MAX_SAFE_COMPONENT_LENGTH:n,MAX_SAFE_BUILD_LENGTH:r,MAX_LENGTH:i}=ye(),o=we(),a=(t=e.exports={}).re=[],s=t.safeRe=[],l=t.src=[],c=t.safeSrc=[],f=t.t={};let d=0;const p="[a-zA-Z0-9-]",h=[["\\s",1],["\\d",i],[p,r]],u=(e,t,n)=>{const r=(e=>{for(const[t,n]of h)e=e.split(`${t}*`).join(`${t}{0,${n}}`).split(`${t}+`).join(`${t}{1,${n}}`);return e})(t),i=d++;o(e,i,t),f[e]=i,l[i]=t,c[i]=r,a[i]=new RegExp(t,n?"g":void 0),s[i]=new RegExp(r,n?"g":void 0)};u("NUMERICIDENTIFIER","0|[1-9]\\d*"),u("NUMERICIDENTIFIERLOOSE","\\d+"),u("NONNUMERICIDENTIFIER",`\\d*[a-zA-Z-]${p}*`),u("MAINVERSION",`(${l[f.NUMERICIDENTIFIER]})\\.(${l[f.NUMERICIDENTIFIER]})\\.(${l[f.NUMERICIDENTIFIER]})`),u("MAINVERSIONLOOSE",`(${l[f.NUMERICIDENTIFIERLOOSE]})\\.(${l[f.NUMERICIDENTIFIERLOOSE]})\\.(${l[f.NUMERICIDENTIFIERLOOSE]})`),u("PRERELEASEIDENTIFIER",`(?:${l[f.NUMERICIDENTIFIER]}|${l[f.NONNUMERICIDENTIFIER]})`),u("PRERELEASEIDENTIFIERLOOSE",`(?:${l[f.NUMERICIDENTIFIERLOOSE]}|${l[f.NONNUMERICIDENTIFIER]})`),u("PRERELEASE",`(?:-(${l[f.PRERELEASEIDENTIFIER]}(?:\\.${l[f.PRERELEASEIDENTIFIER]})*))`),u("PRERELEASELOOSE",`(?:-?(${l[f.PRERELEASEIDENTIFIERLOOSE]}(?:\\.${l[f.PRERELEASEIDENTIFIERLOOSE]})*))`),u("BUILDIDENTIFIER",`${p}+`),u("BUILD",`(?:\\+(${l[f.BUILDIDENTIFIER]}(?:\\.${l[f.BUILDIDENTIFIER]})*))`),u("FULLPLAIN",`v?${l[f.MAINVERSION]}${l[f.PRERELEASE]}?${l[f.BUILD]}?`),u("FULL",`^${l[f.FULLPLAIN]}$`),u("LOOSEPLAIN",`[v=\\s]*${l[f.MAINVERSIONLOOSE]}${l[f.PRERELEASELOOSE]}?${l[f.BUILD]}?`),u("LOOSE",`^${l[f.LOOSEPLAIN]}$`),u("GTLT","((?:<|>)?=?)"),u("XRANGEIDENTIFIERLOOSE",`${l[f.NUMERICIDENTIFIERLOOSE]}|x|X|\\*`),u("XRANGEIDENTIFIER",`${l[f.NUMERICIDENTIFIER]}|x|X|\\*`),u("XRANGEPLAIN",`[v=\\s]*(${l[f.XRANGEIDENTIFIER]})(?:\\.(${l[f.XRANGEIDENTIFIER]})(?:\\.(${l[f.XRANGEIDENTIFIER]})(?:${l[f.PRERELEASE]})?${l[f.BUILD]}?)?)?`),u("XRANGEPLAINLOOSE",`[v=\\s]*(${l[f.XRANGEIDENTIFIERLOOSE]})(?:\\.(${l[f.XRANGEIDENTIFIERLOOSE]})(?:\\.(${l[f.XRANGEIDENTIFIERLOOSE]})(?:${l[f.PRERELEASELOOSE]})?${l[f.BUILD]}?)?)?`),u("XRANGE",`^${l[f.GTLT]}\\s*${l[f.XRANGEPLAIN]}$`),u("XRANGELOOSE",`^${l[f.GTLT]}\\s*${l[f.XRANGEPLAINLOOSE]}$`),u("COERCEPLAIN",`(^|[^\\d])(\\d{1,${n}})(?:\\.(\\d{1,${n}}))?(?:\\.(\\d{1,${n}}))?`),u("COERCE",`${l[f.COERCEPLAIN]}(?:$|[^\\d])`),u("COERCEFULL",l[f.COERCEPLAIN]+`(?:${l[f.PRERELEASE]})?`+`(?:${l[f.BUILD]})?(?:$|[^\\d])`),u("COERCERTL",l[f.COERCE],!0),u("COERCERTLFULL",l[f.COERCEFULL],!0),u("LONETILDE","(?:~>?)"),u("TILDETRIM",`(\\s*)${l[f.LONETILDE]}\\s+`,!0),t.tildeTrimReplace="$1~",u("TILDE",`^${l[f.LONETILDE]}${l[f.XRANGEPLAIN]}$`),u("TILDELOOSE",`^${l[f.LONETILDE]}${l[f.XRANGEPLAINLOOSE]}$`),u("LONECARET","(?:\\^)"),u("CARETTRIM",`(\\s*)${l[f.LONECARET]}\\s+`,!0),t.caretTrimReplace="$1^",u("CARET",`^${l[f.LONECARET]}${l[f.XRANGEPLAIN]}$`),u("CARETLOOSE",`^${l[f.LONECARET]}${l[f.XRANGEPLAINLOOSE]}$`),u("COMPARATORLOOSE",`^${l[f.GTLT]}\\s*(${l[f.LOOSEPLAIN]})$|^$`),u("COMPARATOR",`^${l[f.GTLT]}\\s*(${l[f.FULLPLAIN]})$|^$`),u("COMPARATORTRIM",`(\\s*)${l[f.GTLT]}\\s*(${l[f.LOOSEPLAIN]}|${l[f.XRANGEPLAIN]})`,!0),t.comparatorTrimReplace="$1$2$3",u("HYPHENRANGE",`^\\s*(${l[f.XRANGEPLAIN]})\\s+-\\s+(${l[f.XRANGEPLAIN]})\\s*$`),u("HYPHENRANGELOOSE",`^\\s*(${l[f.XRANGEPLAINLOOSE]})\\s+-\\s+(${l[f.XRANGEPLAINLOOSE]})\\s*$`),u("STAR","(<|>)?=?\\s*\\*"),u("GTE0","^\\s*>=\\s*0\\.0\\.0\\s*$"),u("GTE0PRE","^\\s*>=\\s*0\\.0\\.0-0\\s*$")}(be,be.exports)),be.exports}function Ae(){if(q)return J;q=1;const e=we(),{MAX_LENGTH:t,MAX_SAFE_INTEGER:n}=ye(),{safeRe:r,safeSrc:i,t:o}=Oe(),a=U(),{compareIdentifiers:s}=function(){if(Y)return H;Y=1;const e=/^[0-9]+$/,t=(t,n)=>{const r=e.test(t),i=e.test(n);return r&&i&&(t=+t,n=+n),t===n?0:r&&!i?-1:i&&!r?1:t<n?-1:1};return H={compareIdentifiers:t,rcompareIdentifiers:(e,n)=>t(n,e)}}();class l{constructor(i,s){if(s=a(s),i instanceof l){if(i.loose===!!s.loose&&i.includePrerelease===!!s.includePrerelease)return i;i=i.version}else if("string"!=typeof i)throw new TypeError(`Invalid version. Must be a string. Got type "${typeof i}".`);if(i.length>t)throw new TypeError(`version is longer than ${t} characters`);e("SemVer",i,s),this.options=s,this.loose=!!s.loose,this.includePrerelease=!!s.includePrerelease;const c=i.trim().match(s.loose?r[o.LOOSE]:r[o.FULL]);if(!c)throw new TypeError(`Invalid Version: ${i}`);if(this.raw=i,this.major=+c[1],this.minor=+c[2],this.patch=+c[3],this.major>n||this.major<0)throw new TypeError("Invalid major version");if(this.minor>n||this.minor<0)throw new TypeError("Invalid minor version");if(this.patch>n||this.patch<0)throw new TypeError("Invalid patch version");c[4]?this.prerelease=c[4].split(".").map((e=>{if(/^[0-9]+$/.test(e)){const t=+e;if(t>=0&&t<n)return t}return e})):this.prerelease=[],this.build=c[5]?c[5].split("."):[],this.format()}format(){return this.version=`${this.major}.${this.minor}.${this.patch}`,this.prerelease.length&&(this.version+=`-${this.prerelease.join(".")}`),this.version}toString(){return this.version}compare(t){if(e("SemVer.compare",this.version,this.options,t),!(t instanceof l)){if("string"==typeof t&&t===this.version)return 0;t=new l(t,this.options)}return t.version===this.version?0:this.compareMain(t)||this.comparePre(t)}compareMain(e){return e instanceof l||(e=new l(e,this.options)),s(this.major,e.major)||s(this.minor,e.minor)||s(this.patch,e.patch)}comparePre(t){if(t instanceof l||(t=new l(t,this.options)),this.prerelease.length&&!t.prerelease.length)return-1;if(!this.prerelease.length&&t.prerelease.length)return 1;if(!this.prerelease.length&&!t.prerelease.length)return 0;let n=0;do{const r=this.prerelease[n],i=t.prerelease[n];if(e("prerelease compare",n,r,i),void 0===r&&void 0===i)return 0;if(void 0===i)return 1;if(void 0===r)return-1;if(r!==i)return s(r,i)}while(++n)}compareBuild(t){t instanceof l||(t=new l(t,this.options));let n=0;do{const r=this.build[n],i=t.build[n];if(e("build compare",n,r,i),void 0===r&&void 0===i)return 0;if(void 0===i)return 1;if(void 0===r)return-1;if(r!==i)return s(r,i)}while(++n)}inc(e,t,n){if(e.startsWith("pre")){if(!t&&!1===n)throw new Error("invalid increment argument: identifier is empty");if(t){const e=new RegExp(`^${this.options.loose?i[o.PRERELEASELOOSE]:i[o.PRERELEASE]}$`),n=`-${t}`.match(e);if(!n||n[1]!==t)throw new Error(`invalid identifier: ${t}`)}}switch(e){case"premajor":this.prerelease.length=0,this.patch=0,this.minor=0,this.major++,this.inc("pre",t,n);break;case"preminor":this.prerelease.length=0,this.patch=0,this.minor++,this.inc("pre",t,n);break;case"prepatch":this.prerelease.length=0,this.inc("patch",t,n),this.inc("pre",t,n);break;case"prerelease":0===this.prerelease.length&&this.inc("patch",t,n),this.inc("pre",t,n);break;case"release":if(0===this.prerelease.length)throw new Error(`version ${this.raw} is not a prerelease`);this.prerelease.length=0;break;case"major":0===this.minor&&0===this.patch&&0!==this.prerelease.length||this.major++,this.minor=0,this.patch=0,this.prerelease=[];break;case"minor":0===this.patch&&0!==this.prerelease.length||this.minor++,this.patch=0,this.prerelease=[];break;case"patch":0===this.prerelease.length&&this.patch++,this.prerelease=[];break;case"pre":{const e=Number(n)?1:0;if(0===this.prerelease.length)this.prerelease=[e];else{let r=this.prerelease.length;for(;--r>=0;)"number"==typeof this.prerelease[r]&&(this.prerelease[r]++,r=-2);if(-1===r){if(t===this.prerelease.join(".")&&!1===n)throw new Error("invalid increment argument: identifier already exists");this.prerelease.push(e)}}if(t){let r=[t,e];!1===n&&(r=[t]),0===s(this.prerelease[0],t)?isNaN(this.prerelease[1])&&(this.prerelease=r):this.prerelease=r}break}default:throw new Error(`invalid increment argument: ${e}`)}return this.raw=this.format(),this.build.length&&(this.raw+=`+${this.build.join(".")}`),this}}return J=l}function Ie(){if(Z)return Q;Z=1;const e=Ae();return Q=(t,n,r)=>new e(t,r).compare(new e(n,r))}function Le(){if(pe)return de;pe=1;const e=function(){if(ee)return K;ee=1;const e=Ie();return K=(t,n,r)=>0===e(t,n,r)}(),t=function(){if(ne)return te;ne=1;const e=Ie();return te=(t,n,r)=>0!==e(t,n,r)}(),n=function(){if(ie)return re;ie=1;const e=Ie();return re=(t,n,r)=>e(t,n,r)>0}(),r=function(){if(ae)return oe;ae=1;const e=Ie();return oe=(t,n,r)=>e(t,n,r)>=0}(),i=function(){if(le)return se;le=1;const e=Ie();return se=(t,n,r)=>e(t,n,r)<0}(),o=function(){if(fe)return ce;fe=1;const e=Ie();return ce=(t,n,r)=>e(t,n,r)<=0}();return de=(a,s,l,c)=>{switch(s){case"===":return"object"==typeof a&&(a=a.version),"object"==typeof l&&(l=l.version),a===l;case"!==":return"object"==typeof a&&(a=a.version),"object"==typeof l&&(l=l.version),a!==l;case"":case"=":case"==":return e(a,l,c);case"!=":return t(a,l,c);case">":return n(a,l,c);case">=":return r(a,l,c);case"<":return i(a,l,c);case"<=":return o(a,l,c);default:throw new TypeError(`Invalid operator: ${s}`)}}}function xe(){if(me)return ge;me=1;const e=/\s+/g;class t{constructor(n,o){if(o=r(o),n instanceof t)return n.loose===!!o.loose&&n.includePrerelease===!!o.includePrerelease?n:new t(n.raw,o);if(n instanceof i)return this.raw=n.value,this.set=[[n]],this.formatted=void 0,this;if(this.options=o,this.loose=!!o.loose,this.includePrerelease=!!o.includePrerelease,this.raw=n.trim().replace(e," "),this.set=this.raw.split("||").map((e=>this.parseRange(e.trim()))).filter((e=>e.length)),!this.set.length)throw new TypeError(`Invalid SemVer Range: ${this.raw}`);if(this.set.length>1){const e=this.set[0];if(this.set=this.set.filter((e=>!u(e[0]))),0===this.set.length)this.set=[e];else if(this.set.length>1)for(const e of this.set)if(1===e.length&&g(e[0])){this.set=[e];break}}this.formatted=void 0}get range(){if(void 0===this.formatted){this.formatted="";for(let e=0;e<this.set.length;e++){e>0&&(this.formatted+="||");const t=this.set[e];for(let e=0;e<t.length;e++)e>0&&(this.formatted+=" "),this.formatted+=t[e].toString().trim()}}return this.formatted}format(){return this.range}toString(){return this.range}parseRange(e){const t=((this.options.includePrerelease&&p)|(this.options.loose&&h))+":"+e,r=n.get(t);if(r)return r;const a=this.options.loose,g=a?s[l.HYPHENRANGELOOSE]:s[l.HYPHENRANGE];e=e.replace(g,$(this.options.includePrerelease)),o("hyphen replace",e),e=e.replace(s[l.COMPARATORTRIM],c),o("comparator trim",e),e=e.replace(s[l.TILDETRIM],f),o("tilde trim",e),e=e.replace(s[l.CARETTRIM],d),o("caret trim",e);let m=e.split(" ").map((e=>E(e,this.options))).join(" ").split(/\s+/).map((e=>x(e,this.options)));a&&(m=m.filter((e=>(o("loose invalid filter",e,this.options),!!e.match(s[l.COMPARATORLOOSE]))))),o("range list",m);const v=new Map,b=m.map((e=>new i(e,this.options)));for(const e of b){if(u(e))return[e];v.set(e.value,e)}v.size>1&&v.has("")&&v.delete("");const y=[...v.values()];return n.set(t,y),y}intersects(e,n){if(!(e instanceof t))throw new TypeError("a Range is required");return this.set.some((t=>m(t,n)&&e.set.some((e=>m(e,n)&&t.every((t=>e.every((e=>t.intersects(e,n)))))))))}test(e){if(!e)return!1;if("string"==typeof e)try{e=new a(e,this.options)}catch(e){return!1}for(let t=0;t<this.set.length;t++)if(N(this.set[t],e,this.options))return!0;return!1}}ge=t;const n=new(M?_:(M=1,_=class{constructor(){this.max=1e3,this.map=new Map}get(e){const t=this.map.get(e);return void 0===t?void 0:(this.map.delete(e),this.map.set(e,t),t)}delete(e){return this.map.delete(e)}set(e,t){if(!this.delete(e)&&void 0!==t){if(this.map.size>=this.max){const e=this.map.keys().next().value;this.delete(e)}this.map.set(e,t)}return this}})),r=U(),i=function(){if(ue)return he;ue=1;const e=Symbol("SemVer ANY");class t{static get ANY(){return e}constructor(r,i){if(i=n(i),r instanceof t){if(r.loose===!!i.loose)return r;r=r.value}r=r.trim().split(/\s+/).join(" "),a("comparator",r,i),this.options=i,this.loose=!!i.loose,this.parse(r),this.semver===e?this.value="":this.value=this.operator+this.semver.version,a("comp",this)}parse(t){const n=this.options.loose?r[i.COMPARATORLOOSE]:r[i.COMPARATOR],o=t.match(n);if(!o)throw new TypeError(`Invalid comparator: ${t}`);this.operator=void 0!==o[1]?o[1]:"","="===this.operator&&(this.operator=""),o[2]?this.semver=new s(o[2],this.options.loose):this.semver=e}toString(){return this.value}test(t){if(a("Comparator.test",t,this.options.loose),this.semver===e||t===e)return!0;if("string"==typeof t)try{t=new s(t,this.options)}catch(e){return!1}return o(t,this.operator,this.semver,this.options)}intersects(e,r){if(!(e instanceof t))throw new TypeError("a Comparator is required");return""===this.operator?""===this.value||new l(e.value,r).test(this.value):""===e.operator?""===e.value||new l(this.value,r).test(e.semver):!((r=n(r)).includePrerelease&&("<0.0.0-0"===this.value||"<0.0.0-0"===e.value)||!r.includePrerelease&&(this.value.startsWith("<0.0.0")||e.value.startsWith("<0.0.0"))||(!this.operator.startsWith(">")||!e.operator.startsWith(">"))&&(!this.operator.startsWith("<")||!e.operator.startsWith("<"))&&(this.semver.version!==e.semver.version||!this.operator.includes("=")||!e.operator.includes("="))&&!(o(this.semver,"<",e.semver,r)&&this.operator.startsWith(">")&&e.operator.startsWith("<"))&&!(o(this.semver,">",e.semver,r)&&this.operator.startsWith("<")&&e.operator.startsWith(">")))}}he=t;const n=U(),{safeRe:r,t:i}=Oe(),o=Le(),a=we(),s=Ae(),l=xe();return he}(),o=we(),a=Ae(),{safeRe:s,t:l,comparatorTrimReplace:c,tildeTrimReplace:f,caretTrimReplace:d}=Oe(),{FLAG_INCLUDE_PRERELEASE:p,FLAG_LOOSE:h}=ye(),u=e=>"<0.0.0-0"===e.value,g=e=>""===e.value,m=(e,t)=>{let n=!0;const r=e.slice();let i=r.pop();for(;n&&r.length;)n=r.every((e=>i.intersects(e,t))),i=r.pop();return n},E=(e,t)=>(o("comp",e,t),e=w(e,t),o("caret",e),e=b(e,t),o("tildes",e),e=A(e,t),o("xrange",e),e=L(e,t),o("stars",e),e),v=e=>!e||"x"===e.toLowerCase()||"*"===e,b=(e,t)=>e.trim().split(/\s+/).map((e=>y(e,t))).join(" "),y=(e,t)=>{const n=t.loose?s[l.TILDELOOSE]:s[l.TILDE];return e.replace(n,((t,n,r,i,a)=>{let s;return o("tilde",e,t,n,r,i,a),v(n)?s="":v(r)?s=`>=${n}.0.0 <${+n+1}.0.0-0`:v(i)?s=`>=${n}.${r}.0 <${n}.${+r+1}.0-0`:a?(o("replaceTilde pr",a),s=`>=${n}.${r}.${i}-${a} <${n}.${+r+1}.0-0`):s=`>=${n}.${r}.${i} <${n}.${+r+1}.0-0`,o("tilde return",s),s}))},w=(e,t)=>e.trim().split(/\s+/).map((e=>O(e,t))).join(" "),O=(e,t)=>{o("caret",e,t);const n=t.loose?s[l.CARETLOOSE]:s[l.CARET],r=t.includePrerelease?"-0":"";return e.replace(n,((t,n,i,a,s)=>{let l;return o("caret",e,t,n,i,a,s),v(n)?l="":v(i)?l=`>=${n}.0.0${r} <${+n+1}.0.0-0`:v(a)?l="0"===n?`>=${n}.${i}.0${r} <${n}.${+i+1}.0-0`:`>=${n}.${i}.0${r} <${+n+1}.0.0-0`:s?(o("replaceCaret pr",s),l="0"===n?"0"===i?`>=${n}.${i}.${a}-${s} <${n}.${i}.${+a+1}-0`:`>=${n}.${i}.${a}-${s} <${n}.${+i+1}.0-0`:`>=${n}.${i}.${a}-${s} <${+n+1}.0.0-0`):(o("no pr"),l="0"===n?"0"===i?`>=${n}.${i}.${a}${r} <${n}.${i}.${+a+1}-0`:`>=${n}.${i}.${a}${r} <${n}.${+i+1}.0-0`:`>=${n}.${i}.${a} <${+n+1}.0.0-0`),o("caret return",l),l}))},A=(e,t)=>(o("replaceXRanges",e,t),e.split(/\s+/).map((e=>I(e,t))).join(" ")),I=(e,t)=>{e=e.trim();const n=t.loose?s[l.XRANGELOOSE]:s[l.XRANGE];return e.replace(n,((n,r,i,a,s,l)=>{o("xRange",e,n,r,i,a,s,l);const c=v(i),f=c||v(a),d=f||v(s),p=d;return"="===r&&p&&(r=""),l=t.includePrerelease?"-0":"",c?n=">"===r||"<"===r?"<0.0.0-0":"*":r&&p?(f&&(a=0),s=0,">"===r?(r=">=",f?(i=+i+1,a=0,s=0):(a=+a+1,s=0)):"<="===r&&(r="<",f?i=+i+1:a=+a+1),"<"===r&&(l="-0"),n=`${r+i}.${a}.${s}${l}`):f?n=`>=${i}.0.0${l} <${+i+1}.0.0-0`:d&&(n=`>=${i}.${a}.0${l} <${i}.${+a+1}.0-0`),o("xRange return",n),n}))},L=(e,t)=>(o("replaceStars",e,t),e.trim().replace(s[l.STAR],"")),x=(e,t)=>(o("replaceGTE0",e,t),e.trim().replace(s[t.includePrerelease?l.GTE0PRE:l.GTE0],"")),$=e=>(t,n,r,i,o,a,s,l,c,f,d,p)=>`${n=v(r)?"":v(i)?`>=${r}.0.0${e?"-0":""}`:v(o)?`>=${r}.${i}.0${e?"-0":""}`:a?`>=${n}`:`>=${n}${e?"-0":""}`} ${l=v(c)?"":v(f)?`<${+c+1}.0.0-0`:v(d)?`<${c}.${+f+1}.0-0`:p?`<=${c}.${f}.${d}-${p}`:e?`<${c}.${f}.${+d+1}-0`:`<=${l}`}`.trim(),N=(e,t,n)=>{for(let n=0;n<e.length;n++)if(!e[n].test(t))return!1;if(t.prerelease.length&&!n.includePrerelease){for(let n=0;n<e.length;n++)if(o(e[n].semver),e[n].semver!==i.ANY&&e[n].semver.prerelease.length>0){const r=e[n].semver;if(r.major===t.major&&r.minor===t.minor&&r.patch===t.patch)return!0}return!1}return!0};return ge}var $e=function(){if(ve)return Ee;ve=1;const e=xe();return Ee=(t,n,r)=>{try{n=new e(n,r)}catch(e){return!1}return n.test(t)},Ee}(),Ne=P($e);function Re(e,t,n){return e.fields=t||[],e.fname=n,e}const Se=e=>function(t){return t[e]},Te=e=>{const t=e.length;return function(n){for(let r=0;r<t;++r)n=n[e[r]];return n}};function Ce(e){throw Error(e)}!function(e){const t=function(e){const t=[],n=e.length;let r,i,o,a=null,s=0,l="";function c(){t.push(l+e.substring(r,i)),l="",r=i+1}for(e+="",r=i=0;i<n;++i)if(o=e[i],"\\"===o)l+=e.substring(r,i++),r=i;else if(o===a)c(),a=null,s=-1;else{if(a)continue;r===s&&'"'===o||r===s&&"'"===o?(r=i+1,a=o):"."!==o||s?"["===o?(i>r&&c(),s=r=i+1):"]"===o&&(s||Ce("Access path missing open bracket: "+e),s>0&&c(),s=0,r=i+1):i>r?c():r=i+1}return s&&Ce("Access path missing closing bracket: "+e),a&&Ce("Access path missing closing quote: "+e),i>r&&(i++,c()),t}(e);e=1===t.length?t[0]:e,Re(function(e){return 1===e.length?Se(e[0]):Te(e)}(t),[e],e)}("id"),Re((e=>e),[],"identity"),Re((()=>0),[],"zero"),Re((()=>1),[],"one"),Re((()=>!0),[],"true"),Re((()=>!1),[],"false");var Fe=Array.isArray;function De(e){return e===Object(e)}const ke=(e,t)=>(e<t||null==e)&&null!=t?-1:(e>t||null==t)&&null!=e?1:(t=t instanceof Date?+t:t,(e=e instanceof Date?+e:e)!==e&&t==t?-1:t!=t&&e==e?1:0);function Pe(e){return"string"==typeof e}var _e={NaN:NaN,E:Math.E,LN2:Math.LN2,LN10:Math.LN10,LOG2E:Math.LOG2E,LOG10E:Math.LOG10E,PI:Math.PI,SQRT1_2:Math.SQRT1_2,SQRT2:Math.SQRT2,MIN_VALUE:Number.MIN_VALUE,MAX_VALUE:Number.MAX_VALUE},Me={"*":(e,t)=>e*t,"+":(e,t)=>e+t,"-":(e,t)=>e-t,"/":(e,t)=>e/t,"%":(e,t)=>e%t,">":(e,t)=>e>t,"<":(e,t)=>e<t,"<=":(e,t)=>e<=t,">=":(e,t)=>e>=t,"==":(e,t)=>e==t,"!=":(e,t)=>e!=t,"===":(e,t)=>e===t,"!==":(e,t)=>e!==t,"&":(e,t)=>e&t,"|":(e,t)=>e|t,"^":(e,t)=>e^t,"<<":(e,t)=>e<<t,">>":(e,t)=>e>>t,">>>":(e,t)=>e>>>t},ze={"+":e=>+e,"-":e=>-e,"~":e=>~e,"!":e=>!e};const je=Array.prototype.slice,Ue=(e,t,n)=>{const r=n?n(t[0]):t[0];return r[e].apply(r,je.call(t,1))};var Ge={isNaN:Number.isNaN,isFinite:Number.isFinite,abs:Math.abs,acos:Math.acos,asin:Math.asin,atan:Math.atan,atan2:Math.atan2,ceil:Math.ceil,cos:Math.cos,exp:Math.exp,floor:Math.floor,log:Math.log,max:Math.max,min:Math.min,pow:Math.pow,random:Math.random,round:Math.round,sin:Math.sin,sqrt:Math.sqrt,tan:Math.tan,clamp:(e,t,n)=>Math.max(t,Math.min(n,e)),now:Date.now,utc:Date.UTC,datetime:function(e){let t=arguments.length>1&&void 0!==arguments[1]?arguments[1]:0,n=arguments.length>2&&void 0!==arguments[2]?arguments[2]:1,r=arguments.length>3&&void 0!==arguments[3]?arguments[3]:0,i=arguments.length>4&&void 0!==arguments[4]?arguments[4]:0,o=arguments.length>5&&void 0!==arguments[5]?arguments[5]:0,a=arguments.length>6&&void 0!==arguments[6]?arguments[6]:0;return Pe(e)?new Date(e):new Date(e,t,n,r,i,o,a)},date:e=>new Date(e).getDate(),day:e=>new Date(e).getDay(),year:e=>new Date(e).getFullYear(),month:e=>new Date(e).getMonth(),hours:e=>new Date(e).getHours(),minutes:e=>new Date(e).getMinutes(),seconds:e=>new Date(e).getSeconds(),milliseconds:e=>new Date(e).getMilliseconds(),time:e=>new Date(e).getTime(),timezoneoffset:e=>new Date(e).getTimezoneOffset(),utcdate:e=>new Date(e).getUTCDate(),utcday:e=>new Date(e).getUTCDay(),utcyear:e=>new Date(e).getUTCFullYear(),utcmonth:e=>new Date(e).getUTCMonth(),utchours:e=>new Date(e).getUTCHours(),utcminutes:e=>new Date(e).getUTCMinutes(),utcseconds:e=>new Date(e).getUTCSeconds(),utcmilliseconds:e=>new Date(e).getUTCMilliseconds(),length:e=>e.length,join:function(){return Ue("join",arguments)},indexof:function(){return Ue("indexOf",arguments)},lastindexof:function(){return Ue("lastIndexOf",arguments)},slice:function(){return Ue("slice",arguments)},reverse:e=>e.slice().reverse(),sort:e=>e.slice().sort(ke),parseFloat:parseFloat,parseInt:parseInt,upper:e=>String(e).toUpperCase(),lower:e=>String(e).toLowerCase(),substring:function(){return Ue("substring",arguments,String)},split:function(){return Ue("split",arguments,String)},replace:function(){return Ue("replace",arguments,String)},trim:e=>String(e).trim(),btoa:e=>btoa(e),atob:e=>atob(e),regexp:RegExp,test:(e,t)=>RegExp(e).test(t)};const Be=["view","item","group","xy","x","y"],We=new Set([Function,eval,setTimeout,setInterval]);"function"==typeof setImmediate&&We.add(setImmediate);const Xe={Literal:(e,t)=>t.value,Identifier:(e,t)=>{const n=t.name;return e.memberDepth>0?n:"datum"===n?e.datum:"event"===n?e.event:"item"===n?e.item:_e[n]||e.params["$"+n]},MemberExpression:(e,t)=>{const n=!t.computed,r=e(t.object);n&&(e.memberDepth+=1);const i=e(t.property);if(n&&(e.memberDepth-=1),!We.has(r[i]))return r[i];console.error(`Prevented interpretation of member "${i}" which could lead to insecure code execution`)},CallExpression:(e,t)=>{const n=t.arguments;let r=t.callee.name;return r.startsWith("_")&&(r=r.slice(1)),"if"===r?e(n[0])?e(n[1]):e(n[2]):(e.fn[r]||Ge[r]).apply(e.fn,n.map(e))},ArrayExpression:(e,t)=>t.elements.map(e),BinaryExpression:(e,t)=>Me[t.operator](e(t.left),e(t.right)),UnaryExpression:(e,t)=>ze[t.operator](e(t.argument)),ConditionalExpression:(e,t)=>e(t.test)?e(t.consequent):e(t.alternate),LogicalExpression:(e,t)=>"&&"===t.operator?e(t.left)&&e(t.right):e(t.left)||e(t.right),ObjectExpression:(e,t)=>t.properties.reduce(((t,n)=>{e.memberDepth+=1;const r=e(n.key);return e.memberDepth-=1,We.has(e(n.value))?console.error(`Prevented interpretation of property "${r}" which could lead to insecure code execution`):t[r]=e(n.value),t}),{})};function Ve(e,t,n,r,i,o){const a=e=>Xe[e.type](a,e);return a.memberDepth=0,a.fn=Object.create(t),a.params=n,a.datum=r,a.event=i,a.item=o,Be.forEach((e=>a.fn[e]=function(){return i.vega[e](...arguments)})),a(e)}var He={operator(e,t){const n=t.ast,r=e.functions;return e=>Ve(n,r,e)},parameter(e,t){const n=t.ast,r=e.functions;return(e,t)=>Ve(n,r,t,e)},event(e,t){const n=t.ast,r=e.functions;return e=>Ve(n,r,void 0,void 0,e)},handler(e,t){const n=t.ast,r=e.functions;return(e,t)=>{const i=t.item&&t.item.datum;return Ve(n,r,e,i,t)}},encode(e,t){const{marktype:n,channels:r}=t,i=e.functions,o="group"===n||"image"===n||"rect"===n;return(e,t)=>{const a=e.datum;let s,l=0;for(const n in r)s=Ve(r[n].ast,i,t,a,void 0,e),e[n]!==s&&(e[n]=s,l=1);return"rule"!==n&&function(e,t,n){let r;t.x2&&(t.x?(n&&e.x>e.x2&&(r=e.x,e.x=e.x2,e.x2=r),e.width=e.x2-e.x):e.x=e.x2-(e.width||0)),t.xc&&(e.x=e.xc-(e.width||0)/2),t.y2&&(t.y?(n&&e.y>e.y2&&(r=e.y,e.y=e.y2,e.y2=r),e.height=e.y2-e.y):e.y=e.y2-(e.height||0)),t.yc&&(e.y=e.yc-(e.height||0)/2)}(e,r,o),l}}};function Ye(e){const[t,n]=/schema\/([\w-]+)\/([\w\.\-]+)\.json$/g.exec(e).slice(1,3);return{library:t,version:n}}var Je="3.0.0";const qe="#fff",Qe="#888",Ze={background:"#333",view:{stroke:Qe},title:{color:qe,subtitleColor:qe},style:{"guide-label":{fill:qe},"guide-title":{fill:qe}},axis:{domainColor:qe,gridColor:Qe,tickColor:qe}},Ke="#4572a7",et={background:"#fff",arc:{fill:Ke},area:{fill:Ke},line:{stroke:Ke,strokeWidth:2},path:{stroke:Ke},rect:{fill:Ke},shape:{stroke:Ke},symbol:{fill:Ke,strokeWidth:1.5,size:50},axis:{bandPosition:.5,grid:!0,gridColor:"#000000",gridOpacity:1,gridWidth:.5,labelPadding:10,tickSize:5,tickWidth:.5},axisBand:{grid:!1,tickExtra:!0},legend:{labelBaseline:"middle",labelFontSize:11,symbolSize:50,symbolType:"square"},range:{category:["#4572a7","#aa4643","#8aa453","#71598e","#4598ae","#d98445","#94aace","#d09393","#b9cc98","#a99cbc"]}},tt="#30a2da",nt="#cbcbcb",rt="#f0f0f0",it="#333",ot={arc:{fill:tt},area:{fill:tt},axis:{domainColor:nt,grid:!0,gridColor:nt,gridWidth:1,labelColor:"#999",labelFontSize:10,titleColor:"#333",tickColor:nt,tickSize:10,titleFontSize:14,titlePadding:10,labelPadding:4},axisBand:{grid:!1},background:rt,group:{fill:rt},legend:{labelColor:it,labelFontSize:11,padding:1,symbolSize:30,symbolType:"square",titleColor:it,titleFontSize:14,titlePadding:10},line:{stroke:tt,strokeWidth:2},path:{stroke:tt,strokeWidth:.5},rect:{fill:tt},range:{category:["#30a2da","#fc4f30","#e5ae38","#6d904f","#8b8b8b","#b96db8","#ff9e27","#56cc60","#52d2ca","#52689e","#545454","#9fe4f8"],diverging:["#cc0020","#e77866","#f6e7e1","#d6e8ed","#91bfd9","#1d78b5"],heatmap:["#d6e8ed","#cee0e5","#91bfd9","#549cc6","#1d78b5"]},point:{filled:!0,shape:"circle"},shape:{stroke:tt},bar:{binSpacing:2,fill:tt,stroke:null},title:{anchor:"start",fontSize:24,fontWeight:600,offset:20}},at="#000",st={group:{fill:"#e5e5e5"},arc:{fill:at},area:{fill:at},line:{stroke:at},path:{stroke:at},rect:{fill:at},shape:{stroke:at},symbol:{fill:at,size:40},axis:{domain:!1,grid:!0,gridColor:"#FFFFFF",gridOpacity:1,labelColor:"#7F7F7F",labelPadding:4,tickColor:"#7F7F7F",tickSize:5.67,titleFontSize:16,titleFontWeight:"normal"},legend:{labelBaseline:"middle",labelFontSize:11,symbolSize:40},range:{category:["#000000","#7F7F7F","#1A1A1A","#999999","#333333","#B0B0B0","#4D4D4D","#C9C9C9","#666666","#DCDCDC"]}},lt="Benton Gothic, sans-serif",ct="#82c6df",ft="Benton Gothic Bold, sans-serif",dt="normal",pt={"category-6":["#ec8431","#829eb1","#c89d29","#3580b1","#adc839","#ab7fb4"],"fire-7":["#fbf2c7","#f9e39c","#f8d36e","#f4bb6a","#e68a4f","#d15a40","#ab4232"],"fireandice-6":["#e68a4f","#f4bb6a","#f9e39c","#dadfe2","#a6b7c6","#849eae"]},ht={background:"#ffffff",title:{anchor:"start",color:"#000000",font:ft,fontSize:22,fontWeight:"normal"},arc:{fill:ct},area:{fill:ct},line:{stroke:ct,strokeWidth:2},path:{stroke:ct},rect:{fill:ct},shape:{stroke:ct},symbol:{fill:ct,size:30},axis:{labelFont:lt,labelFontSize:11.5,labelFontWeight:"normal",titleFont:ft,titleFontSize:13,titleFontWeight:dt},axisX:{labelAngle:0,labelPadding:4,tickSize:3},axisY:{labelBaseline:"middle",maxExtent:45,minExtent:45,tickSize:2,titleAlign:"left",titleAngle:0,titleX:-45,titleY:-11},legend:{labelFont:lt,labelFontSize:11.5,symbolType:"square",titleFont:ft,titleFontSize:13,titleFontWeight:dt},range:{category:pt["category-6"],diverging:pt["fireandice-6"],heatmap:pt["fire-7"],ordinal:pt["fire-7"],ramp:pt["fire-7"]}},ut="#ab5787",gt="#979797",mt={background:"#f9f9f9",arc:{fill:ut},area:{fill:ut},line:{stroke:ut},path:{stroke:ut},rect:{fill:ut},shape:{stroke:ut},symbol:{fill:ut,size:30},axis:{domainColor:gt,domainWidth:.5,gridWidth:.2,labelColor:gt,tickColor:gt,tickWidth:.2,titleColor:gt},axisBand:{grid:!1},axisX:{grid:!0,tickSize:10},axisY:{domain:!1,grid:!0,tickSize:0},legend:{labelFontSize:11,padding:1,symbolSize:30,symbolType:"square"},range:{category:["#ab5787","#51b2e5","#703c5c","#168dd9","#d190b6","#00609f","#d365ba","#154866","#666666","#c4c4c4"]}},Et="#3e5c69",vt={background:"#fff",arc:{fill:Et},area:{fill:Et},line:{stroke:Et},path:{stroke:Et},rect:{fill:Et},shape:{stroke:Et},symbol:{fill:Et},axis:{domainWidth:.5,grid:!0,labelPadding:2,tickSize:5,tickWidth:.5,titleFontWeight:"normal"},axisBand:{grid:!1},axisX:{gridWidth:.2},axisY:{gridDash:[3],gridWidth:.4},legend:{labelFontSize:11,padding:1,symbolType:"square"},range:{category:["#3e5c69","#6793a6","#182429","#0570b0","#3690c0","#74a9cf","#a6bddb","#e2ddf2"]}},bt="#1696d2",yt="#000000",wt="Lato",Ot="Lato",At={"shades-blue":["#CFE8F3","#A2D4EC","#73BFE2","#46ABDB","#1696D2","#12719E","#0A4C6A","#062635"],"six-groups-cat-1":["#1696d2","#ec008b","#fdbf11","#000000","#d2d2d2","#55b748"],"six-groups-seq":["#cfe8f3","#a2d4ec","#73bfe2","#46abdb","#1696d2","#12719e"],"diverging-colors":["#ca5800","#fdbf11","#fdd870","#fff2cf","#cfe8f3","#73bfe2","#1696d2","#0a4c6a"]},It={background:"#FFFFFF",title:{anchor:"start",fontSize:18,font:wt},axisX:{domain:!0,domainColor:yt,domainWidth:1,grid:!1,labelFontSize:12,labelFont:Ot,labelAngle:0,tickColor:yt,tickSize:5,titleFontSize:12,titlePadding:10,titleFont:wt},axisY:{domain:!1,domainWidth:1,grid:!0,gridColor:"#DEDDDD",gridWidth:1,labelFontSize:12,labelFont:Ot,labelPadding:8,ticks:!1,titleFontSize:12,titlePadding:10,titleFont:wt,titleAngle:0,titleY:-10,titleX:18},legend:{labelFontSize:12,labelFont:Ot,symbolSize:100,titleFontSize:12,titlePadding:10,titleFont:wt,orient:"right",offset:10},view:{stroke:"transparent"},range:{category:At["six-groups-cat-1"],diverging:At["diverging-colors"],heatmap:At["diverging-colors"],ordinal:At["six-groups-seq"],ramp:At["shades-blue"]},area:{fill:bt},rect:{fill:bt},line:{color:bt,stroke:bt,strokeWidth:5},trail:{color:bt,stroke:bt,strokeWidth:0,size:1},path:{stroke:bt,strokeWidth:.5},point:{filled:!0},text:{font:"Lato",color:bt,fontSize:11,align:"center",fontWeight:400,size:11},style:{bar:{fill:bt,stroke:null}},arc:{fill:bt},shape:{stroke:bt},symbol:{fill:bt,size:30}},Lt="#3366CC",xt="#ccc",$t="Arial, sans-serif",Nt={arc:{fill:Lt},area:{fill:Lt},path:{stroke:Lt},rect:{fill:Lt},shape:{stroke:Lt},symbol:{stroke:Lt},circle:{fill:Lt},background:"#fff",padding:{top:10,right:10,bottom:10,left:10},style:{"guide-label":{font:$t,fontSize:12},"guide-title":{font:$t,fontSize:12},"group-title":{font:$t,fontSize:12}},title:{font:$t,fontSize:14,fontWeight:"bold",dy:-3,anchor:"start"},axis:{gridColor:xt,tickColor:xt,domain:!1,grid:!0},range:{category:["#4285F4","#DB4437","#F4B400","#0F9D58","#AB47BC","#00ACC1","#FF7043","#9E9D24","#5C6BC0","#F06292","#00796B","#C2185B"],heatmap:["#c6dafc","#5e97f6","#2a56c6"]}},Rt=e=>e*(1/3+1),St=Rt(9),Tt=Rt(10),Ct=Rt(12),Ft="Segoe UI",Dt="wf_standard-font, helvetica, arial, sans-serif",kt="#252423",Pt="#605E5C",_t="transparent",Mt="#118DFF",zt="#DEEFFF",jt=[zt,Mt],Ut={view:{stroke:_t},background:_t,font:Ft,header:{titleFont:Dt,titleFontSize:Ct,titleColor:kt,labelFont:Ft,labelFontSize:Tt,labelColor:Pt},axis:{ticks:!1,grid:!1,domain:!1,labelColor:Pt,labelFontSize:St,titleFont:Dt,titleColor:kt,titleFontSize:Ct,titleFontWeight:"normal"},axisQuantitative:{tickCount:3,grid:!0,gridColor:"#C8C6C4",gridDash:[1,5],labelFlush:!1},axisBand:{tickExtra:!0},axisX:{labelPadding:5},axisY:{labelPadding:10},bar:{fill:Mt},line:{stroke:Mt,strokeWidth:3,strokeCap:"round",strokeJoin:"round"},text:{font:Ft,fontSize:St,fill:Pt},arc:{fill:Mt},area:{fill:Mt,line:!0,opacity:.6},path:{stroke:Mt},rect:{fill:Mt},point:{fill:Mt,filled:!0,size:75},shape:{stroke:Mt},symbol:{fill:Mt,strokeWidth:1.5,size:50},legend:{titleFont:Ft,titleFontWeight:"bold",titleColor:Pt,labelFont:Ft,labelFontSize:Tt,labelColor:Pt,symbolType:"circle",symbolSize:75},range:{category:[Mt,"#12239E","#E66C37","#6B007B","#E044A7","#744EC2","#D9B300","#D64550"],diverging:jt,heatmap:jt,ordinal:[zt,"#c7e4ff","#b0d9ff","#9aceff","#83c3ff","#6cb9ff","#55aeff","#3fa3ff","#2898ff",Mt]}},Gt='IBM Plex Sans,system-ui,-apple-system,BlinkMacSystemFont,".sfnstext-regular",sans-serif',Bt={textPrimary:{g90:"#f4f4f4",g100:"#f4f4f4",white:"#161616",g10:"#161616"},textSecondary:{g90:"#c6c6c6",g100:"#c6c6c6",white:"#525252",g10:"#525252"},layerAccent01:{white:"#e0e0e0",g10:"#e0e0e0",g90:"#525252",g100:"#393939"},gridBg:{white:"#ffffff",g10:"#ffffff",g90:"#161616",g100:"#161616"}},Wt=["#8a3ffc","#33b1ff","#007d79","#ff7eb6","#fa4d56","#fff1f1","#6fdc8c","#4589ff","#d12771","#d2a106","#08bdba","#bae6ff","#ba4e00","#d4bbff"],Xt=["#6929c4","#1192e8","#005d5d","#9f1853","#fa4d56","#570408","#198038","#002d9c","#ee538b","#b28600","#009d9a","#012749","#8a3800","#a56eff"];function Vt({theme:e,background:t}){const n=["white","g10"].includes(e)?"light":"dark",r=Bt.gridBg[e],i=Bt.textPrimary[e],o=Bt.textSecondary[e],a="dark"===n?Wt:Xt,s="dark"===n?"#d4bbff":"#6929c4";return{background:t,arc:{fill:s},area:{fill:s},path:{stroke:s},rect:{fill:s},shape:{stroke:s},symbol:{stroke:s},circle:{fill:s},view:{fill:r,stroke:r},group:{fill:r},title:{color:i,anchor:"start",dy:-15,fontSize:16,font:Gt,fontWeight:600},axis:{labelColor:o,labelFontSize:12,labelFont:'IBM Plex Sans Condensed, system-ui, -apple-system, BlinkMacSystemFont, ".SFNSText-Regular", sans-serif',labelFontWeight:400,titleColor:i,titleFontWeight:600,titleFontSize:12,grid:!0,gridColor:Bt.layerAccent01[e],labelAngle:0},axisX:{titlePadding:10},axisY:{titlePadding:2.5},style:{"guide-label":{font:Gt,fill:o,fontWeight:400},"guide-title":{font:Gt,fill:o,fontWeight:400}},range:{category:a,diverging:["#750e13","#a2191f","#da1e28","#fa4d56","#ff8389","#ffb3b8","#ffd7d9","#fff1f1","#e5f6ff","#bae6ff","#82cfff","#33b1ff","#1192e8","#0072c3","#00539a","#003a6d"],heatmap:["#f6f2ff","#e8daff","#d4bbff","#be95ff","#a56eff","#8a3ffc","#6929c4","#491d8b","#31135e","#1c0f30"]}}}const Ht=Vt({theme:"white",background:"#ffffff"}),Yt=Vt({theme:"g10",background:"#f4f4f4"}),Jt=Vt({theme:"g90",background:"#262626"}),qt=Vt({theme:"g100",background:"#161616"}),Qt=Je;var Zt=Object.freeze({__proto__:null,carbong10:Yt,carbong100:qt,carbong90:Jt,carbonwhite:Ht,dark:Ze,excel:et,fivethirtyeight:ot,ggplot2:st,googlecharts:Nt,latimes:ht,powerbi:Ut,quartz:mt,urbaninstitute:It,version:Qt,vox:vt});function Kt(e,t){return JSON.stringify(e,function(e){const t=[];return function(n,r){if("object"!=typeof r||null===r)return r;const i=t.indexOf(this)+1;return t.length=i,t.length>e?"[Object]":t.indexOf(r)>=0?"[Circular]":(t.push(r),r)}}(t))}var en="#vg-tooltip-element {\n  visibility: hidden;\n  padding: 8px;\n  position: fixed;\n  z-index: 1000;\n  font-family: sans-serif;\n  font-size: 11px;\n  border-radius: 3px;\n  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);\n  /* The default theme is the light theme. */\n  background-color: rgba(255, 255, 255, 0.95);\n  border: 1px solid #d9d9d9;\n  color: black;\n}\n#vg-tooltip-element.visible {\n  visibility: visible;\n}\n#vg-tooltip-element h2 {\n  margin-top: 0;\n  margin-bottom: 10px;\n  font-size: 13px;\n}\n#vg-tooltip-element table {\n  border-spacing: 0;\n}\n#vg-tooltip-element table tr {\n  border: none;\n}\n#vg-tooltip-element table tr td {\n  overflow: hidden;\n  text-overflow: ellipsis;\n  padding-top: 2px;\n  padding-bottom: 2px;\n}\n#vg-tooltip-element table tr td.key {\n  color: #808080;\n  max-width: 150px;\n  text-align: right;\n  padding-right: 4px;\n}\n#vg-tooltip-element table tr td.value {\n  display: block;\n  max-width: 300px;\n  max-height: 7em;\n  text-align: left;\n}\n#vg-tooltip-element.dark-theme {\n  background-color: rgba(32, 32, 32, 0.9);\n  border: 1px solid #f5f5f5;\n  color: white;\n}\n#vg-tooltip-element.dark-theme td.key {\n  color: #bfbfbf;\n}\n";const tn="vg-tooltip-element",nn={offsetX:10,offsetY:10,id:tn,styleId:"vega-tooltip-style",theme:"light",disableDefaultStyle:!1,sanitize:function(e){return String(e).replace(/&/g,"&amp;").replace(/</g,"&lt;")},maxDepth:2,formatTooltip:function(e,t,n,r){if(Fe(e))return`[${e.map((e=>t(Pe(e)?e:Kt(e,n)))).join(", ")}]`;if(De(e)){let i="";const{title:o,image:a,...s}=e;o&&(i+=`<h2>${t(o)}</h2>`),a&&(i+=`<img src="${new URL(t(a),r||location.href).href}">`);const l=Object.keys(s);if(l.length>0){i+="<table>";for(const e of l){let r=s[e];void 0!==r&&(De(r)&&(r=Kt(r,n)),i+=`<tr><td class="key">${t(e)}</td><td class="value">${t(r)}</td></tr>`)}i+="</table>"}return i||"{}"}return t(e)},baseURL:"",anchor:"cursor",position:["top","bottom","left","right","top-left","top-right","bottom-left","bottom-right"]};function rn(e,t,{offsetX:n,offsetY:r}){const i=on({x1:e.clientX,x2:e.clientX,y1:e.clientY,y2:e.clientY},t,n,r),o=["bottom-right","bottom-left","top-right","top-left"];for(const e of o)if(an(i[e],t))return i[e];return i["top-left"]}function on(e,t,n,r){const i=(e.x1+e.x2)/2,o=(e.y1+e.y2)/2,a=e.x1-t.width-n,s=i-t.width/2,l=e.x2+n,c=e.y1-t.height-r,f=o-t.height/2,d=e.y2+r;return{top:{x:s,y:c},bottom:{x:s,y:d},left:{x:a,y:f},right:{x:l,y:f},"top-left":{x:a,y:c},"top-right":{x:l,y:c},"bottom-left":{x:a,y:d},"bottom-right":{x:l,y:d}}}function an(e,t){return e.x>=0&&e.y>=0&&e.x+t.width<=window.innerWidth&&e.y+t.height<=window.innerHeight}function sn(e,t,n){return e.clientX>=t.x&&e.clientX<=t.x+n.width&&e.clientY>=t.y&&e.clientY<=t.y+n.height}class ln{call;options;el;constructor(e){this.options={...nn,...e};const t=this.options.id;if(this.el=null,this.call=this.tooltipHandler.bind(this),!this.options.disableDefaultStyle&&!document.getElementById(this.options.styleId)){const e=document.createElement("style");e.setAttribute("id",this.options.styleId),e.innerHTML=function(e){if(!/^[A-Za-z]+[-:.\w]*$/.test(e))throw new Error("Invalid HTML ID");return en.toString().replaceAll(tn,e)}(t);const n=document.head;n.childNodes.length>0?n.insertBefore(e,n.childNodes[0]):n.appendChild(e)}}tooltipHandler(e,t,n,r){if(this.el=document.getElementById(this.options.id),!this.el){this.el=document.createElement("div"),this.el.setAttribute("id",this.options.id),this.el.classList.add("vg-tooltip");(document.fullscreenElement??document.body).appendChild(this.el)}if(null==r||""===r)return void this.el.classList.remove("visible",`${this.options.theme}-theme`);this.el.innerHTML=this.options.formatTooltip(r,this.options.sanitize,this.options.maxDepth,this.options.baseURL),this.el.classList.add("visible",`${this.options.theme}-theme`);const{x:i,y:o}="mark"===this.options.anchor?function(e,t,n,r,i){const{position:o,offsetX:a,offsetY:s}=i,l=function(e,t,n){const r=n.isVoronoi?n.datum.bounds:n.bounds;let i=e.left+t[0]+r.x1,o=e.top+t[1]+r.y1,a=n;for(;a.mark.group;)a=a.mark.group,i+=a.x??0,o+=a.y??0;return{x1:i,x2:i+(r.x2-r.x1),y1:o,y2:o+(r.y2-r.y1)}}(e._el.getBoundingClientRect(),e._origin,n),c=on(l,r,a,s),f=Array.isArray(o)?o:[o];for(const e of f)if(an(c[e],r)&&!sn(t,c[e],r))return c[e];return rn(t,r,i)}(e,t,n,this.el.getBoundingClientRect(),this.options):rn(t,this.el.getBoundingClientRect(),this.options);this.el.style.top=`${o}px`,this.el.style.left=`${i}px`}}var cn='.vega-embed {\n  position: relative;\n  display: inline-block;\n  box-sizing: border-box;\n}\n.vega-embed.has-actions {\n  padding-right: 38px;\n}\n.vega-embed details:not([open]) > :not(summary) {\n  display: none !important;\n}\n.vega-embed summary {\n  list-style: none;\n  position: absolute;\n  top: 0;\n  right: 0;\n  padding: 6px;\n  z-index: 1000;\n  background: white;\n  box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);\n  color: #1b1e23;\n  border: 1px solid #aaa;\n  border-radius: 999px;\n  opacity: 0.2;\n  transition: opacity 0.4s ease-in;\n  cursor: pointer;\n  line-height: 0px;\n}\n.vega-embed summary::-webkit-details-marker {\n  display: none;\n}\n.vega-embed summary:active {\n  box-shadow: #aaa 0px 0px 0px 1px inset;\n}\n.vega-embed summary svg {\n  width: 14px;\n  height: 14px;\n}\n.vega-embed details[open] summary {\n  opacity: 0.7;\n}\n.vega-embed:hover summary, .vega-embed:focus-within summary {\n  opacity: 1 !important;\n  transition: opacity 0.2s ease;\n}\n.vega-embed .vega-actions {\n  position: absolute;\n  z-index: 1001;\n  top: 35px;\n  right: -9px;\n  display: flex;\n  flex-direction: column;\n  padding-bottom: 8px;\n  padding-top: 8px;\n  border-radius: 4px;\n  box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.2);\n  border: 1px solid #d9d9d9;\n  background: white;\n  animation-duration: 0.15s;\n  animation-name: scale-in;\n  animation-timing-function: cubic-bezier(0.2, 0, 0.13, 1.5);\n  text-align: left;\n}\n.vega-embed .vega-actions a {\n  padding: 8px 16px;\n  font-family: sans-serif;\n  font-size: 14px;\n  font-weight: 600;\n  white-space: nowrap;\n  color: #434a56;\n  text-decoration: none;\n}\n.vega-embed .vega-actions a:hover, .vega-embed .vega-actions a:focus {\n  background-color: #f7f7f9;\n  color: black;\n}\n.vega-embed .vega-actions::before, .vega-embed .vega-actions::after {\n  content: "";\n  display: inline-block;\n  position: absolute;\n}\n.vega-embed .vega-actions::before {\n  left: auto;\n  right: 14px;\n  top: -16px;\n  border: 8px solid rgba(0, 0, 0, 0);\n  border-bottom-color: #d9d9d9;\n}\n.vega-embed .vega-actions::after {\n  left: auto;\n  right: 15px;\n  top: -14px;\n  border: 7px solid rgba(0, 0, 0, 0);\n  border-bottom-color: #fff;\n}\n.vega-embed .chart-wrapper.fit-x {\n  width: 100%;\n}\n.vega-embed .chart-wrapper.fit-y {\n  height: 100%;\n}\n\n.vega-embed-wrapper {\n  max-width: 100%;\n  overflow: auto;\n  padding-right: 14px;\n}\n\n@keyframes scale-in {\n  from {\n    opacity: 0;\n    transform: scale(0.6);\n  }\n  to {\n    opacity: 1;\n    transform: scale(1);\n  }\n}\n';function fn(e,...t){for(const n of t)dn(e,n);return e}function dn(t,n){for(const r of Object.keys(n))e.writeConfig(t,r,n[r],!0)}const pn="7.0.2",hn=i;let un=o;const gn="undefined"!=typeof window?window:void 0;void 0===un&&gn?.vl?.compile&&(un=gn.vl);const mn={export:{svg:!0,png:!0},source:!0,compiled:!0,editor:!0},En={CLICK_TO_VIEW_ACTIONS:"Click to view actions",COMPILED_ACTION:"View Compiled Vega",EDITOR_ACTION:"Open in Vega Editor",PNG_ACTION:"Save as PNG",SOURCE_ACTION:"View Source",SVG_ACTION:"Save as SVG"},vn={vega:"Vega","vega-lite":"Vega-Lite"},bn={vega:hn.version,"vega-lite":un?un.version:"not available"},yn={vega:e=>e,"vega-lite":(e,t)=>un.compile(e,{config:t}).spec},wn='\n<svg viewBox="0 0 16 16" fill="currentColor" stroke="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">\n  <circle r="2" cy="8" cx="2"></circle>\n  <circle r="2" cy="8" cx="8"></circle>\n  <circle r="2" cy="8" cx="14"></circle>\n</svg>',On="chart-wrapper";function An(e,t,n,r){const i=`<html><head>${t}</head><body><pre><code class="json">`,o=`</code></pre>${n}</body></html>`,a=window.open("");a.document.write(i+e+o),a.document.title=`${vn[r]} JSON Source`}function In(e){return!(!e||!("load"in e))}function Ln(e){return In(e)?e:hn.loader(e)}async function xn(t,n,r={}){let i,o;e.isString(n)?(o=Ln(r.loader),i=JSON.parse(await o.load(n))):i=n;const a=function(t){const n=t.usermeta?.embedOptions??{};return e.isString(n.defaultStyle)&&(n.defaultStyle=!1),n}(i),s=a.loader;o&&!s||(o=Ln(r.loader??s));const l=await $n(a,o),c=await $n(r,o),f={...fn(c,l),config:e.mergeConfig(c.config??{},l.config??{})};return await async function(t,n,r={},i){const o=r.theme?e.mergeConfig(Zt[r.theme],r.config??{}):r.config,a=e.isBoolean(r.actions)?r.actions:fn({},mn,r.actions??{}),s={...En,...r.i18n},l=r.renderer??"svg",c=r.logLevel??hn.Warn,f=r.downloadFileName??"visualization",d="string"==typeof t?document.querySelector(t):t;if(!d)throw new Error(`${t} does not exist`);if(!1!==r.defaultStyle){const e="vega-embed-style",{root:t,rootContainer:n}=function(e){const t=e.getRootNode?e.getRootNode():document;return t instanceof ShadowRoot?{root:t,rootContainer:t}:{root:document,rootContainer:document.head??document.body}}(d);if(!t.getElementById(e)){const t=document.createElement("style");t.id=e,t.innerHTML=void 0===r.defaultStyle||!0===r.defaultStyle?cn.toString():r.defaultStyle,n.appendChild(t)}}const p=function(e,t){if(e.$schema){const n=Ye(e.$schema);t&&t!==n.library&&console.warn(`The given visualization spec is written in ${vn[n.library]}, but mode argument sets ${vn[t]??t}.`);const r=n.library;return Ne(bn[r],`^${n.version.slice(1)}`)||console.warn(`The input spec uses ${vn[r]} ${n.version}, but the current version of ${vn[r]} is v${bn[r]}.`),r}return"mark"in e||"encoding"in e||"layer"in e||"hconcat"in e||"vconcat"in e||"facet"in e||"repeat"in e?"vega-lite":"marks"in e||"signals"in e||"scales"in e||"axes"in e?"vega":t??"vega"}(n,r.mode);let h=yn[p](n,o);if("vega-lite"===p&&h.$schema){const e=Ye(h.$schema);Ne(bn.vega,`^${e.version.slice(1)}`)||console.warn(`The compiled spec uses Vega ${e.version}, but current version is v${bn.vega}.`)}d.classList.add("vega-embed"),a&&d.classList.add("has-actions");d.innerHTML="";let u=d;if(a){const e=document.createElement("div");e.classList.add(On),d.appendChild(e),u=e}const g=r.patch;g&&(h=g instanceof Function?g(h):A(h,g,!0,!1).newDocument);r.formatLocale&&hn.formatLocale(r.formatLocale);r.timeFormatLocale&&hn.timeFormatLocale(r.timeFormatLocale);if(r.expressionFunctions)for(const e in r.expressionFunctions){const t=r.expressionFunctions[e];"fn"in t?hn.expressionFunction(e,t.fn,t.visitor):t instanceof Function&&hn.expressionFunction(e,t)}const{ast:m}=r,E=hn.parse(h,"vega-lite"===p?{}:o,{ast:m}),v=new(r.viewClass||hn.View)(E,{loader:i,logLevel:c,renderer:l,...m?{expr:hn.expressionInterpreter??r.expr??He}:{}});if(v.addSignalListener("autosize",((e,t)=>{const{type:n}=t;"fit-x"==n?(u.classList.add("fit-x"),u.classList.remove("fit-y")):"fit-y"==n?(u.classList.remove("fit-x"),u.classList.add("fit-y")):"fit"==n?u.classList.add("fit-x","fit-y"):u.classList.remove("fit-x","fit-y")})),!1!==r.tooltip){const{loader:e,tooltip:t}=r,n=e&&!In(e)?e?.baseURL:void 0,i="function"==typeof t?t:new ln({baseURL:n,...!0===t?{}:t}).call;v.tooltip(i)}let b,{hover:y}=r;void 0===y&&(y="vega"===p);if(y){const{hoverSet:e,updateSet:t}="boolean"==typeof y?{}:y;v.hover(e,t)}r&&(null!=r.width&&v.width(r.width),null!=r.height&&v.height(r.height),null!=r.padding&&v.padding(r.padding));if(await v.initialize(u,r.bind).runAsync(),!1!==a){let t=d;if(!1!==r.defaultStyle||r.forceActionsMenu){const e=document.createElement("details");e.title=s.CLICK_TO_VIEW_ACTIONS,d.append(e),t=e;const n=document.createElement("summary");n.innerHTML=wn,e.append(n),b=t=>{e.contains(t.target)||e.removeAttribute("open")},document.addEventListener("click",b)}const i=document.createElement("div");if(t.append(i),i.classList.add("vega-actions"),!0===a||!1!==a.export)for(const t of["svg","png"])if(!0===a||!0===a.export||a.export[t]){const n=s[`${t.toUpperCase()}_ACTION`],o=document.createElement("a"),a=e.isObject(r.scaleFactor)?r.scaleFactor[t]:r.scaleFactor;o.text=n,o.href="#",o.target="_blank",o.download=`${f}.${t}`,o.addEventListener("mousedown",(async function(e){e.preventDefault();const n=await v.toImageURL(t,a);this.href=n})),i.append(o)}if(!0===a||!1!==a.source){const e=document.createElement("a");e.text=s.SOURCE_ACTION,e.href="#",e.addEventListener("click",(function(e){An(k(n),r.sourceHeader??"",r.sourceFooter??"",p),e.preventDefault()})),i.append(e)}if("vega-lite"===p&&(!0===a||!1!==a.compiled)){const e=document.createElement("a");e.text=s.COMPILED_ACTION,e.href="#",e.addEventListener("click",(function(e){An(k(h),r.sourceHeader??"",r.sourceFooter??"","vega"),e.preventDefault()})),i.append(e)}if(!0===a||!1!==a.editor){const e=r.editorUrl??"https://vega.github.io/editor/",t=document.createElement("a");t.text=s.EDITOR_ACTION,t.href="#",t.addEventListener("click",(function(t){!function(e,t,n){const r=e.open(t),{origin:i}=new URL(t);let o=40;e.addEventListener("message",(function t(n){n.source===r&&(o=0,e.removeEventListener("message",t,!1))}),!1),setTimeout((function e(){o<=0||(r.postMessage(n,i),setTimeout(e,250),o-=1)}),250)}(window,e,{config:o,mode:g?"vega":p,renderer:l,spec:k(g?h:n)}),t.preventDefault()})),i.append(t)}}function w(){b&&document.removeEventListener("click",b),v.finalize()}return{view:v,spec:n,vgSpec:h,finalize:w,embedOptions:r}}(t,i,f,o)}async function $n(t,n){const r=e.isString(t.config)?JSON.parse(await n.load(t.config)):t.config??{},i=e.isString(t.patch)?JSON.parse(await n.load(t.patch)):t.patch;return{...t,...i?{patch:i}:{},...r?{config:r}:{}}}async function Nn(e,t={}){const n=document.createElement("div");n.classList.add("vega-embed-wrapper");const r=document.createElement("div");n.appendChild(r);const i=!0===t.actions||!1===t.actions?t.actions:{export:!0,source:!1,compiled:!0,editor:!0,...t.actions},o=await xn(r,e,{actions:i,...t});return n.value=o.view,n}const Rn=(...t)=>{return t.length>1&&(e.isString(t[0])&&!((n=t[0]).startsWith("http://")||n.startsWith("https://")||n.startsWith("//"))||t[0]instanceof HTMLElement||3===t.length)?xn(t[0],t[1],t[2]):Nn(t[0],t[1]);var n};return Rn.vegaLite=un,Rn.vl=un,Rn.container=Nn,Rn.embed=xn,Rn.vega=hn,Rn.default=xn,Rn.version=pn,Rn}));
 //# sourceMappingURL=vega-embed.min.js.map
+</script>
+<script>/* Vega-Lite-Table-Export | MIT | generated by build.cjs */
+(function (root) {
+  "use strict";
+  const modules = {
+"./projector.cjs": function(module, require) {
+'use strict';
+// Post-test, reference-blind development diagnostic. First-pass files untouched.
+// Deterministic projection of supported native Vega-Lite views.
+const own=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
+const field=e=>e&&typeof e.field==='string'?e.field:null;
+const read=(r,f)=>own(r,f)?r[f]:f.split('.').reduce((v,k)=>v?.[k],r);
+const title=e=>typeof e?.title==='string'?e.title:Array.isArray(e?.title)?e.title.join(' '):field(e)||'';
+function axisTitle(definition) {
+ for (const value of [definition?.axis?.title, definition?.title]) {
+  const text = Array.isArray(value) ? value.join(' ') : value;
+  if (typeof text === 'string' && text.trim()) return text.trim();
+ }
+ return '';
+}
+// Layers may repeat a measure, or bind distinct measures to the same axis title.
+function measureSchema(bindings) {
+ const fields = new Map(), owners = new Map();
+ for (const [key, title] of bindings) {
+  if (!fields.has(key)) fields.set(key, new Set());
+  if (title) fields.get(key).add(title);
+ }
+ for (const [key, titles] of fields) {
+  for (const name of titles.size ? titles : [key]) {
+   if (!owners.has(name)) owners.set(name, new Set());
+   owners.get(name).add(key);
+  }
+ }
+ return {
+  single: fields.size === 1 && [...fields.values()][0].size <= 1,
+  label(key, title) {
+   const titles = fields.get(key);
+   const name = title || (titles?.size === 1 ? [...titles][0] : key);
+   return owners.get(name)?.size > 1 || (name !== key && fields.has(name)) ? key : name;
+  }
+ };
+}
+const tag=v=>JSON.stringify([typeof v,v]);
+const scalar=v=>v===null||v===undefined||['number','string','boolean'].includes(typeof v)&&!(typeof v==='number'&&!Number.isFinite(v));
+function cell(v){if(!scalar(v))throw Error('Non-scalar or nonfinite table cell');if(v===null||v===undefined)return '';return String(v).replace(/\|/g,'&#124;').replace(/\r\n|\r|\n/g,'<br>');}
+
+// A small expression parser; never eval(), Function(), arbitrary calls or code.
+function expression(source,row){
+ const tokens=[];let p=0;const re=/\s*(?:(datum(?:\.[A-Za-z_$][\w$]*|\[(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')\]))|((?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|(true|false|null)\b|(===|!==|==|!=|<=|>=|&&|\|\||[()+\-*\/%!<>]))/y;
+ while(p<source.length){if(!source.slice(p).trim())break;re.lastIndex=p;const m=re.exec(source);if(!m)throw Error('Unsupported expression syntax');tokens.push(m[1]?{kind:'field',value:m[1]}:m[2]?{kind:'value',value:Number(m[2])}:m[3]?{kind:'value',value:quoted(m[3])}:m[4]?{kind:'value',value:m[4]==='null'?null:m[4]==='true'}:{kind:'op',value:m[5]});p=re.lastIndex;}
+ function quoted(s){if(s[0]==='"')return JSON.parse(s);return s.slice(1,-1).replace(/\\(['\\])/g,'$1');}
+ let at=0;const prec={'||':1,'&&':2,'==':3,'!=':3,'===':3,'!==':3,'<':4,'>':4,'<=':4,'>=':4,'+':5,'-':5,'*':6,'/':6,'%':6};
+ function unary(){const t=tokens[at++];if(!t)throw Error('Incomplete expression');if(t.kind==='value')return t.value;if(t.kind==='field'){const f=t.value.startsWith('datum.')?t.value.slice(6):quoted(t.value.slice(6,-1));return read(row,f);}if(['!','-','+'].includes(t.value)){const v=unary();return t.value==='!'?!v:t.value==='-'?-v:+v;}if(t.value==='('){const v=parse(1);if(tokens[at++]?.value!==')')throw Error('Unbalanced expression');return v;}throw Error('Unsupported expression token');}
+ function parse(min){let left=unary();while(at<tokens.length){const op=tokens[at].value,pr=prec[op];if(!pr||pr<min)break;at++;const right=parse(pr+1);switch(op){case '+':left=left+right;break;case '-':left=left-right;break;case '*':left=left*right;break;case '/':left=left/right;break;case '%':left=left%right;break;case '===':left=left===right;break;case '!==':left=left!==right;break;case '==':left=left==right;break;case '!=':left=left!=right;break;case '<':left=left<right;break;case '>':left=left>right;break;case '<=':left=left<=right;break;case '>=':left=left>=right;break;case '&&':left=left&&right;break;case '||':left=left||right;break;}}
+ return left;}
+ const result=parse(1);if(at!==tokens.length)throw Error('Trailing expression token');if(!scalar(result))throw Error('Expression produced nonfinite/non-scalar value');return result;
+}
+function predicate(p,r){
+ if(typeof p==='string')return !!expression(p,r);
+ if(!p||typeof p!=='object')throw Error('Unsupported filter');
+ if(p.and)return p.and.every(x=>predicate(x,r));if(p.or)return p.or.some(x=>predicate(x,r));if(p.not)return !predicate(p.not,r);
+ if(typeof p.field!=='string'||p.timeUnit)throw Error('Unsupported filter predicate');const v=read(r,p.field);
+ if(own(p,'equal'))return v===p.equal;if(p.oneOf)return p.oneOf.includes(v);if(p.range)return v!=null&&(p.range[0]===null||v>=p.range[0])&&(p.range[1]===null||v<=p.range[1]);
+ for(const [key,fn]of Object.entries({lt:(a,b)=>a<b,lte:(a,b)=>a<=b,gt:(a,b)=>a>b,gte:(a,b)=>a>=b}))if(own(p,key))return fn(v,p[key]);
+ if(own(p,'valid'))return (v!==null&&v!==undefined&&!(typeof v==='number'&&Number.isNaN(v)))===p.valid;
+ throw Error('Unsupported filter predicate');
+}
+function transform(rows,ts){
+ let rr=rows;
+ for(const t of ts||[]){
+  if(t.fold){if(Object.keys(t).some(k=>!['fold','as'].includes(k))||!Array.isArray(t.fold)||t.fold.some(f=>typeof f!=='string'))throw Error('Unsupported fold');const [key,value]=t.as||['key','value'];if(key===value)throw Error('Fold fields conflict');rr=rr.flatMap(r=>t.fold.map(f=>{if(read(r,f)===undefined)throw Error('Fold field absent');if(own(r,key)||own(r,value))throw Error('Fold overwrites fields');return {...r,[key]:f,[value]:read(r,f)};}));}
+  else if(own(t,'filter')&&Object.keys(t).length===1)rr=rr.filter(r=>predicate(t.filter,r));
+  else if(typeof t.calculate==='string'&&typeof t.as==='string'&&Object.keys(t).every(k=>['calculate','as'].includes(k)))rr=rr.map(r=>{if(own(r,t.as))throw Error('Calculate overwrites fields');return {...r,[t.as]:expression(t.calculate,r)};});
+  else throw Error('Unsupported transform; materialize offline');
+ }
+ return rr;
+}
+function units(spec){
+ const out=[];
+ function visit(node,ctx){
+  if(!node||typeof node!=='object'||Array.isArray(node))throw Error('Invalid native view');
+  if(node.params||node.repeat)throw Error('Unsupported parameter/repeat-dependent view');
+  const datasets={...ctx.datasets,...node.datasets};let rows=ctx.rows;
+  if(node.data){if(node.data.url)throw Error('External data URL is forbidden');if(node.data.format)throw Error('Unsupported data format');if(Array.isArray(node.data.values))rows=node.data.values;else if(typeof node.data.name==='string'&&Array.isArray(datasets[node.data.name]))rows=datasets[node.data.name];else throw Error('Embedded values or named dataset required');}
+  if(rows){if(rows.some(r=>!r||typeof r!=='object'||Array.isArray(r)))throw Error('Record-object data required');rows=transform(rows,node.transform);}
+  else if(node.transform?.length)throw Error('Transform without embedded data');
+  const enc={...ctx.enc,...node.encoding},child={...ctx,rows,enc,datasets};
+  if(node.layer){if(!Array.isArray(node.layer))throw Error('Invalid layer');node.layer.forEach(n=>visit(n,child));return;}
+  for(const key of ['hconcat','vconcat','concat'])if(node[key]){if(!Array.isArray(node[key]))throw Error('Invalid concat');node[key].forEach((n,i)=>visit(n,{...child,scope:ctx.scope+'.'+key+'.'+i}));return;}
+  if(node.facet){const ff=(node.facet.field?[node.facet]:[node.facet.row,node.facet.column].filter(Boolean)).map(field);if(!ff.length||ff.some(x=>!x)||!rows)throw Error('Unsupported facet');const groups=new Map();for(const r of rows){const k=JSON.stringify(ff.map(f=>read(r,f)));if(!groups.has(k))groups.set(k,[]);groups.get(k).push(r);}for(const [k,rr]of groups)visit(node.spec,{...child,rows:rr,scope:ctx.scope+'.facet.'+k});return;}
+  const mark=typeof node.mark==='string'?node.mark:node.mark?.type;
+  if(!mark)throw Error('Missing native mark');
+  if(!['bar','line','area','point','circle','square','rule','tick','arc','rect','text'].includes(mark))throw Error('Unsupported mark; precompute composite statistics');
+  if(!Array.isArray(rows))throw Error('Missing record data');
+  if(!rows.length)return;
+  for(const e of Object.values(enc).flat())if(e&&typeof e==='object'&&(e.aggregate!==undefined||e.bin!==undefined&&e.bin!=='binned'||e.timeUnit!==undefined||e.condition!==undefined))throw Error('Unsupported encoding computation');
+  const ff=[field(enc.row),field(enc.column)].filter(Boolean),u={mark,markDef:typeof node.mark==='object'?node.mark:{type:mark},rows,enc,scope:ctx.scope};
+  if(ff.length){const split=new Map();for(const r of rows){const k=JSON.stringify(ff.map(f=>read(r,f)));if(!split.has(k))split.set(k,[]);split.get(k).push(r);}for(const [k,rr]of split)out.push({...u,rows:rr,scope:ctx.scope+'.encoding-facet.'+k});}else out.push(u);
+ }
+ visit(spec,{rows:null,enc:{},datasets:{},scope:'root'});return out;
+}
+const discrete=e=>['nominal','ordinal'].includes(e?.type);
+function dimensions(u){
+ const e=u.enc;
+ const series=(cat,horizontal)=>[['color',e.color],['detail',e.detail],['offset',horizontal?e.yOffset:e.xOffset],['shape',e.shape],['strokeDash',e.strokeDash]].flatMap(([channel,v])=>(Array.isArray(v)?v:[v]).filter(x=>x&&(field(x)&&field(x)!==field(cat)&&(channel==='detail'||discrete(x))||own(x,'datum')&&(channel==='detail'||discrete(x)||channel==='offset'))));
+ if(u.mark==='arc')return {cat:e.color,val:e.theta,series:[],pie:true};
+ const tt=Array.isArray(e.tooltip)?e.tooltip:[e.tooltip].filter(Boolean);
+ const fixedRadar=field(e.x)==='derived_x'&&field(e.y)==='derived_y';
+ const closedRadar=u.mark==='line'&&u.markDef.interpolate==='linear-closed'&&tt.some(x=>discrete(x))&&tt.some(x=>x?.type==='quantitative'&&field(x)!==field(e.x)&&field(x)!==field(e.y));
+ if(fixedRadar||closedRadar){const cat=tt.find(x=>field(x)==='axis')||tt.find(discrete)||(fixedRadar?{field:'axis',type:'ordinal',title:'axis'}:null),val=tt.find(x=>field(x)==='value')||tt.find(x=>x?.type==='quantitative'&&field(x)!==field(e.x)&&field(x)!==field(e.y))||(fixedRadar?{field:'value',type:'quantitative'}:null);return {cat,val,series:series(cat,false),radar:true};}
+ const horizontal=u.markDef.orient==='horizontal'||discrete(e.y)&&!discrete(e.x);
+ const cat=horizontal?e.y:e.x,val=horizontal?e.x:e.y,end=horizontal?e.x2:e.y2;
+ return {cat,val,end,horizontal,series:series(cat,horizontal)};
+}
+function projectForChartArena(spec){
+ const groups=new Map();
+ for(const u of units(spec)){if(u.mark==='text')continue;const d=dimensions(u);if(!field(d.cat)||!field(d.val))throw Error('Cannot infer category/value from native encodings');const key=JSON.stringify([u.scope,field(d.cat),d.horizontal||false]);if(!groups.has(key))groups.set(key,[]);groups.get(key).push({u,d});}
+ const tables=[];
+ for(const group of groups.values()){
+  const rangeBars=group.filter(({u,d})=>['bar','rect'].includes(u.mark)&&field(d.end));
+  const rangeRules=group.filter(({u,d})=>u.mark==='rule'&&field(d.end));
+  const endpointFields=new Set(rangeRules.flatMap(({d})=>[field(d.val),field(d.end)]));
+  const quartileFields=new Set(rangeBars.flatMap(({d})=>[field(d.val),field(d.end)]));
+  const label=e=>[field(e),title(e),typeof e?.axis?.title==='string'?e.axis.title:Array.isArray(e?.axis?.title)?e.axis.title.join(' '):''].join(' ');
+  function statistic(e){const s=label(e);const median=/(?:^|[\s_\W])(?:median|med)(?:$|[\s_\W])|中位/i.test(s),mean=/(?:^|[\s_\W])(?:mean|average|avg)(?:$|[\s_\W])|均值|平均/i.test(s),outlier=/outlier|离群|异常值/i.test(s);if([median,mean,outlier].filter(Boolean).length>1)throw Error('Conflicting statistical role labels');return median?'median':mean?'mean':outlier?'outlier':null;}
+  const medianCandidates=group.filter(({u,d})=>['tick','point','circle','square','rule'].includes(u.mark)&&!field(d.end)&&!endpointFields.has(field(d.val))&&!quartileFields.has(field(d.val)));
+  const median=medianCandidates.filter(({u,d})=>statistic(d.val)==='median'||u.mark==='tick'&&!statistic(d.val));
+  const isBox=rangeBars.length>0&&rangeRules.length>0&&median.length>0;
+  if(rangeBars.length&&rangeRules.length&&!median.length)throw Error('Cannot identify box median without clear statistical role');
+  function seriesDefinitions(d){const defs=new Map();for(const e of d.series){const k=field(e)?'field:'+field(e):'datum:'+tag(e.datum);if(!defs.has(k))defs.set(k,e);}return [...defs.values()];}
+  function seriesIdentity(d,r){return seriesDefinitions(d).map(e=>field(e)?read(r,field(e)):e.datum);}
+  function recordIdentity(u,d,r){return JSON.stringify([read(r,field(d.cat)),...seriesIdentity(d,r)]);}
+  // Multiple layers may encode different series/categories. Ambiguity is per
+  // scientific identity, not the global number of marks.
+  if(isBox){const owners=new Map();for(const m of median)for(const r of m.u.rows){if(read(r,field(m.d.val))===null)continue;const explicit=own(m.d.val,'title')?title(m.d.val):typeof m.d.val.axis?.title==='string'?m.d.val.axis.title:Array.isArray(m.d.val.axis?.title)?m.d.val.axis.title.join(' '):'';const variable=explicit.replace(/median|\bmed\b|中位数|中位线|中位/gim,'').replace(/[\s()（）_-]/g,'');const id=recordIdentity(m.u,m.d,r);for(const previous of owners.get(id)||[]){if(previous.variable&&variable&&previous.variable!==variable)continue;if(previous.u.rows!==m.u.rows||field(previous.d.val)!==field(m.d.val))throw Error('Ambiguous box median for same category/series');}if(!owners.has(id))owners.set(id,[]);owners.get(id).push({...m,variable});}}
+  const measures = measureSchema(group.flatMap(({d}) => [d.val, d.end])
+   .filter(field).map(e => [field(e), axisTitle(e)]));
+  const singleMeasure = measures.single && !isBox;
+  const columns=[],dedup=new Set();
+  function add(u,d,valueEncoding,role){
+   const vf=field(valueEncoding);if(!vf)throw Error('Missing value field');
+   const split=new Map();
+   for(const record of u.rows){const category=read(record,field(d.cat));if(category===undefined)throw Error('Category field absent from data');if(category===null)throw Error('Missing category value');const v=read(record,vf);if(v===undefined&&!own(record,vf))throw Error('Value field absent from data');if(!scalar(v))throw Error('Non-scalar or nonfinite value');const identity=seriesIdentity(d,record);if(identity.some(v=>v===undefined||v===null))throw Error('Series field absent or null');const sk=JSON.stringify(identity);if(!split.has(sk))split.set(sk,{identity,records:[]});split.get(sk).records.push(record);}
+   for(const {identity,records}of split.values()){
+    const seriesName=identity.map(cell).join('-');
+    const explicitTitle = axisTitle(valueEncoding);
+    let valueName = role || measures.label(vf, explicitTitle);
+    if (isBox && role) {
+     const unit = explicitTitle || axisTitle(d.val);
+     valueName = unit ? unit + '-' + role : role;
+    }
+    let header = valueName;
+    if (seriesName) {
+     header = (singleMeasure && !role) || valueName === seriesName
+      ? seriesName : seriesName + '-' + valueName;
+    }
+    let sorted=records.slice();const order=Array.isArray(u.enc.order)?u.enc.order[0]:u.enc.order;
+    if(field(order))sorted.sort((a,b)=>{const x=read(a,field(order)),y=read(b,field(order));return(x<y?-1:x>y?1:0)*(order.sort==='descending'?-1:1);});
+    else if(Array.isArray(d.cat.sort)){const om=new Map(d.cat.sort.map((v,i)=>[tag(v),i]));sorted.sort((a,b)=>(om.get(tag(read(a,field(d.cat))))??1e9)-(om.get(tag(read(b,field(d.cat))))??1e9));}
+    const occurrences=new Map(),entries=[];for(const r of sorted){const category=read(r,field(d.cat)),t=tag(category),index=occurrences.get(t)||0;occurrences.set(t,index+1);entries.push({key:t+':'+index,label:category,value:read(r,vf)});}
+    const signature=JSON.stringify([header,entries]);if(dedup.has(signature))continue;dedup.add(signature);
+    const existing=columns.find(c=>c.header===header);
+    if(existing){const values=new Map(existing.entries.map(x=>[x.key,x.value]));for(const x of entries){if(values.has(x.key)&&tag(values.get(x.key))!==tag(x.value))throw Error('Conflicting value columns with identical headers');if(!values.has(x.key)){existing.entries.push(x);values.set(x.key,x.value);}}}else columns.push({header,entries});
+   }
+  }
+  if(isBox){
+   const used=new Set([...rangeRules,...rangeBars,...median].map(x=>x.u));
+   function active(u,d,fields){
+    // Shared summary/outlier tables can contain explicit null padding for a
+    // different mark. Skip only padding rows carrying a non-null outlier/mean,
+    // never remove null scientific summary values merely because unreadable.
+    const rows=u.rows.filter(r=>!fields.every(f=>read(r,f)===null)||!Object.keys(r).some(f=>/outlier|mean|average|离群|异常值|均值/i.test(f)&&r[f]!==null));return {...u,rows};
+   }
+   for(const w of rangeRules){const u=active(w.u,w.d,[field(w.d.val),field(w.d.end)]);if(u.rows.length){add(u,w.d,w.d.val,'最小值');add(u,w.d,w.d.end,'最大值');}}
+   for(const b of rangeBars){const u=active(b.u,b.d,[field(b.d.val),field(b.d.end)]);if(u.rows.length){add(u,b.d,b.d.val,'Q1');add(u,b.d,b.d.end,'Q3');}}
+   for(const m of median){const u=active(m.u,m.d,[field(m.d.val)]);if(u.rows.length)add(u,m.d,m.d.val,'中位数');}
+   function exactEndpointOverlay(u,d){
+    return [...rangeRules,...rangeBars].some(base=>[base.d.val,base.d.end].some(e=>{
+     if(!field(e)||field(d.val)!==field(e)||u.scope!==base.u.scope||field(d.cat)!==field(base.d.cat)||JSON.stringify(seriesDefinitions(d))!==JSON.stringify(seriesDefinitions(base.d)))return false;
+     const original=base.u.rows.filter(r=>read(r,field(e))!==null).map(r=>[recordIdentity(base.u,base.d,r),read(r,field(e))]);
+     const overlay=u.rows.filter(r=>read(r,field(d.val))!==null).map(r=>[recordIdentity(u,d,r),read(r,field(d.val))]);
+     // Complete multiplicity-preserving equality, never set-based value dedup.
+     return JSON.stringify(original)===JSON.stringify(overlay);
+    }));
+   }
+   for(const {u,d}of group){if(used.has(u))continue;const s=statistic(d.val);
+    if(u.mark==='tick'&&!s&&exactEndpointOverlay(u,d))continue;
+    if(['point','circle','square'].includes(u.mark)){
+     if(s==='mean'){add(u,d,d.val,'mean');continue;}
+     if(s==='outlier'){const rows=u.rows.filter(r=>read(r,field(d.val))!==null);if(rows.length)add({...u,rows},d,d.val,'outlier');continue;}
+     // An unlabeled point is an independent observation, not an outlier or median.
+     add(u,d,d.val);continue;
+    }
+    if(u.mark==='tick'&&exactEndpointOverlay(u,d))continue;
+    throw Error('Unsupported or ambiguous extra box layer');
+   }
+  }else for(const {u,d}of group){
+   if(field(d.end)){
+    // Interval endpoints are distinct values even when they share an axis unit.
+    // The original field/title identifies the statistic; generic endpoint roles
+    // express range structure without guessing SD/SEM/CI.
+    const f=field(d.val),g=field(d.end),firstRole=/q1/i.test(f)?'Q1':/lower|^lo$/i.test(f)?'lower':/upper|^hi$/i.test(f)?'upper':'endpoint1';
+    const secondRole=/q3/i.test(g)?'Q3':/upper|^hi$/i.test(g)?'upper':/lower|^lo$/i.test(g)?'lower':'endpoint2';
+    const explicit=e=>typeof e.title==='string'?e.title:Array.isArray(e.title)?e.title.join(' '):typeof e.axis?.title==='string'?e.axis.title:Array.isArray(e.axis?.title)?e.axis.title.join(' '):'';
+    const a=explicit(d.val),b=explicit(d.end);
+    const first=a&&new RegExp(firstRole,'i').test(a)?d.val:{...d.val,title:a?a+'-'+firstRole:firstRole};
+    const second=b?(new RegExp(secondRole,'i').test(b)?d.end:{...d.end,title:b+'-'+secondRole}):{...d.end,title:a&&!/lower|upper|q1|q3/i.test(a)?a+'-'+secondRole:secondRole};
+    add(u,d,first);add(u,d,second);
+   }else add(u,d,d.val);
+  }
+  if(!columns.length)throw Error('No projected values');const rr=new Map();for(const c of columns)for(const x of c.entries)if(!rr.has(x.key))rr.set(x.key,x.label);const maps=columns.map(c=>new Map(c.entries.map(x=>[x.key,x.value])));
+  const cat=group[0].d.cat,catTitle=group.map(({d})=>axisTitle(d.cat)).find(Boolean)||field(cat),headers=[catTitle,...columns.map(c=>c.header)];const lines=['| '+headers.map(cell).join(' | ')+' |','| '+headers.map(()=>'---').join(' | ')+' |'];for(const [key,label]of rr)lines.push('| '+[label,...maps.map(m=>m.get(key))].map(cell).join(' | ')+' |');tables.push(lines.join('\n'));
+ }
+ if(!tables.length)throw Error('No native data table found');return tables.join('\n\n');
+}
+module.exports={projectForChartArena,units,expression,axisTitle,measureSchema};
+
+},
+"./projection.cjs": function(module, require) {
+"use strict";
+
+const {projectForChartArena, axisTitle, measureSchema} = require("./projector.cjs");
+
+const COMPOSITION = ["layer", "concat", "hconcat", "vconcat", "spec"];
+const GROUPS = ["color", "detail", "shape", "strokeDash", "xOffset", "yOffset"];
+const VALUE_CHANNELS = ["x", "x2", "y", "y2", "theta", "radius", "size"];
+
+function field(def) {
+  return typeof def?.field === "string" ? def.field.replace(/\\\./g, ".") : null;
+}
+
+function display(def) {
+  return axisTitle(def) || field(def);
+}
+
+function inspect(spec, tables, path = "", current = null, inherited = {}, inheritedTitles = {}, includeEmpty = false) {
+  const enc = {...inherited, ...spec.encoding};
+  const axisTitles = {};
+  for (const channel of ["x", "y"]) {
+    const def = enc[channel];
+    const key = field(def);
+    if (key === null) continue;
+    const title = axisTitle(def);
+    const suppressed = def.axis === null || def.axis?.title === null || def.title === null;
+    // A layer may repeat the field binding without repeating the shared axis title.
+    axisTitles[channel] = title || (!suppressed && key === field(inherited[channel])
+      ? inheritedTitles[channel] : "");
+  }
+  if (spec.data) {
+    const values = spec.data.values;
+    current = null;
+    if (Array.isArray(values) && (values.length || includeEmpty) && values.every(row => row && typeof row === "object" && !Array.isArray(row))) {
+      current = path + "/data/values";
+      tables.set(current, {values, uses: []});
+    }
+  }
+  const mark = typeof spec.mark === "object" ? spec.mark?.type : spec.mark;
+  if (current && typeof mark === "string") tables.get(current).uses.push({mark, enc, axisTitles});
+  for (const name of COMPOSITION) {
+    const children = spec[name];
+    if (Array.isArray(children)) {
+      children.forEach((child, i) => {
+        if (child && typeof child === "object") inspect(child, tables, path + "/" + name + "/" + i,
+                                                      current, name === "layer" ? enc : {}, name === "layer" ? axisTitles : {}, includeEmpty);
+      });
+    } else if (children && typeof children === "object") {
+      inspect(children, tables, path + "/" + name, current, enc, axisTitles, includeEmpty);
+    }
+  }
+}
+
+// Resolve titles against the owning data table. Ambiguous labels retain their field keys.
+function inlineHeaders(tables) {
+  const result = Object.create(null);
+  for (const [path, {values, uses}] of tables) {
+    const fields = [...new Set(values.flatMap(Object.keys))];
+    const titles = new Map(fields.map(key => [key, new Set()]));
+    for (const {enc, axisTitles} of uses) {
+      for (const [channel, title] of Object.entries(axisTitles)) {
+        if (title) titles.get(field(enc[channel]))?.add(title);
+      }
+    }
+    const names = fields.map(key => titles.get(key).size === 1 ? [...titles.get(key)][0] : key);
+    // Reserve original keys, including keys that could be restored after a collision.
+    const aliases = fields.map((key, i) => names[i] !== key &&
+      (fields.includes(names[i]) || names.indexOf(names[i]) !== names.lastIndexOf(names[i])) ? key : names[i]);
+    if (aliases.some((name, i) => name !== fields[i])) result[path] = Object.fromEntries(fields.map((key, i) => [key, aliases[i]]));
+  }
+  return result;
+}
+
+function useForFallback({mark, enc}, rows) {
+  if (mark === "text" || mark === "image") return null;
+  const xv = enc.x?.type;
+  const yv = enc.y?.type;
+  const categorical = type => ["nominal", "ordinal", "temporal"].includes(type);
+  const polar = field(enc.theta);
+  const horizontal = categorical(yv) && !categorical(xv);
+  const isField = def => field(def) !== null && rows.some(row => Object.hasOwn(row, field(def)));
+  const key = polar ? enc.color || enc.order : horizontal ? enc.y : enc.x ?? enc.y;
+  const keyField = field(key);
+  if (!isField(key)) return null;
+  let measure = VALUE_CHANNELS.map(name => enc[name]).filter(isField).filter(def => field(def) !== keyField);
+  measure = [...new Map(measure.map(def => [field(def), def])).values()];
+  if (!measure.length) return null;
+  const groups = GROUPS.flatMap(c => [enc[c]].flat()).filter(isField).filter(
+    def => field(def) !== keyField && def.type !== "quantitative" && !measure.some(m => field(m) === field(def)),
+  );
+  const series = [...new Set(groups.map(field))];
+  const entries = [];
+  for (const row of rows) {
+    const entity = row[keyField];
+    if (!scalar(entity)) continue;
+    const label = series.map(f => row[f]).filter(scalar).join(" · ");
+    for (const def of measure) {
+      const value = row[field(def)];
+      if (!scalar(value)) continue;
+      entries.push({entity, label, measure: field(def), title: axisTitle(def), value});
+    }
+  }
+  return {key: display(key), entries};
+}
+
+function scalar(value) {
+  return typeof value === "string" && value.trim() !== "" ||
+    typeof value === "number" && Number.isFinite(value);
+}
+
+function fallback(tables, paths) {
+  const blocks = [];
+  for (const [path, {values, uses}] of tables) {
+    if (paths && !paths.includes(path)) continue;
+    const parts = uses.map(use => useForFallback(use, values)).filter(part => part?.entries.length);
+    if (parts.length) {
+      const measures = measureSchema(parts.flatMap(part => part.entries.map(e => [e.measure, e.title])));
+      for (const part of parts) {
+        const entries = part.entries.map(({entity, label, measure, title, value}) => {
+          const name = measures.label(measure, title);
+          const header = !label ? name : measures.single || name === label ? label : label + " · " + name;
+          return [entity, header, value];
+        });
+        blocks.push({key: part.key, entries});
+      }
+      continue;
+    }
+    if (!paths || !values.length) continue;
+    // A valid semantic index can identify a table that is not bound to a plottable mark.
+    const fields = [...new Set(values.flatMap(Object.keys))];
+    const key = fields.find(f => values.every(row => typeof row[f] === "string" && scalar(row[f]))) ?? fields[0];
+    const entries = values.flatMap(row => scalar(row[key])
+      ? fields.filter(f => f !== key && scalar(row[f])).map(f => [row[key], f, row[f]]) : []);
+    if (entries.length) blocks.push({key, entries});
+  }
+  return blocks;
+}
+
+function indexedSpec(spec, allowed, used, path = "", current = null) {
+  const result = {...spec};
+  if (spec.data) current = Array.isArray(spec.data.values) ? path + "/data/values" : null;
+  let childCount = 0;
+  for (const name of COMPOSITION) {
+    const children = spec[name];
+    if (Array.isArray(children)) {
+      result[name] = children.map((child, i) => child && typeof child === "object"
+        ? indexedSpec(child, allowed, used, path + "/" + name + "/" + i, current) : null).filter(Boolean);
+      if (result[name].length) childCount += result[name].length;
+      else delete result[name];
+    } else if (children && typeof children === "object") {
+      const child = indexedSpec(children, allowed, used, path + "/" + name, current);
+      if (child) {
+        result[name] = child;
+        childCount++;
+      } else delete result[name];
+    }
+  }
+  if (spec.mark) {
+    if (!allowed.has(current)) return childCount ? {...result, mark: undefined} : null;
+    const mark = typeof spec.mark === "object" ? spec.mark.type : spec.mark;
+    if (mark !== "text" && mark !== "image") used.add(current);
+    return result;
+  }
+  return childCount ? result : null;
+}
+
+function projectItem(item) {
+  const result = {id: item.id, mode: "missing"};
+  if (item.spec) {
+    const tables = new Map();
+    inspect(item.spec, tables);
+    result.headers = inlineHeaders(tables);
+    try {
+      let semantic = item.spec;
+      if (item.paths) {
+        const allowed = new Set(item.paths);
+        const used = new Set();
+        semantic = indexedSpec(item.spec, allowed, used);
+        if (!semantic || used.size !== allowed.size) throw Error("An indexed table lacks a plottable mark");
+      }
+      result.markdown = projectForChartArena(semantic);
+      result.mode = "native";
+    } catch (error) {
+      result.native_error = String(error.message).slice(0, 250);
+      try {
+        result.blocks = fallback(tables, item.paths);
+        if (result.blocks.length) result.mode = "inline";
+      } catch (fallbackError) {
+        result.error = String(fallbackError.message).slice(0, 250);
+      }
+    }
+  }
+  return result;
+}
+
+module.exports = {projectItem, inspect, inlineHeaders};
+
+},
+"./tables.cjs": function(module, require) {
+"use strict";
+
+const {inspect, inlineHeaders} = require("./projection.cjs");
+
+function cell(value) {
+  if (value == null) return "";
+  return typeof value === "object" ? JSON.stringify(value) : String(value);
+}
+
+function csvCell(value) {
+  const text = cell(value);
+  return /[",\r\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+}
+
+function markdownCell(value) {
+  return cell(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\r\n|\r|\n/g, "<br>");
+}
+
+function encodingFields(uses) {
+  const fields = new Set();
+  for (const {enc} of uses) {
+    for (const definition of Object.values(enc).flat()) {
+      if (typeof definition?.field === "string") fields.add(definition.field.replace(/\\\./g, "."));
+    }
+  }
+  return [...fields];
+}
+
+/** Export indexed inline tables, preserving the order of descriptors, rows and columns. */
+function exportTables(spec) {
+  const descriptors = spec?.usermeta?.table_export?.tables;
+  if (!Array.isArray(descriptors)) throw TypeError("Expected usermeta.table_export.tables");
+  const tables = new Map();
+  inspect(spec, tables, "", null, {}, {}, true);
+  const aliases = inlineHeaders(tables);
+  const ids = new Set();
+  const paths = new Set();
+  return descriptors.map(descriptor => {
+    const {id, path} = descriptor ?? {};
+    if (typeof id !== "string" || !id.trim() || ids.has(id)) throw TypeError("Missing or duplicate table id: " + id);
+    if (!tables.has(path) || paths.has(path)) throw TypeError("Invalid or duplicate inline table path: " + path);
+    ids.add(id);
+    paths.add(path);
+    const {values: rows, uses} = tables.get(path);
+    const fields = rows.length ? [...new Set(rows.flatMap(Object.keys))] : encodingFields(uses);
+    const headers = fields.map(field => aliases[path]?.[field] ?? field);
+    const matrix = rows.map(row => fields.map(field => Object.hasOwn(row, field) ? row[field] : null));
+    const csv = "\uFEFF" + [headers, ...matrix].map(row => row.map(csvCell).join(",") + "\r\n").join("");
+    const markdown = fields.length ? [headers, fields.map(() => "---"), ...matrix]
+      .map(row => "| " + row.map(markdownCell).join(" | ") + " |").join("\n") : "";
+    return {id, path, fields, headers, rows, markdown, csv};
+  });
+}
+
+module.exports = {exportTables};
+
+}
+  };
+  const cache = Object.create(null);
+  function load(name) {
+    if (cache[name]) return cache[name].exports;
+    const item = {exports: {}};
+    cache[name] = item;
+    modules[name](item, load);
+    return item.exports;
+  }
+  const api = {exportTables: load("./tables.cjs").exportTables, projectItem: load("./projection.cjs").projectItem};
+  if (typeof module === "object" && module.exports) module.exports = api;
+  else root.VegaLiteTableExport = api;
+})(globalThis);
 </script>
 <script type="module">/** Compact-v4 semantic GT. Image geometry and review evidence stay in project files. */
 const HISTOGRAM_KINDS = ['histogram_v_1','histogram_h_1','histogram_v_n','histogram_h_n','histogram_v_stack','histogram_h_stack'];
@@ -382,7 +870,7 @@ function applyObjectNames(p,kind,text){
 }
 function renderSpec(gt,p){
   if(markType(gt.mark)==='rect')return renderHeatmapSpec(gt,p);
-  const out=copy(gt),rows=out.data.values;
+  const out=copy(gt),rows=allTableRows(out);
   function view(node){for(const [channel,d] of Object.entries(node.encoding||{})){
     const field=d.field,label={category_id:'category',x_id:'x',series_id:'series'}[field];
     if(label&&['x','y','color'].includes(channel)){
@@ -626,7 +1114,114 @@ function orderEncoding(enc) {
   return Object.fromEntries([...keys,...Object.keys(enc).filter(k=>!keys.includes(k))].map(k=>[k,enc[k]]));
 }
 
-function makeSpec(p) {
+function allTableRows(spec){
+  return spec.usermeta?.table_export?.tables?.flatMap(({path})=>path.slice(1).split('/').reduce((v,k)=>v[k],spec))??spec.data.values;
+}
+function tableMetadata(p,s){
+  if(isBox(p))return [{id:'box_plot_summaries',path:'/data/values'},{id:'outliers',path:'/layer/3/data/values'}];
+  if(isComposite(p))return [{id:'bars',path:'/data/values'},{id:'lines',path:'/layer/'+(s.layer.length-1)+'/data/values'}];
+  return [{id:'data',path:'/data/values'}];
+}
+function percentLabels(p,key){
+  if(key==='theta')return p.valueMode==='percent';
+  return p.percentLabels?.[key]===true;
+}
+// Process each physical data source once per field, including secondary axis endpoints.
+function shiftDecimal(value,places){const [digits,exponent]=String(value).split('e');return Number(digits+'e'+(Number(exponent||0)+places));}
+function mapPercentScales(spec,project,reading){
+  const flags={},guides={},fields=new Map(),formatTargets=[];
+  function scan(node,right=false){
+    for(const ch of ['x','y','theta','color']){
+      const def=node.encoding?.[ch],format=def?.axis?.format??def?.legend?.format??def?.format;
+      if(def?.type==='quantitative'&&typeof format==='string'&&/%$/.test(format)){
+        const key=right&&ch==='y'?'r':ch,guide=def.axis??def.legend;
+        flags[key]=true;
+        const saved=guides[key]??={format};
+        if(Array.isArray(def.scale?.domain)&&def.scale.domain.every(finite))saved.domain=copy(def.scale.domain);
+        if(Array.isArray(guide?.values)&&guide.values.every(finite))saved.values=copy(guide.values);
+      }
+    }
+    for(const layer of node.layer||[])scan(layer,right||!!node.resolve?.scale?.y&&markType(layer.mark)==='line');
+  }
+  if(reading)scan(spec);
+  function walk(node,parentEncoding,inheritedData,right=false){
+    const data=node.data?.values??inheritedData,enc={...parentEncoding,...node.encoding};
+    if(!Array.isArray(data))return;
+    if(!fields.has(data))fields.set(data,new Set());
+    for(const ch of ['x','y','color','theta']){
+      const key=right&&ch==='y'?'r':ch,def=enc[ch];
+      if(def?.type!=='quantitative')continue;
+      const guide=ch==='color'?'legend':ch==='theta'?null:'axis';
+      const active=reading?flags[key]:percentLabels(project,key);
+      if(!active)continue;
+      flags[key]=true;
+      for(const f of [def.field,enc[ch+'2']?.field])if(f)fields.get(data).add(f);
+      if(def.field==='end'&&enc[ch+'2']?.field==='start')fields.get(data).add('value');
+      // Legacy compact boxplots flatten outlier arrays in the point layer.
+      if(reading)for(const t of node.transform??[]){
+        const index=(t.as??t.flatten??[]).indexOf(def.field);
+        if(index>=0&&t.flatten?.[index])fields.get(data).add(t.flatten[index]);
+      }
+      if(!reading&&node.encoding?.[ch]&&(!guide||def[guide]!==null)){
+        formatTargets.push({def,guide,key});
+      }
+    }
+    for(const l of node.layer||[])walk(l,enc,data,right||!!node.resolve?.scale?.y&&markType(l.mark)==='line');
+  }
+  walk(spec,{},null);
+  const restoredGuides=new Set();
+  for(const {def,guide,key} of formatTargets){
+    const saved=project.percentGuides?.[key];
+    const format=saved?.format??'.12~%';
+    if(guide)def[guide]={...def[guide],format};
+    else def.format=format;
+    if(!saved||restoredGuides.has(key))continue;
+    if(saved.domain)def.scale={...def.scale,domain:copy(saved.domain)};
+    if(saved.values&&guide)def[guide].values=copy(saved.values);
+    restoredGuides.add(key);
+  }
+  const convert=value=>{
+    if(!finite(value))return value;
+    const result=shiftDecimal(value,reading?2:-2);
+    if(!finite(result))throw Error('百分比数值超出支持范围');
+    return result;
+  };
+  for(const [rows,keys] of fields)for(const row of rows)for(const k of keys){
+    if(Object.hasOwn(row,k))row[k]=Array.isArray(row[k])?row[k].map(convert):convert(row[k]);
+  }
+  if(reading){
+    function clean(node){
+      for(const def of Object.values(node.encoding||{}))for(const guide of ['axis','legend',null]){
+        const obj=guide?def[guide]:def;
+        if(typeof obj?.format==='string'&&/%$/.test(obj.format)){delete obj.format;if(guide&&!Object.keys(obj).length)delete def[guide];}
+      }
+      (node.layer||[]).forEach(clean);
+    }
+    clean(spec);
+  }
+  return {flags,guides};
+}
+function makeSpec(p){
+  const spec=baseSpec(p);
+  spec.usermeta={...spec.usermeta,table_export:{tables:tableMetadata(p,spec)}};
+  mapPercentScales(spec,p,false);
+  return spec;
+}
+function importSpec(input,preferredKind){
+  const spec=copy(input);
+  const {flags,guides}=mapPercentScales(spec,null,true);
+  const tables=spec.usermeta?.table_export?.tables;
+  if(Array.isArray(tables)&&!spec.usermeta.semantic)delete spec.usermeta.table_export;
+  if(spec.usermeta&&!Object.keys(spec.usermeta).length)delete spec.usermeta;
+  const p=baseImport(spec,preferredKind);
+  p.percentLabels=flags;
+  if(Object.keys(guides).length)p.percentGuides=guides;
+  if(isPie(p))p.valueMode=flags.theta?'percent':'absolute';
+  if(isPercentStack(p)&&!flags[valueAxis(p)])p.percentLabels[valueAxis(p)]=false;
+  return p;
+}
+
+function baseSpec(p) {
   if(isComposite(p))return makeCompositeSpec(p);
   const errors=validate(p).filter(x=>x.severity==='error');
   if(errors.length) throw Error(errors.map(x=>x.message).join('\n'));
@@ -688,7 +1283,7 @@ function makeSpec(p) {
   return out;
 }
 
-function importSpec(input,preferredKind) {
+function baseImport(input,preferredKind) {
   if(input?.data?.values?.some?.(r=>r&&Object.hasOwn(r,'series_role')))return importCompositeSpec(input);
   const s=copy(input);
   if(!s||typeof s!=='object'||Array.isArray(s))throw Error('GT 必须为 JSON 对象');
@@ -1197,7 +1792,7 @@ function validateStat(p){
   return issues;
 }
 function makeStatSpec(p){
-  const fields=isPie(p)?['category','value']:['category',...BOX_FIELDS,'outliers'];
+  const fields=isPie(p)?['category','value']:['category',...BOX_FIELDS];
   const spec={data:{values:p.rows.map(r=>Object.fromEntries(fields.map(k=>[k,copy(r[k])])) )}};
   if(present(p.title))spec.title=copy(p.title);
   if(isPie(p)){
@@ -1212,7 +1807,7 @@ function makeStatSpec(p){
       {mark:{type:'rule'},encoding:{[v]:position,[v+'2']:{field:'upper'}}},
       {mark:{type:'bar'},encoding:{[v]:{field:'q1',type:'quantitative'},[v+'2']:{field:'q3'}}},
       {mark:{type:'tick'},encoding:{[v]:{field:'median',type:'quantitative'}}},
-      {transform:[{flatten:['outliers']}],mark:{type:'point'},encoding:{[v]:{field:'outliers',type:'quantitative'}}}
+      {data:{values:p.rows.flatMap(r=>r.outliers.map(value=>({category:r.category,value})))},mark:{type:'point'},encoding:{[v]:{field:'value',type:'quantitative'}}}
     ];
   }
   return spec;
@@ -1230,6 +1825,28 @@ function importStatSpec(s){
     checkDef(enc.theta);checkDef(enc.color);
     if(enc.theta.type!=='quantitative'||!['nominal','ordinal'].includes(enc.color.type))throw Error('Pie 字段类型不正确');
     mapping={category:enc.color.field,value:enc.theta.field};p.valueTitle=title(enc.theta);p.valueMode=String(p.valueTitle).includes('%')?'percent':'absolute';p.donut=!!s.mark?.innerRadius;
+  }else if(layers.some(l=>markType(l.mark)==='point'&&Array.isArray(l.data?.values))){
+    if(layers.some(l=>l.transform||l.layer)||layers.some(l=>l.data&&markType(l.mark)!=='point'))throw Error('独立离群点表必须直接绑定到点层');
+    const points=layers.filter(l=>markType(l.mark)==='point'),rules=layers.filter(l=>markType(l.mark)==='rule'),
+      bars=layers.filter(l=>markType(l.mark)==='bar'),ticks=layers.filter(l=>markType(l.mark)==='tick');
+    if(points.length!==1||bars.length!==1||!rules.length||!ticks.length||layers.length!==points.length+bars.length+rules.length+ticks.length)throw Error('箱线图缺少明确的五数统计或离群点映射');
+    const limits=bars[0].encoding,q1=limits[v]?.field,q3=limits[v+'2']?.field;
+    const ends=rules.map(l=>[l.encoding[v]?.field,l.encoding[v+'2']?.field]);
+    const lower=ends.length===1?ends[0][0]:ends.find(pair=>pair[1]===q1)?.[0];
+    const upper=ends.length===1?ends[0][1]:ends.find(pair=>pair[0]===q3)?.[1];
+    const medians=ticks.map(l=>l.encoding[v]?.field).filter(field=>field!==lower&&field!==upper);
+    if(medians.length!==1)throw Error('箱线图中位数映射不明确');
+    mapping={category:enc[c]?.field,lower,q1,median:medians[0],q3,upper};
+    const layer=points[0],pointCategory=(layer.encoding[c]??enc[c]).field,pointValue=layer.encoding[v].field;
+    const groups=new Map(s.data.values.map(r=>[r[mapping.category],[]]));
+    for(const observation of layer.data.values){
+      if(!groups.has(observation[pointCategory])||!finite(observation[pointValue]))throw Error('离群点类别或数值无效');
+      groups.get(observation[pointCategory]).push(observation[pointValue]);
+    }
+    const pos=rules[0].encoding[v];
+    p[v+'Title']=title(pos);p[c+'Title']=title(enc[c]);p.valueFormat=pos.axis?.format??'';
+    p.axes[v].type=pos.scale?.type??'linear';
+    p.rows=s.data.values.map(r=>({...Object.fromEntries(Object.entries(mapping).map(([k,f])=>[k,r[f]])),outliers:groups.get(r[mapping.category])}));
   }else{
     if(layers.length!==4||!['rule','bar','tick','point'].every((k,i)=>markType(layers[i].mark)===k)||!enc[c]||Object.keys(enc).some(k=>![c,v].includes(k)))throw Error('Box Plot 需要类别映射和 rule + bar + tick + point 四层');
     checkDef(enc[c]);
@@ -1250,7 +1867,7 @@ function importStatSpec(s){
   }
   if(Object.values(mapping).some(k=>typeof k!=='string'))throw Error('统计字段映射不完整');
   p.title=typeof s.title==='object'&&!Array.isArray(s.title)?s.title.text??'':s.title??'';
-  p.rows=s.data.values.map(r=>Object.fromEntries(Object.entries(mapping).map(([k,f])=>[k,copy(r[f]===undefined?null:r[f])])));
+  if(!p.rows.length)p.rows=s.data.values.map(r=>Object.fromEntries(Object.entries(mapping).map(([k,f])=>[k,copy(r[f]===undefined?null:r[f])])));
   p.categories=p.rows.map(r=>r.category);delete p.categoryObjects;ensureIdentities(p);
   const errors=validate(p).filter(i=>i.severity==='error');if(errors.length)throw Error(errors.map(i=>i.message).join('\n'));
   return p;
@@ -1313,32 +1930,36 @@ function makeCompositeSpec(input){
   const color={field,type:'nominal',sort:null,...(!p.legend?{legend:null}:{})};
   const barKeys=seriesKeys.filter(key=>compositeRole(p,key)==='bar');
   const offset=barKeys.length>1?{field,type:'nominal',sort:null,scale:{domain:barKeys.map(key=>duplicateSeries?seriesID(key):seriesLabel(key))}}:null;
-  const filter=role=>[{filter:{field:'series_role',equal:role}}];
+  const barRows=rows.filter(r=>r.series_role==='bar'),lineRows=rows.filter(r=>r.series_role==='line');
   const bars=[{mark:{type:'bar'},...(offset?{encoding:{xOffset:copy(offset)}}:{})}];
   if(rows.some(r=>r.series_role==='bar'&&present(r.lower)))bars.push({mark:{type:'errorbar'},encoding:orderEncoding({y:{field:'lower',type:'quantitative'},y2:{field:'upper'},...(offset?{xOffset:copy(offset)}:{})})});
-  const lineGT=makeSpec(parts.line),lineMark=copy(lineGT.mark);
-  const line={transform:filter('line'),mark:lineMark};
+  const lineGT=baseSpec(parts.line),lineMark=copy(lineGT.mark);
+  const line={data:{values:lineRows},mark:lineMark};
   const overrides={};if(p.dualYAxis)overrides.y={...y('r',p.rightYTitle),scale:{...y('r',p.rightYTitle).scale,type:p.axes.r.type}};
   if(JSON.stringify(unique(rows.map(r=>r.category_id??r.category)))!==JSON.stringify(categories.map(c=>duplicateCategory?categoryID(c.key):c.name)))x.sort=categories.map(c=>duplicateCategory?categoryID(c.key):c.name);
   if(rows.some(r=>r.series_role==='line'&&present(r.path_order))){overrides.order={field:'path_order',type:'quantitative'};x.sort=categories.map(c=>duplicateCategory?categoryID(c.key):c.name);}
   if(Object.keys(overrides).length)line.encoding=orderEncoding(overrides);
-  const out={...(present(p.title)?{title:copy(p.title)}:{}),data:{values:rows},encoding:{x,y:y('y',p.yTitle),color}};
-  if(p.dualYAxis){out.layer=[{transform:filter('bar'),layer:bars},line];out.resolve={scale:{y:'independent'}};}
-  else out.layer=[...bars.map(l=>({...l,transform:filter('bar')})),line];
+  const out={...(present(p.title)?{title:copy(p.title)}:{}),data:{values:barRows},encoding:{x,y:y('y',p.yTitle),color}};
+  if(p.dualYAxis){out.layer=[{layer:bars},line];out.resolve={scale:{y:'independent'}};}
+  else out.layer=[...bars,line];
   return out;
 }
 function importCompositeSpec(input){
   const s=copy(input),allowed=new Set(['$schema','title','data','encoding','layer','resolve']);
   if(Object.keys(s).some(k=>!allowed.has(k))||!Array.isArray(s.data?.values)||!s.data.values.length||!Array.isArray(s.layer))throw Error('仅支持内联柱线复合精简 GT');
-  const enc=s.encoding||{},rows=s.data.values;
+  const enc=s.encoding||{},lineNode=s.layer.find(l=>markType(l.mark)==='line');
+  const separate=Array.isArray(lineNode?.data?.values);
+  const rows=separate?[...s.data.values,...lineNode.data.values]:s.data.values;
+  if(separate&&(s.data.values.some(r=>r.series_role!=='bar')||lineNode.data.values.some(r=>r.series_role!=='line')))throw Error('柱线层与数据角色不符');
   if(!['category','category_id','category_instance'].includes(enc.x?.field)||!['nominal','ordinal'].includes(enc.x?.type)||enc.y?.field!=='value'||enc.y?.type!=='quantitative'||!['series','series_id','series_instance'].includes(enc.color?.field))throw Error('复合图必须映射 category/value 和 series');
   if(Object.keys(enc).some(k=>!['x','y','color'].includes(k)))throw Error('复合图含不支持的共享编码');
   const dual=!!s.resolve;
   if(dual&&JSON.stringify(s.resolve)!==JSON.stringify({scale:{y:'independent'}}))throw Error('仅支持独立 Y 轴');
   const bars=[],lines=[];
   function visit(node,inheritedRole){
-    if(Object.keys(node).some(k=>!['transform','layer','mark','encoding'].includes(k)))throw Error('复合图层包含未知配置');
-    let role=inheritedRole;
+    if(Object.keys(node).some(k=>!['transform','layer','mark','encoding',...(separate&&node===lineNode?['data']:[])].includes(k)))throw Error('复合图层包含未知配置');
+    let role=separate?(node===lineNode?'line':'bar'):inheritedRole;
+    if(separate&&node.transform)throw Error('独立柱线表不能包含 transform');
     if(node.transform){const f=node.transform;if(f.length!==1||f[0].filter?.field!=='series_role'||!['bar','line'].includes(f[0].filter.equal)||Object.keys(f[0]).length!==1||Object.keys(f[0].filter).length!==2)throw Error('复合图只接受明确的 series_role 筛选');role=f[0].filter.equal;}
     if(node.layer){if(role!=='bar'||node.mark||node.encoding||!Array.isArray(node.layer))throw Error('仅柱和误差棒可共用嵌套轴');for(const child of node.layer)visit(child,role);return;}
     const type=markType(node.mark);if(role==='bar'&&['bar','rule','errorbar'].includes(type))bars.push(node);else if(role==='line'&&type==='line')lines.push(node);else throw Error('图层角色与标记不匹配');
@@ -1736,7 +2357,8 @@ function renderHeatmapSpec(gt,p) {
   const out=copy(gt),{color,...position}=out.encoding,tooltips=[];
   const axisText=axis=>position[axis].title??axis.toUpperCase();
   const describe=(row,axis)=>axisText(axis)+' '+row[axis]+(position[axis+'2']?' – '+row[axis+'2']:'');
-  for(const row of out.data.values)
+  const displayRows=out.data.values.map(row=>({...row}));
+  for(const row of displayRows)
     row.__heatmapDescription=describe(row,'x')+'，'+describe(row,'y')+'，'+(row.value===null?'缺测':(color.title??'数值')+' '+row.value);
   const description={field:'__heatmapDescription',type:'nominal'};
   for(const axis of heatmapAxes){
@@ -1765,19 +2387,39 @@ function renderHeatmapSpec(gt,p) {
   const tooltip=[...tooltips,{field:'value',type:'quantitative',title:color.title}];
   delete out.mark;
   out.encoding=position;
-  const missing={mark:{type:'rect'},transform:[{filter:'datum.value === null'}],
+  const missing={mark:{type:'rect'},data:{values:displayRows.filter(row=>row.value===null)},
     encoding:{color:{value:'#d8dee5'},tooltip:tooltips,description}};
-  const measured={mark:{type:'rect'},transform:[{filter:'isValid(datum.value)'}],encoding:{color,tooltip,description}};
+  const measured={mark:{type:'rect'},data:{values:displayRows.filter(row=>row.value!==null)},encoding:{color,tooltip,description}};
   out.layer=[];
   if(out.data.values.some(row=>row.value===null))out.layer.push(missing);
   if(out.data.values.some(row=>row.value!==null))out.layer.push(measured);
   return out;
 }
 
+function printedPercent(raw){
+  const text=String(raw).trim().replaceAll('−','-').replaceAll('％','%');
+  const match=/^(\()?([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?)\s*%(\))?$/i.exec(text);
+  if(!match||Boolean(match[1])!==Boolean(match[3])||match[1]&&/^[+-]/.test(match[2]))return null;
+  const value=Number(match[2])*(match[1]?-1:1);
+  return finite(value)?value:null;
+}
+function recordPercentScale(key){
+  if(key==='theta')p.valueMode='percent';
+  else if(key)(p.percentLabels??={})[key]=true;
+}
+function fieldScale(project,row,key){
+  if(isPie(project))return key==='value'?'theta':null;
+  if(isHistogram(project)&&['bin_start','bin_end'].includes(key))return isHorizontal(project)?'y':'x';
+  if(key==='x'||key==='y')return key;
+  if(['baseline','value','start','end','lower','upper','median','q1','q3','outliers'].includes(key))
+    return measurementAxis(project,identity(row));
+  return null;
+}
 function readHeatmapValue(raw) {
   const value=raw.trim().replaceAll('−','-');
   if(!value)return undefined;
   if(/^(?:null|na|n\/a|[-–—])$/i.test(value))return null;
+  const percent=printedPercent(value);if(percent!==null)return percent;
   if(!heatmapValueToken.test(value)||!finite(Number(value)))throw Error('请输入有限数值、null 或留空');
   return Number(value);
 }
@@ -2086,7 +2728,7 @@ function editHeatmapValue(index,raw) {
   let value;
   try{value=readHeatmapValue(raw);}
   catch(e){updateHeatmapCellInput(heatmapCellInput(index),row,evidence);toast(e.message);return false;}
-  change(()=>editHeatmapRecords([manualHeatmapRecord(cell,value)]),{keepTable:true});
+  change(()=>{if(printedPercent(raw)!==null)(p.percentLabels??={}).color=true;editHeatmapRecords([manualHeatmapRecord(cell,value)]);},{keepTable:true});
   const result=heatmapCellRecord(cell);
   updateHeatmapCellInput(heatmapCellInput(index),result.row,result.evidence);
   return true;
@@ -2197,6 +2839,7 @@ function pasteHeatmap(raw,start=selected) {
   change(()=>{
     for(const [axis,size] of [['x',width],['y',height]])if(p.heatmap[axis].length<size)
       keepHeatmapBands(axis,Array.from({length:size},(_,i)=>p.heatmap[axis][i]??newHeatmapBand(p,axis)));
+    if(/[%％]/.test(raw))(p.percentLabels??={}).color=true;
     const records=heatmapRecords(p);
     const updates=matrix.flatMap((line,j)=>line.map((value,i)=>{
       const cell=heatmapCell((row+j)*width+column+i);
@@ -2486,10 +3129,11 @@ function axisForm(){
     const ticks=[1,2].map(n=>{
       const pixel=axis['p'+n],gridPixel=effective['p'+n];
       const placeholder=!finite(pixel)&&finite(gridPixel)?` placeholder="网格边界 ${gridPixel.toFixed(1)}"`:'';
-      return `<div class="tick-row"><button data-tick="${a}${n}" class="${tool==='calibrate'&&calTarget===a+n?'active':''}">${isComposite(p)?a==='r'?'右Y':'左Y':a.toUpperCase()}${n} 取刻度</button><label>原图像素<input type="number" step="any" data-axis="${a}" data-field="p${n}" value="${pixel??''}"${placeholder}></label><label>真实数值<input type="number" step="any" data-axis="${a}" data-field="v${n}" value="${axis['v'+n]??''}"></label></div>`;
+      return `<div class="tick-row"><button data-tick="${a}${n}" class="${tool==='calibrate'&&calTarget===a+n?'active':''}">${isComposite(p)?a==='r'?'右Y':'左Y':a.toUpperCase()}${n} 取刻度</button><label>原图像素<input type="number" step="any" data-axis="${a}" data-field="p${n}" value="${pixel??''}"${placeholder}></label><label>真实数值<input type="text" inputmode="decimal" data-axis="${a}" data-field="v${n}" value="${axis['v'+n]??''}"></label></div>`;
     }).join('');
-    return `<div class="axis-group"><h4>${isComposite(p)?a==='r'?'右 Y（折线）':'左 Y（柱）':a.toUpperCase()} 轴 <small data-axis-status="${a}"></small></h4><label>坐标类型<select data-axis="${a}" data-field="type"><option value="linear" ${axis.type!=='log'?'selected':''}>线性</option><option value="log" ${axis.type==='log'?'selected':''}>对数</option></select></label>${ticks}</div>`;
+    return `<div class="axis-group"><label><input type="checkbox" data-percent-scale="${a}" ${percentLabels(p,a)?'checked':''}> 原图数字带 %（25% 录入 25）</label><h4>${isComposite(p)?a==='r'?'右 Y（折线）':'左 Y（柱）':a.toUpperCase()} 轴 <small data-axis-status="${a}"></small></h4><label>坐标类型<select data-axis="${a}" data-field="type"><option value="linear" ${axis.type!=='log'?'selected':''}>线性</option><option value="log" ${axis.type==='log'?'selected':''}>对数</option></select></label>${ticks}</div>`;
   }).join('');
+  if(isHeatmap(p))$('axisFields').insertAdjacentHTML('beforeend',`<label><input type="checkbox" data-percent-scale="color" ${percentLabels(p,'color')?'checked':''}> 色标数字带 %（25% 录入 25）</label>`);
   syncCalibrationStatus();
 }
 function updateHeatmapCalibration(axis){
@@ -2520,7 +3164,7 @@ const automaticPercent=k==='value'&&!p.evidence?.[i]?.valueOverride&&
 const measured=finite(r[k])&&(isHistogram(p)&&histogramHasEvidence(p,k,p.evidence?.[i])||
   isPercentStack(p)&&(['start','end'].includes(k)||automaticPercent));
 return `<td><input aria-label="第${i+1}行 ${columnNames[k]}" data-i="${i}" data-key="${k}"
-  value="${esc(measured?r[k].toFixed(2):r[k])}" type="number" step="any"></td>`;
+  value="${esc(measured?r[k].toFixed(2):r[k])}" type="text" inputmode="decimal"></td>`;
 }).join('')}</tr>`).join('');$('countBadge').textContent=`${p.rows.length} 条记录`;syncHistoryControls();}
 function syncHistoryControls(){$('undo').disabled=!history.length;$('redo').disabled=!future.length;}
 function rowSource(i){return histogramHandleKeys(p).some(k=>p.evidence?.[i]?.[k])?'⌖':'✎';}
@@ -2534,7 +3178,7 @@ function scheduleDraftSave(){clearTimeout(saveTimer);saveTimer=setTimeout(saveDr
 function refresh(form=false,keepTable=false){ensureIdentities(p);if(isPercentStack(p))syncPercentStackRatios(p);queueUI();if(form)syncForm();if(keepTable)syncHistoryControls();else table();syncAssist();syncPercentStackHeightPanel();draw();clearTimeout(renderTimer);renderTimer=setTimeout(render,130);scheduleDraftSave();}
 let renderVersion=0;
 async function render(){const version=++renderVersion;renderOk=false;let issues=validate(p);if(p.rows.length===0&&!isHeatmap(p))issues=[{severity:'warning',message:'添加数据记录后生成 GT。'}];$('issues').innerHTML=issues.length?issues.map(i=>`<li class="${i.severity}">${esc(i.message)}</li>`).join(''):'<li class="ok">数据结构检查通过。请继续核对原图与科学数值。</li>';$('validationBadge').textContent=issues.filter(i=>i.severity==='error').length+' 个错误';
-try{const gt=makeSpec(p);$('jsonPreview').textContent=JSON.stringify(gt,null,2);if(!window.vegaEmbed)throw Error('本地 Vega 渲染组件未加载');const spec={...renderSpec(gt,p),width:230,height:210};for(const a of ['x','y']){if(!isHeatmap(p)&&!isStat(p)&&!isArea(p)&&!isHistogram(p)&&spec.encoding[a])spec.encoding[a].title=isPercentStack(p)?spec.encoding[a].title??null:p[a+'Title']||null;}if(!isHeatmap(p)&&!isStat(p)&&!isArea(p)&&!isHistogram(p)&&spec.encoding.color){spec.encoding.color.legend=p.legend?{...(spec.encoding.color.legend||{}),title:null}:null;const keys=unique((isComposite(p)?['bar','line'].flatMap(role=>orderedRows(compositePart(p,role))):orderedRows(p)).map(identity));spec.encoding.color.scale={domain:unique(gt.data.values.map(r=>r.series_id??r.series)),range:keys.map(k=>p.series.find(s=>s.key===k)?.color||'#008b7e')};}if(isHistogram(p))styleHistogramPreview(spec);if(isPie(p)&&p.donut)spec.mark={type:'arc',innerRadius:55};if(isBox(p)){const v=valueAxis(p);spec.layer[1].mark={type:'bar',size:26};spec.layer[2].mark={type:'tick',orient:horizontal()?'vertical':'horizontal',color:'#243344',size:26,thickness:2};if(p.axes[v].type==='log')for(const l of spec.layer)l.encoding[v].scale={type:'log'};}const holder=document.createElement('div');const result=await window.vegaEmbed(holder,spec,{actions:false,renderer:'svg'});result.view.finalize();if(version!==renderVersion)return;$('preview').replaceChildren(holder);lastSpec=gt;renderOk=true;$('renderState').textContent='Vega-Lite v6 · 语义渲染成功';}catch(e){if(version!==renderVersion)return;lastSpec=null;$('jsonPreview').textContent='请先修正数据结构。';$('preview').replaceChildren();$('renderState').textContent=p.rows.length?'无法渲染：'+e.message:'添加记录后显示语义重绘';}}
+try{const gt=makeSpec(p);$('jsonPreview').textContent=JSON.stringify(gt,null,2);if(!window.vegaEmbed)throw Error('本地 Vega 渲染组件未加载');const spec={...renderSpec(gt,p),width:230,height:210};for(const a of ['x','y']){if(!isHeatmap(p)&&!isStat(p)&&!isArea(p)&&!isHistogram(p)&&spec.encoding[a])spec.encoding[a].title=isPercentStack(p)?spec.encoding[a].title??null:p[a+'Title']||null;}if(!isHeatmap(p)&&!isStat(p)&&!isArea(p)&&!isHistogram(p)&&spec.encoding.color){spec.encoding.color.legend=p.legend?{...(spec.encoding.color.legend||{}),title:null}:null;const keys=unique((isComposite(p)?['bar','line'].flatMap(role=>orderedRows(compositePart(p,role))):orderedRows(p)).map(identity));spec.encoding.color.scale={domain:unique(allTableRows(gt).map(r=>r.series_id??r.series)),range:keys.map(k=>p.series.find(s=>s.key===k)?.color||'#008b7e')};}if(isHistogram(p))styleHistogramPreview(spec);if(isPie(p)&&p.donut)spec.mark={type:'arc',innerRadius:55};if(isBox(p)){const v=valueAxis(p);spec.layer[1].mark={type:'bar',size:26};spec.layer[2].mark={type:'tick',orient:horizontal()?'vertical':'horizontal',color:'#243344',size:26,thickness:2};if(p.axes[v].type==='log')for(const l of spec.layer)l.encoding[v].scale={type:'log'};}const holder=document.createElement('div');const result=await window.vegaEmbed(holder,spec,{actions:false,renderer:'svg'});result.view.finalize();if(version!==renderVersion)return;$('preview').replaceChildren(holder);globalThis.VegaLiteTableExport.exportTables(gt);lastSpec=gt;renderOk=true;$('renderState').textContent='Vega-Lite v6 · 语义渲染成功';}catch(e){if(version!==renderVersion)return;lastSpec=null;$('jsonPreview').textContent='请先修正数据结构。';$('preview').replaceChildren();$('renderState').textContent=p.rows.length?'无法渲染：'+e.message:'添加记录后显示语义重绘';}}
 function assist(){
   ensureIdentities(p);p.assist??={};const a=p.assist;
   a.sequence??=bar()||isNominalArea(p)?'category':'series';if(isPercentStack(p)||isStack(p)&&a.sequence!=='manual')a.sequence='category';a.errorOrder??='per-bar';a.projections??=true;a.magnify??=true;a.dragAxis??='free';a.categoryPixels??={};if(isBox(p)){a.boxField??='lower';a.outlierTarget??='new';}
@@ -2939,8 +3583,9 @@ function recalculateArea(){
     }
   }
 }
-function editAreaCell(i,key,raw){
+function editAreaCell(i,key,raw,scale){
   change(()=>{
+    recordPercentScale(scale);
     p.rows[i][key]=raw===''?null:Number(raw);
     p.evidence??=[];
     const e=p.evidence[i]??={};
@@ -3086,13 +3731,14 @@ function measureHistogram(pt){
   });
 }
 
-function editHistogramCell(i,field,raw){
+function editHistogramCell(i,field,raw,scale){
   const row=p.rows[i],run=activeHistogramRun();
   const value=raw===''?null:Number(raw);
   const candidate={...row,[field]:value};
   const willAdvance=run&&!run.stacked&&histogramRunTarget(run).row===row&&
     completeHistogramBin(candidate)&&finite(candidate.value);
   change(()=>{
+    recordPercentScale(scale);
     row[field]=value;
     if(field==='bin_start')delete row._histogramPrevious;
     p.evidence??=[];
@@ -3414,7 +4060,11 @@ function removeHistogramBin(index){
 function editHistogramBin(input){
   const bin=p.histogramBins[Number(input.dataset.bin)],field=input.dataset.field;
   change(()=>{
-    bin[field]=input.value===''?null:input.valueAsNumber;
+    const display=printedPercent(input.value);
+    if(display!==null)recordPercentScale(isHorizontal(p)?'y':'x');
+    const value=input.value===''?null:display??Number(input.value);
+    if(value!==null&&!finite(value))throw Error('分箱边界需要有限数值');
+    bin[field]=value;
     delete bin.evidence[field+'Pixel'];
     if(field==='bin_start')bin.inheritStart=false;
     syncHistogramBoundaries();
@@ -3433,7 +4083,7 @@ function syncHistogramBinTable(){
   if(body.rows.length!==bins.length||bins.some((bin,i)=>body.rows[i].dataset.key!==bin.key)){
     body.innerHTML=bins.map(({key},i)=>`<tr data-key="${esc(key)}"><td><button type="button" class="small"
       data-select-bin="${i}" aria-label="选中第 ${i+1} 箱">${i+1}</button></td>${
-      HISTOGRAM_BOUNDARIES.map((field,j)=>`<td><input type="number" step="any" data-bin="${i}"
+      HISTOGRAM_BOUNDARIES.map((field,j)=>`<td><input type="text" inputmode="decimal" data-bin="${i}"
         data-field="${field}" aria-label="第 ${i+1} 箱${j?'结束':'起始'}边界"></td>`).join('')
     }<td><button type="button" class="small" data-delete-bin="${i}" aria-label="删除第 ${i+1} 箱">删除</button></td></tr>`).join('');
   }
@@ -3725,10 +4375,11 @@ function measureBox(pt){
     const at=BOX_FIELDS.indexOf(f);if(at<4)a.boxField=BOX_FIELDS[at+1];else {a.boxField='lower';nextTarget();}
   }
 }
-function outlierCells(r,i){return (r.outliers||[]).map((v,j)=>`<div class="series-row"><input type="number" step="any" data-i="${i}" data-key="outliers" data-outlier="${j}" aria-label="第${i+1}行 异常值${j+1}" value="${esc(v)}"><button class="small" data-delete-outlier="${j}" data-index="${i}" title="删除异常值">×</button></div>`).join('')+`<button class="small" data-add-outlier="${i}">＋ 异常值</button>`;}
-function editStatCell(input){
+function outlierCells(r,i){return (r.outliers||[]).map((v,j)=>`<div class="series-row"><input type="text" inputmode="decimal" data-i="${i}" data-key="outliers" data-outlier="${j}" aria-label="第${i+1}行 异常值${j+1}" value="${esc(v)}"><button class="small" data-delete-outlier="${j}" data-index="${i}" title="删除异常值">×</button></div>`).join('')+`<button class="small" data-add-outlier="${i}">＋ 异常值</button>`;}
+function editStatCell(input,scale){
   const {i,key,outlier}=input.dataset,raw=input.value;
   change(()=>{
+    recordPercentScale(scale);
     const r=p.rows[i];p.evidence??=[];const e=p.evidence[i]??={};
     if(key==='category'){
       renameObject(p,'category',r._categoryKey,raw);
@@ -3986,9 +4637,10 @@ if(isHistogramStack(p)&&!activeHistogramRun()){
   a.histogramHandle=evidence?.valueStartPixel&&!evidence.valueEndPixel?'valueEndPixel':'valueStartPixel';
 }
 if(isBox(p)){assist().category=p.rows[selected]._categoryKey;const k=e.target.dataset.key;if(BOX_FIELDS.includes(k))assist().boxField=k;if(k==='outliers'){assist().boxField='outliers';assist().outlierTarget=e.target.dataset.outlier;}selectedHandle=boxHandle(assist().boxField);}else{const key=e.target.dataset.key;selectedHandle=isHistogram(p)?(key?histogramHandles(p,key).at(-1):assist().histogramHandle):key==='start'?'startPixel':['lower','upper','baseline'].includes(key)?key+'Pixel':'pixel';}syncAssist();document.querySelectorAll('#tableBody tr').forEach((r,i)=>r.classList.toggle('selected',i===selected));draw();}});
-function editPercentStackCell(index,field,input){
+function editPercentStackCell(index,field,input,scale){
   const raw=input.value;
   change(()=>{
+    recordPercentScale(scale);
     const row=p.rows[index],target={category:categoryIdentity(row),series:identity(row)};
     const complete=validPercent(row.value);
     p.evidence??=[];
@@ -4016,14 +4668,22 @@ function editPercentStackCell(index,field,input){
   });
 }
 $('tableBody').addEventListener('change',e=>{const {i,key,object}=e.target.dataset;if(i===undefined)return;
+let scale;
+if(key&&!['category','series','path_order','stack_order'].includes(key)&&!(key==='x'&&categorical())){
+  const display=printedPercent(e.target.value);
+  if(display!==null){
+    scale=fieldScale(p,p.rows[i],key);
+    e.target.value=String(display);
+  }else if(e.target.value.trim()!==''&&!finite(Number(e.target.value))){toast('请输入有限数值或带 % 的原图标签');table();return;}
+}
 if(isHistogramStack(p)){
   if(e.target.hasAttribute('data-row-bin')){assignHistogramBin(e.target);return;}
   if(object==='series'&&hasHistogramSegment(p.rows[i]._histogramBin,e.target.value,p.rows[i])){
     e.target.value=identity(p.rows[i]);toast('该分箱和系列已有记录');return;
   }
 }
-if(isPercentStack(p)&&['value','start','end'].includes(key)){editPercentStackCell(+i,key,e.target);return;}
-if(isHistogram(p)&&key){editHistogramCell(+i,key,e.target.value);return;}if(isStat(p)&&key){editStatCell(e.target);return;}if(isArea(p)&&key){editAreaCell(+i,key,e.target.value);return;}change(()=>{if(object){
+if(isPercentStack(p)&&['value','start','end'].includes(key)){editPercentStackCell(+i,key,e.target,scale);return;}
+if(isHistogram(p)&&key){editHistogramCell(+i,key,e.target.value,scale);return;}if(isStat(p)&&key){editStatCell(e.target,scale);return;}if(isArea(p)&&key){editAreaCell(+i,key,e.target.value,scale);return;}change(()=>{recordPercentScale(scale);if(object){
 const row=p.rows[i],ref=object==='series'?'_seriesKey':'_categoryKey',field=object==='series'?'series':categoryField(p);
 const restoreDirectPercent=isPercentStack(p)&&object==='category'&&usesPercentStackRatio(p,categoryIdentity(row))&&!usesPercentStackRatio(p,e.target.value);
 if(isNominalArea(p)||isPercentStack(p)){
@@ -4072,9 +4732,17 @@ $('addSeries').onclick=()=>{if(p.kind.endsWith('_1')){toast('单系列类型只�
   addObject(p,'series','Series '+n);
 },{form:true});};
 $('axisFields').onclick=e=>{if(e.target.dataset.tick){calTarget=e.target.dataset.tick;setTool('calibrate');}};
-$('axisFields').onchange=e=>{const {axis,field}=e.target.dataset;if(!axis)return;if(isHistogram(p)||isHeatmap(p)||isPercentStack(p)){
+$('axisFields').onchange=e=>{const {axis,field,percentScale}=e.target.dataset;if(percentScale){change(()=>{p.percentLabels??={};p.percentLabels[percentScale]=e.target.checked;},{form:true});return;}if(!axis)return;
+let scale;
+if(['v1','v2'].includes(field)){
+  const display=printedPercent(e.target.value);
+  if(display!==null){scale=axis;e.target.value=String(display);}
+  else if(e.target.value!==''&&!finite(Number(e.target.value))){toast('刻度需要有限数值');axisForm();return;}
+}
+if(isHistogram(p)||isHeatmap(p)||isPercentStack(p)){
   const raw=e.target.value;
   change(()=>{
+    recordPercentScale(scale);
     const calibration=p.axes[axis];
     calibration[field]=field==='type'?raw:raw===''?null:Number(raw);
     if(field==='p1'||field==='p2'){
@@ -4088,7 +4756,7 @@ $('axisFields').onchange=e=>{const {axis,field}=e.target.dataset;if(!axis)return
   },{form:isHeatmap(p)||isPercentStack(p)});
   syncCalibrationStatus();
   return;
-}try{change(()=>{if(field!=='type'&&e.target.value==='')throw Error('刻度值不能为空');p.axes[axis][field]=field==='type'?e.target.value:Number(e.target.value);if(field==='p1'||field==='p2'){const n=field.slice(1);p.axes[axis]['point'+n]=axis==='x'?{x:p.axes[axis][field],y:p.axes.y.p1}:{x:p.axes.x.p1,y:p.axes[axis][field]};}p.axes[axis].calibrated=!!(p.axes[axis].point1&&p.axes[axis].point2)&&p.axes[axis].p1!==p.axes[axis].p2&&p.axes[axis].v1!==p.axes[axis].v2;recalculate();},{form:true});}catch(err){toast(err.message);syncForm();}};
+}try{change(()=>{recordPercentScale(scale);if(field!=='type'&&e.target.value==='')throw Error('刻度值不能为空');p.axes[axis][field]=field==='type'?e.target.value:Number(e.target.value);if(field==='p1'||field==='p2'){const n=field.slice(1);p.axes[axis]['point'+n]=axis==='x'?{x:p.axes[axis][field],y:p.axes.y.p1}:{x:p.axes.x.p1,y:p.axes[axis][field]};}p.axes[axis].calibrated=!!(p.axes[axis].point1&&p.axes[axis].point2)&&p.axes[axis].p1!==p.axes[axis].p2&&p.axes[axis].v1!==p.axes[axis].v2;recalculate();},{form:true});}catch(err){toast(err.message);syncForm();}};
 document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
 $('addRow').onclick=()=>{if(isHistogram(p)){addHistogramRow();return;}if(isArea(p)){
   const nominal=isNominalArea(p);
@@ -4126,11 +4794,23 @@ $('moveProject').onchange=async()=>{stash();const q=queue.find(q=>q.id===activeI
 $('removeImage').onclick=async()=>{if(!activeId||!confirm('移除当前图像和标注？请确认已保存工程备份。'))return;queue=queue.filter(q=>q.id!==activeId);activeId=null;imageData=null;p.rows=[];const next=visibleQueue()[0];if(next)await activate(next.id);else resetCurrent();};
 $('queue').onclick=async e=>{const button=e.target.closest('[data-queue]');if(button)try{await activate(button.dataset.queue);}catch(err){toast(err.message);}};
 function downloadBlob(name,blob){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function tableFiles(spec,stem){
+  return globalThis.VegaLiteTableExport.exportTables(spec).flatMap(t=>[
+    {name:stem+'/'+t.id+'.md',text:t.markdown},{name:stem+'/'+t.id+'.csv',text:t.csv}
+  ]);
+}
 function download(name,object){downloadBlob(name,new Blob([JSON.stringify(object,null,2)],{type:'application/json'}));}
 function bundle(){stash();return{format:'chart-studio-project',version:2,savedAt:new Date().toISOString(),projects:clone(projects),currentProjectId,activeId,queue:clone(queue),current:{project:clone(p),image:imageData,name:fileName}};}
 $('saveProject').onclick=()=>{download('chart-studio-workspace.project.json',bundle());toast('工作区已备份：包含全部项目、原图、标注和校准记录');};
 $('exportGT').onclick=async()=>{await render();const errors=validate(p).filter(i=>i.severity==='error');if(errors.length||!renderOk||!lastSpec){toast('请先修正质量检查错误并确认渲染成功');return;}if(!p.reviewed){toast('请先核对原图和数值来源，并勾选右侧确认');return;}const spec=clone(lastSpec);if($('withSchema').checked)spec.$schema='https://vega.github.io/schema/vega-lite/v6.json';download(safeExportName(fileName||p.kind).split('/').at(-1),spec);toast('已导出精简 GT；像素与来源请另存工程');};
-$('batchExport').onclick=async()=>{stash();const items=visibleQueue();if(!items.length){toast('当前项目还没有图像');return;}const report=[],entries=[],names=new Set();for(const q of items){let reason='',spec;try{if(!q.project.reviewed)throw Error('尚未核对');spec=makeSpec(q.project);window.vega.parse(window.vegaLite.compile(spec).spec);}catch(e){reason=e.message;}let name=safeExportName(q.name);for(let n=2;names.has(name);n++)name=safeExportName(q.name).replace(/\.gt\.json$/,'-'+n+'.gt.json');if(!reason){names.add(name);if($('withSchema').checked)spec.$schema='https://vega.github.io/schema/vega-lite/v6.json';entries.push({name:'gt/'+name,text:JSON.stringify(spec,null,2)});}report.push({image:q.name,id:q.id,status:reason?'skipped':'exported',file:reason?null:'gt/'+name,reason:reason||null});}entries.push({name:'export-report.json',text:JSON.stringify({project:projectName(),exported:entries.length,skipped:report.filter(q=>q.status==='skipped').length,images:report},null,2)});downloadBlob(projectName().replace(/[<>:"/\\|?*]/g,'_')+'.gt.zip',new Blob([zipBytes(entries)],{type:'application/zip'}));toast('批量导出 '+(entries.length-1)+' 张；跳过 '+report.filter(q=>q.status==='skipped').length+' 张（原因见 ZIP 内清单）');queueUI();};
+$('exportTables').onclick=async()=>{
+  await render();
+  if(!p.reviewed||!renderOk||!lastSpec){toast('请完成数据核对和渲染后导出');return;}
+  try{const stem=safeExportName(fileName||p.kind).split('/').at(-1).replace(/\.gt\.json$/,'');
+    downloadBlob(stem+'.tables.zip',new Blob([zipBytes(tableFiles(lastSpec,stem))],{type:'application/zip'}));
+  }catch(error){toast(error.message);}
+};
+$('batchExport').onclick=async()=>{stash();const items=visibleQueue();if(!items.length){toast('当前项目还没有图像');return;}const report=[],entries=[],names=new Set();for(const q of items){let reason='',spec,tables;try{if(!q.project.reviewed)throw Error('尚未核对');spec=makeSpec(q.project);window.vega.parse(window.vegaLite.compile(spec).spec);tables=tableFiles(spec,'tables');}catch(e){reason=e.message;}let name=safeExportName(q.name);for(let n=2;names.has(name);n++)name=safeExportName(q.name).replace(/\.gt\.json$/,'-'+n+'.gt.json');if(!reason){names.add(name);if($('withSchema').checked)spec.$schema='https://vega.github.io/schema/vega-lite/v6.json';entries.push({name:'gt/'+name,text:JSON.stringify(spec,null,2)},...tables.map(t=>({...t,name:'tables/'+name.slice(0,-8)+'/'+t.name.slice(7)})));}report.push({image:q.name,id:q.id,status:reason?'skipped':'exported',file:reason?null:'gt/'+name,reason:reason||null});}entries.push({name:'export-report.json',text:JSON.stringify({project:projectName(),exported:names.size,skipped:report.filter(q=>q.status==='skipped').length,images:report},null,2)});downloadBlob(projectName().replace(/[<>:"/\\|?*]/g,'_')+'.gt.zip',new Blob([zipBytes(entries)],{type:'application/zip'}));toast('批量导出 '+names.size+' 张；跳过 '+report.filter(q=>q.status==='skipped').length+' 张（原因见 ZIP 内清单）');queueUI();};
 $('copyGT').onclick=async()=>{if(!lastSpec){toast('暂无有效 GT');return;}try{await navigator.clipboard.writeText(JSON.stringify(lastSpec,null,2));toast('JSON 已复制');}catch{toast('无法访问剪贴板，请使用导出 GT');}};
 $('openProject').onclick=()=>$('projectInput').click();$('importSpec').onclick=()=>$('specInput').click();
 async function restore(data){if(data.format!=='chart-studio-project'||![1,2].includes(data.version)||!data.current?.project||!Array.isArray(data.queue))throw Error('不是受支持的 Chart Studio 工程');const all=[data.current.project,...data.queue.map(q=>q.project)];for(const item of all){if(!labels[item.kind]||!Array.isArray(item.rows)||!item.axes?.x||!item.axes?.y||!Array.isArray(item.series))throw Error('工程结构不完整');if(isHeatmap(item))checkHeatmapProject(item);}const nextProjects=data.version===2?data.projects||[]:[];if(!Array.isArray(nextProjects)||nextProjects.some(q=>!q.id||typeof q.name!=='string')||new Set(nextProjects.map(q=>q.id)).size!==nextProjects.length)throw Error('项目列表无效');if(new Set(data.queue.map(q=>q.id)).size!==data.queue.length||data.queue.some(q=>typeof q.id!=='string'))throw Error('图像列表 ID 无效');const projectIds=new Set(nextProjects.map(q=>q.id));const active=data.queue.find(q=>q.id===data.activeId);if(data.activeId&&!active)throw Error('当前图像 ID 不存在');if(data.version===2&&active&&(active.projectId??null)!==(data.currentProjectId||null))throw Error('当前图像与所选项目不一致');if(data.version===2&&(data.currentProjectId&&!projectIds.has(data.currentProjectId)||data.queue.some(q=>q.projectId&&!projectIds.has(q.projectId))))throw Error('图像所属项目不存在');if(data.current.image)await new Promise((resolve,reject)=>{const im=new Image();im.onload=resolve;im.onerror=()=>reject(Error('工程原图无法读取'));im.src=data.current.image;});activationVersion++;queue=clone(data.queue);for(const q of queue){restoreHistogramBins(ensureIdentities(q.project));restoreAreaMeasurementPrecision(q.project);}projects=clone(nextProjects);currentProjectId=data.version===2?data.currentProjectId||null:null;activeId=data.activeId;p=restoreHistogramBins(ensureIdentities(clone(data.current.project)));restoreAreaMeasurementPrecision(p);p.errorBars=hasErrors(p);imageData=data.current.image;fileName=data.current.name||'';image=null;hover=null;pendingStart=null;drag=null;history=[];future=[];selected=-1;if(imageData)await loadImage(imageData);else{$('empty').style.display='flex';$('magnifier').hidden=true;draw();}$('fileName').textContent=fileName||'未命名工程';queueUI();refresh(true);resumeTool();}

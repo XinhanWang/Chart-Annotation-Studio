@@ -16,6 +16,16 @@ for(const [name,mode,title,values,donut]of[
 for(const [name,kind,outliers]of[['box-vertical-outliers','boxplot_v',[-7,107.1234567890123]],['box-horizontal-empty','boxplot_h',[]]]){
  const p=plain(context.api.defaultProject(kind));Object.assign(p,{title:name,xTitle:kind==='boxplot_h'?'Duration (ms)':'Treatment',yTitle:kind==='boxplot_v'?'Duration (ms)':'Treatment',categories:['A','B'],rows:[{category:'A',lower:10,q1:25,median:40,q3:65,upper:90,outliers},{category:'B',lower:20,q1:35,median:50,q3:70,upper:85,outliers:[]}],evidence:[],reviewed:false});delete p.categoryObjects;fixtures.push({name,project:p});
 }
+function readArchive(buffer){
+ const entries={};
+ for(let at=0;buffer.readUInt32LE(at)===0x04034b50;){
+  const length=buffer.readUInt16LE(at+26),start=at+30+length+buffer.readUInt16LE(at+28),end=start+buffer.readUInt32LE(at+18);
+  const name=buffer.toString('utf8',at+30,at+30+length),content=buffer.toString('utf8',start,end);
+  entries[name]=name.endsWith('.json')?JSON.parse(content):content;
+  at=end;
+ }
+ return entries;
+}
 const server=http.createServer((req,res)=>{res.setHeader('Content-Type','text/html; charset=utf-8');res.end(html);});
 let browser;
 (async()=>{
@@ -62,6 +72,14 @@ let browser;
   fs.writeFileSync(path.join(out,f.name+'.png'),Buffer.from(f.image.split(',')[1],'base64'));
   await openProject(f.project,f.image,f.name+'.png');await settle();
   await page.check('#reviewed');const exported=await downloadJSON('#exportGT');assert.deepEqual(exported,gt);
+  const pending=page.waitForEvent('download');await page.click('#exportTables');
+  const files=readArchive(fs.readFileSync(await (await pending).path()));
+  const expectedTables=await page.evaluate(spec=>window.VegaLiteTableExport.exportTables(spec),gt);
+  assert.equal(Object.keys(files).length,expectedTables.length*2);
+  for(const table of expectedTables){
+    assert.equal(files[f.name+'/'+table.id+'.md'],table.markdown);
+    assert.equal(files[f.name+'/'+table.id+'.csv'],table.csv);
+  }
   const saved=await downloadJSON('#saveProject');fs.writeFileSync(path.join(out,f.name+'.project.json'),JSON.stringify(saved,null,2)+'\n');
   await inputJSON('#specInput',gt);await settle();assert.deepEqual((await snapshot()).lastSpec,gt);
   await inputJSON('#projectInput',saved);await settle();assert.equal((await snapshot()).project.donut, f.project.donut);assert.equal((await snapshot()).project.reviewed,true);assert((await snapshot()).imageSize.width>0);if(f.project.kind!=='pie')assert.equal((await snapshot()).imageSize.width,640);
@@ -72,8 +90,7 @@ let browser;
  const workspaceFixtures=[fixtures[1],fixtures[3]],queue=workspaceFixtures.map((f,i)=>({id:'stat-'+i,projectId:'statistics',name:'samples/'+f.name+'.png',image:f.image,project:{...plain(f.project),reviewed:true}}));
  await inputJSON('#projectInput',{format:'chart-studio-project',version:2,projects:[{id:'statistics',name:'统计图核验'}],currentProjectId:'statistics',activeId:queue[0].id,queue,current:{project:queue[0].project,image:queue[0].image,name:queue[0].name}});await settle();
  assert.equal((await snapshot()).currentProjectId,'statistics');assert.equal(await page.locator('#queue [data-queue]').count(),2);
- const batchDownload=page.waitForEvent('download');await page.click('#batchExport');const archive=fs.readFileSync(await (await batchDownload).path()),entries={};let at=0;
- while(archive.readUInt32LE(at)===0x04034b50){const size=archive.readUInt32LE(at+18),length=archive.readUInt16LE(at+26),extra=archive.readUInt16LE(at+28),start=at+30+length+extra,name=archive.subarray(at+30,at+30+length).toString('utf8');entries[name]=JSON.parse(archive.subarray(start,start+size).toString('utf8'));at=start+size;}
+ const batchDownload=page.waitForEvent('download');await page.click('#batchExport');const archive=fs.readFileSync(await (await batchDownload).path()),entries=readArchive(archive);
  assert.equal(entries['export-report.json'].exported,2);assert.equal(entries['export-report.json'].skipped,0);
  for(const f of workspaceFixtures)assert.deepEqual(entries['gt/samples/'+f.name+'.gt.json'],plain(context.api.makeSpec(f.project)));
  await page.click('[data-queue="stat-1"]');await settle();const priorFocus=(await snapshot()).project;await page.click('#focusToggle');await page.waitForFunction(()=>!!document.fullscreenElement);assert.equal((await snapshot()).focusMode,true);await page.locator('#canvas').press('Escape');await page.waitForFunction(()=>!document.fullscreenElement);assert.equal((await snapshot()).focusMode,false);assert.deepEqual((await snapshot()).project,priorFocus);
@@ -81,7 +98,7 @@ let browser;
  checks.push('Pie/Box: named v2 workspace, mixed-chart batch ZIP with exact GT/units, image switching, focus/Escape and archive restore');
  // Pie editing, order, delete/undo, warning without normalization, and absolute mode.
  const pie=fixtures[0];await openProject(pie.project,pie.image,'pie-percent.png');await settle();
- await field('[data-i="0"][data-key="value"]','31.1234567890123');await settle();assert.match(await page.locator('#issues').innerText(),/不等于 100/);assert.equal((await snapshot()).lastSpec.data.values[0].value,31.1234567890123);
+ await field('[data-i="0"][data-key="value"]','31.1234567890123');await settle();assert.match(await page.locator('#issues').innerText(),/不等于 100/);assert.equal((await snapshot()).lastSpec.data.values[0].value,.311234567890123);
  await page.click('[data-index="0"][data-move="1"]');assert.equal((await snapshot()).project.rows[1].category,'Research');
  await page.click('#deleteRow');assert.equal((await snapshot()).project.rows.length,2);assert(!(await snapshot()).project.rows.some(r=>r.category==='Research'));await page.click('#undo');assert.equal((await snapshot()).project.rows.length,3);
  const rowsBeforeModeSwitch=(await snapshot()).project.rows;
@@ -126,15 +143,15 @@ let browser;
   // Guides, magnification and zoom retain original pixels.
   await page.selectOption('#boxField','median');await page.click('[data-tool="select"]');await canvasPoint(...point(42),'move');assert(await page.locator('#magnifier').isVisible());assert((await snapshot()).projectionInfo);assert.match(await page.locator('#cursorInfo').innerText(),/median: 42\.00$/);
   const beforeZoom=(await snapshot()).project.rows;await page.click('#zoomIn');assert.deepEqual((await snapshot()).project.rows,beforeZoom);
-  await page.check('#reviewed');await settle();const gt=await downloadJSON('#exportGT');assert.equal(gt.layer[0].encoding[v].title,'Duration (ms)');assert.deepEqual(gt.data.values,scientificRows((await snapshot()).project));
+  await page.check('#reviewed');await settle();const gt=await downloadJSON('#exportGT');assert.equal(gt.layer[0].encoding[v].title,'Duration (ms)');const observed=scientificRows((await snapshot()).project);assert.deepEqual(gt.data.values,observed.map(({outliers,...summary})=>summary));assert.deepEqual(gt.layer.at(-1).data.values,observed.flatMap(r=>r.outliers.map(value=>({category:r.category,value}))));
   const saved=await downloadJSON('#saveProject');await inputJSON('#projectInput',saved);await settle();assert.deepEqual((await snapshot()).project.evidence,saved.current.project.evidence);assert.deepEqual((await snapshot()).project.axes,saved.current.project.axes);assert.equal((await snapshot()).project.reviewed,true);
   fs.writeFileSync(path.join(out,fixture.name+'.measured.project.json'),JSON.stringify(saved,null,2)+'\n');fs.writeFileSync(path.join(out,fixture.name+'.measured.gt.json'),JSON.stringify(gt,null,2)+'\n');
   await page.evaluate(()=>{window.scrollTo(0,0);document.getElementById('toast').style.display='none';});await page.screenshot({path:path.join(out,fixture.name+'.measured.studio.png'),fullPage:true});
   // Local draft restoration and multiple-image queue preserve measured evidence.
   await page.waitForTimeout(700);await page.reload();await page.waitForFunction(()=>window.chartStudio?.snapshot().project.rows.length===1);await settle();assert.deepEqual((await snapshot()).project.evidence,saved.current.project.evidence);
-  const queueBeforeUpload=(await snapshot()).queue.length;await page.locator('#imageInput').setInputFiles(fixtures.slice(3).map(f=>path.join(out,f.name+'.png')));await page.waitForTimeout(250);assert.equal(await page.locator('#queue [data-queue]').count(),queueBeforeUpload+2);await inputJSON('#projectInput',saved);await settle();
+  const queueBeforeUpload=(await snapshot()).queue.length;await page.locator('#imageInput').setInputFiles(fixtures.slice(3).map(f=>path.join(out,f.name+'.png')));await page.waitForFunction(count=>document.querySelectorAll('#queue [data-queue]').length===count,queueBeforeUpload+2);assert.equal(await page.locator('#queue [data-queue]').count(),queueBeforeUpload+2);await inputJSON('#projectInput',saved);await settle();
   // Remove all outliers via UI; empty array must survive GT export/import.
-  while((await snapshot()).project.rows[0].outliers.length)await page.click('[data-index="0"][data-delete-outlier="0"]');await settle();assert.deepEqual((await snapshot()).lastSpec.data.values[0].outliers,[]);assert.equal((await snapshot()).lastSpec.layer.length,4);
+  while((await snapshot()).project.rows[0].outliers.length)await page.click('[data-index="0"][data-delete-outlier="0"]');await settle();assert.deepEqual((await snapshot()).lastSpec.layer.at(-1).data.values.filter(r=>r.category===(gt.data.values[0].category)),[]);assert.equal((await snapshot()).lastSpec.layer.length,4);
   await inputJSON('#specInput',(await snapshot()).lastSpec);await settle();assert.deepEqual((await snapshot()).project.rows[0].outliers,[]);
   checks.push(fixture.name+': axis calibration, five ordered clicks, individual selection/drag/nudge/remeasure, two-decimal pixel values and preserved manual/import precision, outlier clicks/edit/add/delete, validation, guides/zoom, pixels/draft/project restore, image queue, empty-outlier GT');
  }

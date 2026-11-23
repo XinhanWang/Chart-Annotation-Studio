@@ -4,6 +4,7 @@ const path=require('node:path');
 const {pathToFileURL}=require('node:url');
 const {chromium}=require('playwright');
 const examples=require('../example.json');
+for(const gt of Object.values(examples))gt.usermeta={table_export:{tables:[{id:'data',path:'/data/values'}]}};
 
 const root=path.resolve(__dirname,'..');
 const plot={x:[55,343],y:[40,244]};
@@ -291,7 +292,8 @@ async function run(){
     const files=new Map();
     for(let at=0;zip.readUInt32LE(at)===0x04034b50;){
       const size=zip.readUInt32LE(at+18),nameLength=zip.readUInt16LE(at+26),start=at+30+nameLength+zip.readUInt16LE(at+28);
-      files.set(zip.toString('utf8',at+30,at+30+nameLength),JSON.parse(zip.toString('utf8',start,start+size)));
+      const name=zip.toString('utf8',at+30,at+30+nameLength),content=zip.toString('utf8',start,start+size);
+      files.set(name,name.endsWith('.json')?JSON.parse(content):content);
       at=start+size;
     }
     assert.equal(files.get('export-report.json').exported,8);
@@ -409,6 +411,7 @@ async function run(){
 
     const nullOnly={data:{values:[{x:'A: "A"',x_id:'X2',y:'B',y_id:'Y1',value:null}]},
       mark:{type:'rect'},encoding:structuredClone(examples.discrete.encoding)};
+    nullOnly.usermeta={table_export:{tables:[{id:'data',path:'/data/values'}]}};
     const decorated=structuredClone(nullOnly);
     decorated.mark.stroke='#aabbcc';
     decorated.encoding.x.axis={labelAngle:90};

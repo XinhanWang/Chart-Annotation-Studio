@@ -20,9 +20,11 @@ const rawSample=name=>JSON.parse(fs.readFileSync(path.join(root,name+' Area.json
 function sample(name){
   const gt=rawSample(name);
   if(gt.encoding.order)delete gt.encoding.order.sort;
+  gt.usermeta={table_export:{tables:[{id:'data',path:'/data/values'}]}};
   return gt;
 }
 const nominalSamples=require('./fixtures/area-nominal.json');
+for(const gt of Object.values(nominalSamples))gt.usermeta={table_export:{tables:[{id:'data',path:'/data/values'}]}};
 
 test('Calibrated area axes preserve original screen direction',async()=>{
   const x={p1:10,p2:110,v1:20,v2:1,type:'log',calibrated:true};

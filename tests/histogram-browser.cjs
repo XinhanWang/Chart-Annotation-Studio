@@ -18,7 +18,7 @@ function sample(kind,horizontal,equal){
   const values=[[0,1],[1,equal?2:3]].flatMap(([bin_start,bin_end],i)=>
     (multi?['S1','S2']:['S1']).map((series,rank)=>({bin_start,bin_end,value:1+i+rank,
       ...(stacked?{stack_order:rank}:{}),...(multi?{series}:{})})));
-  return {title:'Measurement',data:{values},mark:{type:'bar'},encoding};
+  return {title:'Measurement',data:{values},mark:{type:'bar'},encoding,usermeta:{table_export:{tables:[{id:'data',path:'/data/values'}]}}};
 }
 
 async function run(){
@@ -43,7 +43,7 @@ async function run(){
     const waitGT=gt=>page.waitForFunction(expected=>{
       const state=window.chartStudio.snapshot();
       return state.renderOk&&JSON.stringify(state.lastSpec)===expected;
-    },JSON.stringify(gt),{timeout:5000});
+    },JSON.stringify({...gt,usermeta:{table_export:{tables:[{id:'data',path:'/data/values'}]}}}),{timeout:5000});
     const waitNotice=(selector,pattern)=>page.waitForFunction(({selector,pattern})=>
       new RegExp(pattern).test(document.querySelector(selector).textContent),{selector,pattern},{timeout:5000});
     const download=async selector=>{

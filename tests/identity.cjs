@@ -49,6 +49,6 @@ check('renderer expression uses JSON escaping, never edits GT',()=>{const p=dupl
  const marks=[],axis=[],legend=[];function visit(scene){for(const item of scene.items||[]){if(scene.role==='mark')marks.push(item);if(scene.role==='axis-label')axis.push(item.text);if(scene.role==='legend-label')legend.push(item.text);if(item.items)visit(item);}}visit(view.scenegraph().root);
  assert.equal(marks.length,6,kind+' distinct marks');assert.equal(axis.filter(t=>t==='A').length,2,kind+' duplicate axis labels');assert.equal(legend.filter(t=>t==='Series 1').length,2,kind+' duplicate legend labels');assert.equal(warnings.length,0,warnings.join('\n'));assert.equal(JSON.stringify(gt),before);view.finalize();count++;console.log('PASS real renderer '+kind);
  }
- {const fixtures=JSON.parse(fs.readFileSync(process.argv[2]||path.join(__dirname,'identity-fixtures.json'),'utf8'));for(const f of fixtures){const gt=plain(makeSpec(importSpec(f.gt)));assert.deepEqual(gt,f.gt,'cross-repo '+f.name);assertGT(gt);count++;}}
+ {const fixtures=JSON.parse(fs.readFileSync(process.argv[2]||path.join(__dirname,'identity-fixtures.json'),'utf8'));for(const f of fixtures){const gt=plain(makeSpec(importSpec(f.gt)));assert.deepEqual(gt,{...f.gt,usermeta:{table_export:{tables:[{id:'data',path:'/data/values'}]}}},'cross-repo '+f.name);assertGT(gt);count++;}}
  console.log(JSON.stringify({passed:true,testGroups:count}));
 })().catch(e=>{console.error(e.stack);process.exitCode=1;});
