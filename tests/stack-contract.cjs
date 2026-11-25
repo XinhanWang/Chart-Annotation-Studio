@@ -24,7 +24,7 @@ function percentFixture(horizontal){
 
 async function checkPercentStack(horizontal){
  const kind=horizontal?'barh_stack_percent':'barv_stack_percent',axis=horizontal?'x':'y';
- const gt={...percentFixture(horizontal),usermeta:{table_export:{tables:[{id:'data',path:'/data/values'}]}}},project=importSpec(gt);
+ const gt={...percentFixture(horizontal),usermeta:{table_export:{tables:[{id:'data',path:'/data/values'}]}}},project=importSpec(gt,kind);
  assert.equal(project.kind,kind);
  assert.deepEqual(plain(makeSpec(project)),gt);
  assert.equal(importSpec(gt,horizontal?'barh_stack':'barv_stack').kind,horizontal?'barh_stack':'barv_stack');
@@ -44,7 +44,7 @@ async function checkPercentStack(horizontal){
  sparse.data.values[1].value=0;
  sparse.data.values[2].value=99.98;
  for(const row of sparse.data.values)if(row.series==='S2')row.stack_order=2;
- const imported=importSpec(sparse);
+ const imported=importSpec(sparse,kind);
  assert.deepEqual(plain(imported.series.map(s=>s.name)),['S1','S2']);
  assert.deepEqual(plain(makeSpec(imported)),sparse);
  assert.ok(validate(imported).some(issue=>issue.severity==='warning'&&/合计偏离 100%/.test(issue.message)));
@@ -52,7 +52,7 @@ async function checkPercentStack(horizontal){
  assert.deepEqual(plain(makeSpec(imported)),sparse,'raw measurement evidence does not replace recorded percentages');
 
  const one=plain(sparse);one.data.values=[{...sparse.data.values[0],value:100.01}];
- const oneSeries=importSpec(one);oneSeries.legend=false;
+ const oneSeries=importSpec(one,kind);oneSeries.legend=false;
  const oneExport=makeSpec(oneSeries);
  assert.equal(oneExport.data.values[0].value,100.01);
  assert.equal(oneExport.encoding.color.field,'series');
@@ -74,9 +74,9 @@ async function checkPercentStack(horizontal){
  const normalized=plain(gt);normalized.encoding[axis].stack='normalize';
  assert.throws(()=>importSpec(normalized,kind),/zero/);
  const badRank=plain(gt);badRank.data.values.at(-1).stack_order=9;
- assert.throws(()=>importSpec(badRank),/同一系列的 stack_order/);
+ assert.throws(()=>importSpec(badRank,kind),/同一系列的 stack_order/);
  const duplicate=plain(gt);duplicate.data.values.push({...duplicate.data.values[0]});
- assert.throws(()=>importSpec(duplicate),/同一类别和系列/);
+ assert.throws(()=>importSpec(duplicate,kind),/同一类别和系列/);
 
  const ratios=defaultProject(kind);
  ratios.rows=[

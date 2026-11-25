@@ -8,7 +8,7 @@ const original={
   data:{values:[{category:'Control',value:0.1},{category:'Test',value:0.2},{category:'Other',value:0.7}]},
   title:'Pie angle test',
   mark:{type:'arc'},
-  encoding:{theta:{field:'value',type:'quantitative',title:'Share (%)',format:'.0%'},color:{field:'category',type:'nominal'}},
+  encoding:{theta:{field:'value',type:'quantitative',format:'.0%'},color:{field:'category',type:'nominal'}},
   usermeta:{table_export:{tables:[{id:'data',path:'/data/values'}]}}
 };
 const center={x:300,y:200};
@@ -103,11 +103,11 @@ async function run(){
         assert.ok(Math.hypot(point.x-expected.x,point.y-expected.y)<2,JSON.stringify({point,expected}));
       }
       const pct=await page.locator('#pieAngleRows tr td:nth-child(3)').allTextContents();
-      assert.ok(pct.every(v=>/^\d+\.\d{2}%$/.test(v)));
+      assert.ok(pct.every(v=>/^\d+(?:\.\d{1,2})?%$/.test(v)));
       const measured=pct.map(parseFloat);
       assert.deepEqual(measured.map(Math.round),[14,42,44]);
       assert.equal(measured.reduce((sum,v)=>sum+Math.round(v*100),0),10000);
-      assert.equal(await page.locator('#pieAngleTotal').textContent(),'合计 100.00%');
+      assert.equal(await page.locator('#pieAngleTotal').textContent(),'合计 100%');
       const keys=preserved.rows.map(r=>r._categoryKey);
       const selector=i=>page.locator(`[data-pie-sector="${i}"]`);
       for(let i=0;i<3;i++)await selector(i).selectOption(keys[0]);

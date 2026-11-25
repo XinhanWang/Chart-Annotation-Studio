@@ -3,6 +3,7 @@ const fs=require('node:fs/promises');
 const path=require('node:path');
 const {pathToFileURL}=require('node:url');
 const {chromium}=require('playwright');
+const {measurement,interval}=require('./precision-reference.cjs');
 
 const root=path.resolve(__dirname,'..');
 const kinds=['1','n','stack'];
@@ -157,7 +158,7 @@ async function run(){
       assert.ok(Object.values((await project()).axes).every(a=>a.calibrated));
     };
     const at=(axis,pt)=>axis.v1+(pt-axis.p1)/(axis.p2-axis.p1)*(axis.v2-axis.v1);
-    const rounded=n=>Number(n.toFixed(2));
+
 
     await page.click('#addRow');
     const start=page.locator(cell(0,'bin_start'));
@@ -195,10 +196,10 @@ async function run(){
     await edit(tick('y',2),100.123);
     await clickPixel(150,372);
     const measured=await project(),{axes}=measured,e=measured.evidence[1],r=measured.rows[1];
-    assert.equal(r.bin_start,rounded(at(axes.x,e.bin_startPixel.x)));
-    assert.equal(r.bin_end,rounded(at(axes.x,e.bin_endPixel.x)));
-    assert.equal(r.value,rounded(at(axes.y,e.valuePixel.y)));
-    assert.equal(await page.inputValue(cell(1,'value')),r.value.toFixed(2));
+    assert.equal(r.bin_start,measurement(e.bin_startPixel.x,axes.x));
+    assert.equal(r.bin_end,measurement(e.bin_endPixel.x,axes.x));
+    assert.equal(r.value,measurement(e.valuePixel.y,axes.y));
+    assert.equal(await page.inputValue(cell(1,'value')),String(r.value));
 
     await edit(cell(1,'bin_start'),0.123456);
     await edit(cell(1,'value'),8.123456);
@@ -209,7 +210,7 @@ async function run(){
     await edit(tick('y',2),120.121);
     const recalibrated=await project(),corrected=recalibrated.rows[1];
     assert.equal(corrected.bin_start,0.123456);
-    assert.equal(corrected.bin_end,rounded(at(recalibrated.axes.x,e.bin_endPixel.x)));
+    assert.equal(corrected.bin_end,measurement(e.bin_endPixel.x,recalibrated.axes.x));
     assert.notEqual(corrected.bin_end,r.bin_end);
     assert.equal(corrected.value,8.123456);
     await edit(tick('x',2),0);
@@ -255,12 +256,12 @@ async function run(){
       const valAxis=horizontal?'x':'y',binAxis=horizontal?'y':'x';
       assert.equal(row.series,'Series 2');
       assert.equal(row._histogramBin,bin.key);
-      assert.equal(row.bin_start,rounded(at(stackProject.axes[binAxis],bin.evidence.bin_startPixel[binAxis])));
-      assert.equal(row.bin_end,rounded(at(stackProject.axes[binAxis],bin.evidence.bin_endPixel[binAxis])));
+      assert.equal(row.bin_start,measurement(bin.evidence.bin_startPixel[binAxis],stackProject.axes[binAxis]));
+      assert.equal(row.bin_end,measurement(bin.evidence.bin_endPixel[binAxis],stackProject.axes[binAxis]));
       const startValue=at(stackProject.axes[valAxis],ev.valueStartPixel[valAxis]);
       const endValue=at(stackProject.axes[valAxis],ev.valueEndPixel[valAxis]);
-      assert.equal(row.value,rounded(endValue-startValue));
-      assert.notEqual(row.value,rounded(endValue));
+      assert.equal(row.value,interval(ev.valueStartPixel[valAxis],ev.valueEndPixel[valAxis],stackProject.axes[valAxis]));
+      assert.notEqual(row.value,measurement(ev.valueEndPixel[valAxis],stackProject.axes[valAxis]));
 
       await tool('select');
       await page.locator(cell(0,'value')).click();
@@ -516,8 +517,7 @@ async function run(){
         const bin=shared.find(b=>b.key===row._histogramBin);
         assert.deepEqual([row.bin_start,row.bin_end],[bin.bin_start,bin.bin_end]);
         const ev=final.evidence[i],axis=horizontal?'x':'y';
-        if(ev.valueEndPixel)assert.equal(row.value,rounded(at(final.axes[axis],ev.valueEndPixel[axis])-
-          at(final.axes[axis],ev.valueStartPixel[axis])));
+        if(ev.valueEndPixel)assert.equal(row.value,interval(ev.valueStartPixel[axis],ev.valueEndPixel[axis],final.axes[axis]));
       }
       await page.waitForFunction(count=>{
         const state=window.chartStudio.snapshot();
