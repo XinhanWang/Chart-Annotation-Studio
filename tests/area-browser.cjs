@@ -4,6 +4,7 @@ const path=require('node:path');
 const {pathToFileURL}=require('node:url');
 const {chromium}=require('playwright');
 const samples=require('./fixtures/area-nominal.json');
+const {measurement}=require('./precision-reference.cjs');
 
 const root=path.resolve(__dirname,'..');
 const linearValue=(pixel,axis)=>axis.v1+(pixel-axis.p1)/(axis.p2-axis.p1)*(axis.v2-axis.v1);
@@ -14,7 +15,7 @@ function assertMeasurementPrecision(project){
   for(const [i,row] of project.rows.entries()){
     for(const [field,handle] of measuredFields){
       const original=linearValue(project.evidence[i][handle].y,project.axes.y);
-      assert.equal(row[field],Number(original.toFixed(2)));
+      assert.equal(row[field],measurement(project.evidence[i][handle].y,project.axes.y));
       hadExtraDecimals||=row[field]!==original;
     }
   }
@@ -167,15 +168,17 @@ async function run(){
         }
       }
     }
+    const legacyGT=structuredClone(nominalGT);
+    for(const row of legacyGT.data.values){const saved=legacy.current.project.rows.find(r=>r.category===row.category&&r.series===row.series);row.y=saved.y;row.baseline=saved.baseline;}
     await page.selectOption('#xType','quantitative');
     await waitGT(numeric.Stacked);
     await load('#projectInput',legacy);
-    await waitGT(nominalGT);
+    await waitGT(legacyGT);
     assert.deepEqual((await snapshot()).project.evidence,measured.evidence);
     await page.selectOption('#xType','quantitative');
     await waitGT(numeric.Stacked);
     await page.selectOption('#xType','nominal');
-    await waitGT(nominalGT);
+    await waitGT(legacyGT);
 
     await load('#specInput',samples.Stacked);
     await waitGT(samples.Stacked);
@@ -218,7 +221,7 @@ async function run(){
     assert.ok(Math.abs(rows[0].x-1)<0.05&&Math.abs(rows[0].y-20)<0.5);
     assert.ok(Math.abs(rows[0].baseline-10)<0.5&&!('category' in rows[0]));
     const measuredX=linearValue(evidence[0].xPixel,axes.x);
-    assert.equal(rows[0].x,Number(measuredX.toFixed(2)));
+    assert.equal(rows[0].x,measurement(evidence[0].xPixel,axes.x));
     assertMeasurementPrecision({rows,evidence,axes});
     assert.equal(evidence[0].pixel.x,evidence[0].baselinePixel.x);
 
@@ -235,7 +238,7 @@ async function run(){
     await page.click('#pickX');
     await clickPixel(350.5,400);
     const locked=(await snapshot()).project.assist;
-    const expectedX=Number(linearValue(locked.fixedXPixel,axes.x).toFixed(2));
+    const expectedX=measurement(locked.fixedXPixel,axes.x);
     assert.notEqual(expectedX,3.125);
     assert.equal(locked.fixedXValue,expectedX);
     assert.equal(await fixedX.inputValue(),'');
@@ -246,7 +249,7 @@ async function run(){
     assert.equal(captured.evidence[2].pixel.x,locked.fixedXPixel);
     assertMeasurementPrecision(captured);
     assert.deepEqual(errors,[]);
-    console.log('Quantitative browser capture: two-decimal measurements and consecutive X anchors');
+    console.log('Quantitative browser capture: Precision V1 measurements and consecutive X anchors');
   }finally{await browser.close();}
 }
 

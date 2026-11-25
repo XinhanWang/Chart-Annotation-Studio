@@ -3,6 +3,7 @@ const fs=require('node:fs/promises');
 const path=require('node:path');
 const {pathToFileURL}=require('node:url');
 const {chromium}=require('playwright');
+const {measurement}=require('./precision-reference.cjs');
 const examples=require('../example.json');
 for(const gt of Object.values(examples))gt.usermeta={table_export:{tables:[{id:'data',path:'/data/values'}]}};
 
@@ -195,7 +196,8 @@ async function run(){
       assert.equal(single.evidence.source,'heatmap_color',name);
       assert.equal(single.evidence.warning,'',name+': '+JSON.stringify(single.evidence));
       assert.ok(Math.abs(single.row.value-finite[0].value)<(name==='confusion_matrix'?1.25:.065),JSON.stringify(single));
-      assert.match(await page.locator(cell(first)).inputValue(),/^-?\d+\.\d{2}$/);
+      assert.equal(Number(await page.locator(cell(first)).inputValue()),(await record(first)).row.value);
+      assert.ok(Number.isFinite((await record(first)).row.value));
       await page.click('#heatmapMeasureBatch');
       const batch=await record(second);
       assert.equal(batch.evidence.warning,'',name+': '+JSON.stringify(batch.evidence));
@@ -334,15 +336,18 @@ async function run(){
     await page.waitForFunction(()=>window.chartStudio.snapshot().lastSpec?.data.values[0].x2>5.9);
     const calibrated=(await snapshot()).lastSpec;
     const {axes,heatmap}=await project(),{p1,p2,v1,v2}=axes.x;
-    const rounded=((heatmap.pixels.x[1]-p1)/(p2-p1)*(v2-v1)+v1).toFixed(2);
+    const rounded=String(measurement(heatmap.pixels.x[1],axes.x));
     assert.equal(entries(calibrated)[0].x2,Number(rounded));
     assert.equal(entries(calibrated)[1].x,Number(rounded));
     assert.equal(await page.inputValue('[data-hm-axis="x"][data-hm-index="0"][data-hm-field="end"]'),rounded);
-    assert.equal(await page.inputValue('[data-hm-axis="y"][data-hm-index="0"][data-hm-field="end"]'),entries(calibrated)[0].y2.toFixed(2));
+    assert.equal(await page.inputValue('[data-hm-axis="y"][data-hm-index="0"][data-hm-field="end"]'),String(entries(calibrated)[0].y2));
     assert.ok(!JSON.stringify(calibrated).includes('calibrated'));
     await edit(xEnd,.004);
-    await waitIssue('自动区间保留两位小数后起止值相同');
-    await edit(xEnd,24.123456);
+    await page.waitForFunction(()=>chartStudio.snapshot().lastSpec?.data.values[0].x2>0&&chartStudio.snapshot().lastSpec.data.values[0].x2<.004);
+    const small=(await snapshot()).lastSpec.data.values;assert(small[0].x2>small[0].x&&small[1].x2>small[1].x);
+    await edit('[data-axis="x"][data-field="v1"]',10000);await edit(xEnd,10000.004);
+    await waitIssue('当前图像精度下起止值相同');
+    await edit('[data-axis="x"][data-field="v1"]',v1);await edit(xEnd,24.123456);
     const manualStart='[data-hm-axis="x"][data-hm-index="0"][data-hm-field="start"]';
     await edit(manualStart,-.123456789);
     await page.waitForFunction(()=>window.chartStudio.snapshot().lastSpec?.data.values[0].x===-.123456789);
@@ -382,7 +387,7 @@ async function run(){
           assert.equal(await start.inputValue(),'','pixel locations alone do not create scientific values');
           const reference=axis==='x'?[0,12]:[20,0];
           await edit(coordinate(axis,1),reference[0]);await edit(coordinate(axis,2),reference[1]);
-          assert.equal(await start.inputValue(),axis==='x'?'0.00':'10.00');
+          assert.equal(await start.inputValue(),axis==='x'?'0':'10');
           assert.equal(await page.locator('[data-axis-status="'+axis+'"]').textContent(),'已校准');
         }else{
           for(let i=0;i<2;i++)await edit('[data-hm-axis="'+axis+'"][data-hm-index="'+i+'"][data-hm-field="label"]',axis+i);

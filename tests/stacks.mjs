@@ -56,32 +56,32 @@ const task=async()=>{
   tool('point');
   ok(endpoint()==='start',kind+' first segment defaults to the start endpoint');
   at(.004);
-  ok(state().rows[0].start===0&&selector(0,'start').value==='0.00'&&endpoint()==='end',kind+' first start is rounded and advances to the end');
+  ok(state().rows[0].start===0&&selector(0,'start').value==='0'&&endpoint()==='end',kind+' first start is rounded and advances to the end');
   await upload(structuredClone(chartStudio.bundle));tool('point');
   ok(endpoint()==='end',kind+' restored partial segment continues at the end');
   at(37.126);
-  ok(state().rows[0].value===37.12&&selector(0,'value').value==='37.12'&&selector(0,'end').value==='37.13',kind+' rounds endpoints and takes the difference before rounding');
-  ok(state().rows[0].difference===37.12&&selector(0,'difference').textContent==='37.12',kind+' records the raw endpoint difference rounded separately');
-  ok(endpoint()==='end'&&$('hint').textContent.includes('37.13'),kind+' second series defaults to the end with an inherited start');
+  ok(state().rows[0].value===37.1&&selector(0,'value').value==='37.1'&&selector(0,'end').value==='37.1',kind+' rounds endpoints and takes the difference before rounding');
+  ok(state().rows[0].difference===37.1&&selector(0,'difference').textContent==='37.1',kind+' records the raw endpoint difference rounded separately');
+  ok(endpoint()==='end'&&$('hint').textContent.includes('37.1'),kind+' second series defaults to the end with an inherited start');
   $('skipPercentStack').click();at(99.976);
   let p=state();
-  ok(p.rows.length===2&&p.rows[1].series==='Last'&&p.rows[1].value===62.85,kind+' skips absent middle series and subtracts preceding endpoint');
-  ok(p.evidence[0].pixel[axis]===p.evidence[1].startPixel[axis]&&p.rows[1].start===37.13,kind+' reuses exact boundary across absent series');
+  ok(p.rows.length===2&&p.rows[1].series==='Last'&&p.rows[1].value===62.9,kind+' skips absent middle series and subtracts preceding endpoint');
+  ok(p.evidence[0].pixel[axis]===p.evidence[1].startPixel[axis]&&p.rows[1].start===37.1,kind+' reuses exact boundary across absent series');
   ok(endpoint()==='start',kind+' next category begins with a new start');
   $('undo').click();$('redo').click();
-  ok(state().rows[1].value===62.85,kind+' undo and redo restore the sparse measurement');
+  ok(state().rows[1].value===62.9,kind+' undo and redo restore the sparse measurement');
 
   edit(selector(0,'value'),'36.987654321');
   tool('select');selector(0,'end').click();
   $('canvas').dispatchEvent(new KeyboardEvent('keydown',{key:horizontal?'ArrowRight':'ArrowUp',bubbles:true}));
   p=state();
   ok(p.rows[0].value===36.987654321&&p.evidence[0].valueOverride,kind+' manual value stays locked during shared boundary edits');
-  ok(near(p.rows[0].end,p.rows[1].start)&&p.rows[1].value!==62.85,kind+' shared edit recalculates the following measured segment');
+  ok(near(p.rows[0].end,p.rows[1].start)&&p.rows[1].value!==62.9,kind+' shared edit recalculates the following measured segment');
   $('undo').click();$('redo').click();
   target(0);choose('start');at(.124);
-  ok(endpoint()==='end'&&selector(0,'start').value==='0.12'&&state().rows[0].value===36.987654321,kind+' explicitly retakes a completed start');
+  ok(endpoint()==='end'&&selector(0,'start').value==='0.1'&&state().rows[0].value===36.987654321,kind+' explicitly retakes a completed start');
   choose('end');at(40.126);p=state();
-  ok(selector(0,'end').value==='40.13'&&p.rows[1].start===40.13&&p.rows[0].value===36.987654321,kind+' retakes a shared end and preserves manual value');
+  ok(selector(0,'end').value==='40.1'&&p.rows[1].start===40.1&&p.rows[0].value===36.987654321,kind+' retakes a shared end and preserves manual value');
   const measured=p.rows[1].value;
   edit(document.querySelector(`[data-axis="${axis}"][data-field="v2"]`),99.9);
   p=state();
@@ -95,9 +95,9 @@ const task=async()=>{
   at(0,1);
   ok(state().rows.length===3&&state().rows[2].value===11.23456789&&state().evidence[2].pixel,kind+' manual-first data accepts pixel evidence without being overwritten');
   edit(selector(2,'end'),'12.34567');
-  ok(selector(2,'end').value==='12.35'&&!state().evidence[2].pixel,kind+' manual endpoints also retain two decimals');
+  ok(selector(2,'end').value==='12.34567'&&state().rows[2].end===12.34567&&!state().evidence[2].pixel,kind+' manual endpoints retain all typed decimal digits');
   target(4);
-  ok(endpoint()==='end'&&$('hint').textContent.includes('12.35'),kind+' inherits a numeric endpoint with no pixel evidence');
+  ok(endpoint()==='end'&&$('hint').textContent.includes('12.34567'),kind+' inherits a numeric endpoint with no pixel evidence');
   at(55,1);$('skipPercentStack').click();
   p=state();
   ok(p.rows.length===4&&near(p.rows[3].start,p.rows[2].end),kind+' sparse second category reuses the manual segment boundary');
@@ -141,7 +141,7 @@ const task=async()=>{
   selector(3,'value').click();
   ratios()[0].click();
   ok(checked()==='1,0'&&values().join(',')==='40,60,12.345678,30',kind+' any category can be enabled independently of the active record');
-  ok(state().rows[1].difference===30&&selector(1,'difference').textContent==='30.00',kind+' preserves endpoint difference while calculating ratio');
+  ok(state().rows[1].difference===30&&selector(1,'difference').textContent==='30',kind+' preserves endpoint difference while calculating ratio');
   ratios()[0].click();
   ok(checked()==='0,0'&&values().join(',')==='20,30,12.345678,30',kind+' clicking a selected category restores its direct values');
 
@@ -194,20 +194,20 @@ const task=async()=>{
   at(5);
   ok($('toast').textContent.includes('不同的整柱终点'),kind+' rejects a zero-length measurement');
   at(85);
-  ok(heightControl(0,'value').value==='80.00'&&values()[0]===25&&values()[1]===37.5,kind+' measures the full bar along the correct axis');
+  ok(heightControl(0,'value').value==='80'&&values()[0]===25&&values()[1]===37.5,kind+' measures the full bar along the correct axis');
   $('undo').click();
   ok(heightControl(0,'value').value===''&&values()[0]===40,kind+' one undo removes both points and restores segment-total ratios');
   $('redo').click();
-  ok(heightControl(0,'value').value==='80.00'&&values()[0]===25,kind+' redo restores the picked height');
+  ok(heightControl(0,'value').value==='80'&&values()[0]===25,kind+' redo restores the picked height');
   heightControl(1,'pick').click();at(10,1);at(60,1);
   ratios()[1].click();
-  ok(heightControl(1,'value').value==='50.00'&&values()[2]===12.345678&&values()[3]===60,
+  ok(heightControl(1,'value').value==='50'&&values()[2]===12.345678&&values()[3]===60,
     kind+' independent heights and manual percentage precedence');
   $('percentStackSharedHeight').click();
-  ok(heightControl(1,'value').disabled&&heightControl(1,'pick').disabled&&heightControl(1,'value').value==='80.00'&&values()[3]===37.5,
+  ok(heightControl(1,'value').disabled&&heightControl(1,'pick').disabled&&heightControl(1,'value').value==='80'&&values()[3]===37.5,
     kind+' shared mode uses the first selected height and only allows taking its points');
   heightControl(0,'selection').click();
-  ok(heightChecks()==='0,1'&&!heightControl(1,'pick').disabled&&heightControl(1,'value').value==='50.00'&&values()[0]===40&&values()[3]===60,
+  ok(heightChecks()==='0,1'&&!heightControl(1,'pick').disabled&&heightControl(1,'value').value==='50'&&values()[0]===40&&values()[3]===60,
     kind+' changing selection changes the source in visual category order');
   $('undo').click();
   $('clearPercentStackHeights').click();
@@ -226,12 +226,12 @@ const task=async()=>{
   ok(heightGT.data.values.every(row=>Object.keys(row).sort().join(',')==='category,series,stack_order,value'),
     kind+' category height and evidence stay out of GT');
   $('percentStackSharedHeight').click();
-  ok(!heightControl(1,'pick').disabled&&heightControl(1,'value').value==='50.00'&&values()[3]===60,
+  ok(!heightControl(1,'pick').disabled&&heightControl(1,'value').value==='50'&&values()[3]===60,
     kind+' leaving shared mode restores each category’s own measurement');
   heightControl(0,'pick').click();at(2);$('cancelPercentStackHeight').click();at(82);
-  ok(heightControl(0,'value').value==='80.00'&&values()[0]===25,kind+' cancel discards a pending point only');
+  ok(heightControl(0,'value').value==='80'&&values()[0]===25,kind+' cancel discards a pending point only');
   edit(document.querySelector(`[data-axis="${axis}"][data-field="v2"]`),200);
-  ok(heightControl(0,'value').value==='160.00'&&values()[0]===12.5&&values()[3]===30,
+  ok(heightControl(0,'value').value==='160'&&values()[0]===12.5&&values()[3]===30,
     kind+' changing axis calibration updates pixel-derived heights');
 
   const mark=value=>horizontal?{x:80+4.8*value,y:150}:{x:150,y:400-3*value};
