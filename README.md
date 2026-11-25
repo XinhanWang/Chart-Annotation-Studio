@@ -165,3 +165,9 @@ Precision V1 保留明确数据标签、手填修正和历史 GT 的数值精度
 每份精简 GT 通过 `usermeta.table_export.tables` 列出各语义表的唯一 `id` 与内联 `data.values` 路径。单图可下载逐表导出 ZIP；批量导出 ZIP 同时含 GT、每表的 Markdown 和 CSV 及审核结果。箱线图将五数统计和离群点分表，同一类别的每一个离群点各占一行。柱线复合图将柱与折线分别绑到数据表。新 GT 使用直接字段编码，两个表格格式均沿用轴标题替换规则。
 
 离线页面内嵌 [Vega-Lite-Table-Export](https://github.com/XinhanWang/Vega-Lite-Table-Export) 的 MIT 发布包。固定的提交、文件名和 SHA-256 见 `vendor/vega-lite-table-export.lock.json`，构建时会核验摘要。
+
+### Precision V1 与混合轴回归测试
+
+运行 `npm test` 验证全部原有图型和新增契约；`npm run test:precision` 可单独执行测量精度及混合轴专项检查。浏览器测试使用独立上下文，不读取现有草稿；Windows 默认使用 Edge，也可设置 `STUDIO_BROWSER_CHANNEL=chromium` 并先运行 `npx playwright install chromium`。
+
+专项检查覆盖离散 X / Y、缺测与重名类别、回退路径、逐模式校准及工程恢复、共享类别锚点、真实取点与键盘微调、逐表 Markdown/CSV 精度、饼图显式比例确认、旧轴格式兼容及冲突拒绝。测量断言采用独立的 Precision V1 参考实现；手填值和历史导入值仍保留原始精度，不以放宽容差或跳过断言替代验证。
