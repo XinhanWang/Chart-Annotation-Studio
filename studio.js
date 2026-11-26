@@ -2,7 +2,13 @@
 const HISTOGRAM_KINDS = ['histogram_v_1','histogram_h_1','histogram_v_n','histogram_h_n','histogram_v_stack','histogram_h_stack'];
 const HEATMAP_KINDS = ['heatmap_dd','heatmap_cc','heatmap_dc','heatmap_cd'];
 const PERCENT_STACK_KINDS = ['barv_stack_percent','barh_stack_percent'];
-const KINDS = ['barh_1','barh_n','barv_1','barv_n','barv_stack','barh_stack',...PERCENT_STACK_KINDS,'line_1','line_n','scatter_1','scatter_n','pie','boxplot_v','boxplot_h','area_1','area_n','area_stack','barline_n',...HISTOGRAM_KINDS,...HEATMAP_KINDS];
+const RADAR_KINDS=['radar_1','radar_n','polar_bar_1','polar_bar_n','polar_bar_stack'];
+const isRadar=p=>RADAR_KINDS.includes(p?.kind);
+const isPolarBar=p=>p.kind.startsWith('polar_bar_');
+const isRadarStack=p=>p.kind==='polar_bar_stack';
+const isSingleRadar=p=>p.kind==='radar_1'||p.kind==='polar_bar_1';
+const radarGT=gt=>['radar','polar_bar'].includes(gt?.usermeta?.chartType);
+const KINDS = [...RADAR_KINDS,'barh_1','barh_n','barv_1','barv_n','barv_stack','barh_stack',...PERCENT_STACK_KINDS,'line_1','line_n','line_smooth_1','line_smooth_n','scatter_1','scatter_n','pie','boxplot_v','boxplot_h','area_1','area_n','area_stack','barline_n',...HISTOGRAM_KINDS,...HEATMAP_KINDS];
 const copy = value => JSON.parse(JSON.stringify(value));
 const finite = n => typeof n === 'number' && Number.isFinite(n);
 const present = n => n !== undefined && n !== null && n !== '';
@@ -21,6 +27,8 @@ const isBox = p => p.kind.startsWith('boxplot_');
 const isStat = p => isPie(p)||isBox(p);
 const isArea = p => p.kind.startsWith('area_');
 const isLine = p => p.kind.startsWith('line_');
+const isSmoothLine = p => p.kind.startsWith('line_smooth_');
+const smoothGT=gt=>gt?.mark?.type==='line'&&gt.mark.interpolate==='monotone';
 const nominalType = type => type==='nominal'||type==='ordinal';
 const lineCategoryAxis = p => isLine(p)?(nominalType(p.yType)?'y':nominalType(p.xType)?'x':null):null;
 const isHeatmap = p => HEATMAP_KINDS.includes(p?.kind);
@@ -28,7 +36,7 @@ const isHistogram = p => p.kind.startsWith('histogram_');
 const isHistogramStack = p => isHistogram(p)&&p.kind.endsWith('_stack');
 const hasLayerOrder = p => p.kind==='area_stack'||isHistogramStack(p)||isPercentStack(p);
 const isNominalArea = p => isArea(p)&&p.xType==='nominal';
-const categoryField = p => isBar(p)||isStat(p)||isNominalArea(p)?'category':lineCategoryAxis(p)??'x';
+const categoryField = p => isRadar(p)||isBar(p)||isStat(p)||isNominalArea(p)?'category':lineCategoryAxis(p)??'x';
 const stackRank = (series,index) => series?.stackOrder??index;
 const BOX_FIELDS = ['lower','q1','median','q3','upper'];
 const valueAxis = p => isHorizontal(p)?'x':'y';
@@ -84,7 +92,7 @@ function ensureIdentities(p){
       r._seriesKey=matches[0].key;
     }
     const series=p.series.find(s=>s.key===r._seriesKey);if(!series)throw Error('记录引用了不存在的系列对象');r.series=series.name;
-    if(categorical){
+    if(categorical&&!(isSmoothLine(p)&&p.smoothPositioned&&r[field]===null)){
       if(!r._categoryKey){
         let matches=explicitCategory?p.categoryObjects.filter(c=>c.legacy===(r[field+'_id']??r[field+'_instance'])):p.categoryObjects.filter(c=>c.name===r[field]);
         if(matches.length>1)throw Error('重名类别缺少实际位置身份，请从类别选择器指定位置');
@@ -130,7 +138,7 @@ function newObject(p,kind,name){
   return obj;
 }
 function addObject(p,kind,name){ensureIdentities(p);const obj=newObject(p,kind,name);(kind==='series'?p.series:p.categoryObjects).push(obj);p.categories=p.categoryObjects.map(c=>c.name);return obj;}
-function removeObject(p,kind,key){ensureIdentities(p);const list=kind==='series'?p.series:p.categoryObjects;if(kind==='series'&&list.length===1)throw Error('至少保留一个系列');const ref=kind==='series'?'_seriesKey':'_categoryKey',keep=p.rows.map((r,i)=>r[ref]===key?-1:i).filter(i=>i>=0);p.rows=keep.map(i=>p.rows[i]);if(p.evidence)p.evidence=keep.map(i=>p.evidence[i]);list.splice(list.findIndex(o=>o.key===key),1);p.categories=p.categoryObjects.map(c=>c.name);}
+function removeObject(p,kind,key){ensureIdentities(p);const list=kind==='series'?p.series:p.categoryObjects;if(kind==='series'&&list.length===1)throw Error('至少保留一个系列');const ref=kind==='series'?'_seriesKey':'_categoryKey';if(isRadarStack(p)&&kind==='series')for(const row of p.rows.filter(r=>r[ref]===key))detachRadarBoundaries(p,categoryIdentity(row));const keep=p.rows.map((r,i)=>r[ref]===key?-1:i).filter(i=>i>=0);p.rows=keep.map(i=>p.rows[i]);if(p.evidence)p.evidence=keep.map(i=>p.evidence[i]);list.splice(list.findIndex(o=>o.key===key),1);p.categories=p.categoryObjects.map(c=>c.name);}
 function parseObjectNames(text){return text.split(/\r\n?|\n/).map(name=>name.trim()).filter(Boolean);}
 function applyObjectNames(p,kind,text){
   const names=parseObjectNames(text);if(!names.length)throw Error('请至少输入一个名称');
@@ -161,6 +169,7 @@ function applyPieCategoryNames(p,text){
   }
 }
 function renderSpec(gt,p){
+  if(radarGT(gt))return radarPreview(gt,p);
   if(markType(gt.mark)==='rect')return renderHeatmapSpec(gt,p);
   const out=copy(gt),rows=allTableRows(out);
   if(markType(out.mark)==='arc'&&out.encoding.theta.format!==undefined){
@@ -183,7 +192,7 @@ function renderSpec(gt,p){
       if(d[property]!==null)d[property]={...(d[property]||{}),labelExpr:JSON.stringify(mapping)+'[datum.value]'};
     }
   }for(const child of node.layer||[])view(child);}
-  view(out);return out;
+  view(out);return smoothGT(out)?styleSmoothPreview(out):out;
 }
 
 // p.categories is an explicit screen order: left-to-right, or top-to-bottom for horizontal bars.
@@ -245,22 +254,24 @@ function orderedRows(p,compositeLine=false) {
 function defaultProject(kind='scatter_1') {
   if (!KINDS.includes(kind.replace(/_error$/,'')) || kind.endsWith('_error')&&!['barh_1','barh_n','barv_1','barv_n'].includes(kind.slice(0,-6))) throw Error('未知图表类型');
   const errorBars=kind.endsWith('_error');if(errorBars)kind=kind.slice(0,-6);
-  const multi=kind.endsWith('_n')||isStack({kind})||hasLayerOrder({kind});
+  const multi=kind.endsWith('_n')||isRadarStack({kind})||isStack({kind})||hasLayerOrder({kind});
   const series=[{name:'Series 1',color:'#4263eb'},...(multi?[{name:'Series 2',color:'#e8590c'}]:[])];
   if(kind==='barline_n')series.forEach((s,i)=>s.role=i?'line':'bar');
   if(hasLayerOrder({kind}))series.forEach((s,i)=>s.stackOrder=i);
   const histogram=isHistogram({kind}),categories=isPie({kind})||isArea({kind})||histogram?[]:['A','B','C'];
   const axes={x:{p1:80,p2:560,v1:0,v2:10,type:'linear',reverse:false,calibrated:false},y:{p1:400,p2:50,v1:0,v2:100,type:'linear',reverse:false,calibrated:false}};
+  if(isRadar({kind}))return ensureIdentities({kind,title:'',xTitle:'',yTitle:'',axes,rows:[],series,legend:multi,
+    categories,radar:newRadarState()});
   if(isHeatmap({kind})){
     for(const axis of Object.values(axes))axis.p1=axis.p2=axis.v1=axis.v2=null;
-    return {kind,precisionVersion:1,title:'',xTitle:'',yTitle:'',heatmapTitle:'',axes,rows:[],series:[],legend:false,errorBars:false,
+    return {kind,precisionVersion:2,title:'',xTitle:'',yTitle:'',heatmapTitle:'',axes,rows:[],series:[],legend:false,errorBars:false,
       categories:[],categoryObjects:[],heatmap:{x:[],y:[],pixels:{x:[null],y:[null]},colorPoints:[]}};
   }
   if(histogram)for(const axis of Object.values(axes))axis.p1=axis.p2=axis.v1=axis.v2=null;
   if(kind==='barline_n')axes.r={...axes.y};
   const percent=isPercentStack({kind}),axis=valueAxis({kind});
   if(percent)Object.assign(axes[axis],{p1:null,p2:null,v1:null,v2:null});
-  return ensureIdentities({kind,precisionVersion:1,title:'',xTitle:'',yTitle:'',xType:kind==='barline_n'?'ordinal':'quantitative',...(isLine({kind})?{yType:'quantitative'}:{}),legend:multi,errorBars,...(kind==='barline_n'?{dualYAxis:false,rightYTitle:''}:{}),...(isPie({kind})?{valueMode:'percent',valueTitle:'',donut:false}:{}),
+  return ensureIdentities({kind,title:'',xTitle:'',yTitle:'',xType:kind==='barline_n'?'ordinal':'quantitative',...(isLine({kind})?{yType:'quantitative'}:{}),legend:multi,errorBars,...(kind==='barline_n'?{dualYAxis:false,rightYTitle:''}:{}),...(isPie({kind})?{valueMode:'percent',valueTitle:'',donut:false}:{}),
     rows:isStat({kind})?[]:series.flatMap((s,j)=>categories.map((category,i)=>isBar({kind})?
       {category,value:20+i*15+j*10,series:s.name,...(isStack({kind})?{stack_order:j}:{})}:
       {x:i*4+1,y:20+i*15+j*10,series:s.name})),
@@ -277,6 +288,8 @@ function axisTransform(axis) {
 function pixelToValue(pixel,axis) {
   if(!finite(pixel)) throw Error('像素坐标必须为有限数字');
   const {f,inv}=axisTransform(axis);
+  if(pixel===axis.p1)return axis.v1;
+  if(pixel===axis.p2)return axis.v2;
   return inv(f(axis.v1)+(pixel-axis.p1)/(axis.p2-axis.p1)*(f(axis.v2)-f(axis.v1)));
 }
 function decimalParts(value){
@@ -284,36 +297,58 @@ function decimalParts(value){
   const [integer,fraction='']=mantissa.split('.');
   return {digits:(integer+fraction).replace(/^0+(?=\d)/,''),exponent:Number(exponent)-fraction.length};
 }
-function roundDecimal(value,exponent){
-  if(!finite(value)||value===0)return value;
-  const parts=decimalParts(value),drop=exponent-parts.exponent;
+// Precision V2 follows Vega-Lite-DG's decimal ROUND_HALF_UP contract.
+function quantizeMeasurement(value,{percent=false,fraction=false,computed=false}={}){
+  if(!finite(value))throw Error('测量结果超出数值范围，请复核');
+  if(value===0)return 0;
+  // DG's computed values are Python floats, whose exponent notation starts at 1e16.
+  const scientific=String(value).includes('e')||computed&&Math.abs(value)>=1e16;
+  if(!percent&&Number.isInteger(value)&&!scientific)return value;
+  const parts=decimalParts(value);
+  const significant=parts.exponent+parts.digits.length-4;
+  const exponent=percent?(fraction?-4:-2):scientific||Math.abs(value)<1?significant:-2;
+  return roundMeasurementAt(value,parts,exponent);
+}
+
+function roundMeasurementAt(value,parts,exponent){
+  const drop=exponent-parts.exponent;
   if(drop<=0)return value;
   const cut=parts.digits.length-drop;
   if(cut<0)return 0;
   let units=BigInt(parts.digits.slice(0,cut)||'0');
   if(parts.digits[cut]>='5')units++;
+  if(units===0n)return 0;
   const result=Number((value<0?'-':'')+units+'e'+exponent);
-  return finite(result)?result:value;
+  if(!finite(result))throw Error('舍入结果超出数值范围，请复核');
+  return result;
 }
-function measuredNumber(value,uncertainty=0,digits=4,allowZero=false){
-  if(!finite(value)||!value)return value===0?0:value;
-  const parts=decimalParts(value);
-  const significant=parts.exponent+parts.digits.length-digits;
-  const resolution=uncertainty>0&&finite(uncertainty)?Math.floor(Math.log10(uncertainty)):-Infinity;
-  const rounded=roundDecimal(value,Math.max(significant,resolution));
-  return (rounded||allowZero)?rounded:roundDecimal(value,significant)||value;
+
+function percentageParts(values){
+  if(!values.length||values.some(value=>!finite(value)||value<0))throw Error('百分比各项须为非负数，合计须大于零，请复核');
+  const parts=values.map(decimalParts);
+  const exponent=Math.min(...parts.map(part=>part.exponent));
+  const weights=parts.map(part=>BigInt(part.digits)*10n**BigInt(part.exponent-exponent));
+  const total=weights.reduce((sum,weight)=>sum+weight,0n);
+  if(total<=0n)throw Error('百分比各项须为非负数，合计须大于零，请复核');
+  const quotas=weights.map(weight=>weight*10000n);
+  const units=quotas.map(quota=>quota/total);
+  const remaining=Number(10000n-units.reduce((sum,unit)=>sum+unit,0n));
+  const order=quotas.map((quota,i)=>({i,remainder:quota%total}))
+    .sort((a,b)=>a.remainder===b.remainder?0:a.remainder>b.remainder?-1:1);
+  for(const {i} of order.slice(0,remaining))units[i]++;
+  if(units.some((unit,i)=>unit===0n&&weights[i]>0n))throw Error('百分比舍入会抹去正值，请复核并手填');
+  return units.map(unit=>Number(unit)/100);
 }
-function axisUncertainty(value,axis){
-  const span=Math.abs(axis.p2-axis.p1);
-  if(axis.type==='log')return Math.abs(value)*Math.expm1(Math.abs(Math.log(axis.v2)-Math.log(axis.v1))/span);
-  return Math.abs(axis.v2-axis.v1)/span;
-}
-function measuredAxisValue(pixel,axis){
+
+function measuredAxisValue(pixel,axis,percent=false){
   const value=pixelToValue(pixel,axis);
-  if(pixel===axis.p1)return axis.v1;
-  if(pixel===axis.p2)return axis.v2;
-  return measuredNumber(value,axisUncertainty(value,axis),4,axis.type!=='log');
+  if(pixel===axis.p1||pixel===axis.p2)return value;
+  return quantizeMeasurement(value,{percent,computed:true});
 }
+function measureProjectAxis(project,axis,pixel){
+  return measuredAxisValue(pixel,project.axes[axis],percentLabels(project,axis));
+}
+
 function decimalDifference(end,start){
   if(!finite(end)||!finite(start))return end-start;
   const a=decimalParts(end),b=decimalParts(start),exponent=Math.min(a.exponent,b.exponent);
@@ -322,9 +357,8 @@ function decimalDifference(end,start){
 }
 function boxValueAt(pt,p) {
   const axis=valueAxis(p);
-  return measuredAxisValue(pt[axis],p.axes[axis]);
+  return measureProjectAxis(p,axis,pt[axis]);
 }
-const areaValueAt=measuredAxisValue;
 function valueToPixel(value,axis) {
   if(!finite(value)) throw Error('数值必须为有限数字');
   const {f}=axisTransform(axis);
@@ -341,8 +375,55 @@ function validateAxes(p,issue){
 }
 function validate(p) {
   const issues=percentLabelIssues(p);
-  return [...validateModel(issues.length?p:projectWithFractionLabels(p)),...issues];
+  return [...validateModel(issues.length?p:projectWithFractionLabels(p)),...issues,...measurementReviewIssues(p)];
 }
+function measurementReviewIssues(project){
+  const issues=[];
+  if(!Array.isArray(project?.rows)||!KINDS.includes(project.kind)||isComposite(project))return issues;
+  const warn=(i,text)=>issues.push({severity:'warning',message:`第 ${i+1} 行：${text}，请复核原图或手填原值`});
+  for(const [i,row] of project.rows.entries()){
+    const evidence=project.evidence?.[i];
+    if(!evidence||!row)continue;
+    if(isPie(project)&&unresolvedPieRays(evidence.pieAngle)){
+      warn(i,'扇区分界线在原图上的间距小于一个像素');
+      continue;
+    }
+    const cal=project.axes?.[valueAxis(project)],coordinate=valueAxis(project);
+    const raw=(field,handle)=>evidence[handle]&&cal?.calibrated?
+      pixelToValue(evidence[handle][coordinate],cal):row[field];
+    const check=(lower,upper,first,last,label)=>{
+      if(!finite(row[lower])||!finite(row[upper]))return;
+      const low=raw(lower,first),high=raw(upper,last);
+      if(row[lower]===row[upper]&&finite(low)&&finite(high)&&low!==high){
+        warn(i,`Precision V2 舍入后${label}重合`);
+      }else if(evidence[first]&&evidence[last]){
+        const distance=Math.abs(evidence[first][coordinate]-evidence[last][coordinate]);
+        if(distance>0&&distance<1)warn(i,`${label}在原图上的间距小于一个像素`);
+      }
+    };
+    try{
+      if(isBox(project)&&row.q1===row.q3&&raw('q1','q1Pixel')<raw('q3','q3Pixel'))
+        warn(i,'Precision V2 舍入后四分位距为零');
+      if(isArea(project))check('baseline','y','baselinePixel','pixel','面积上下边界');
+      if(isBar(project))check('lower','upper','lowerPixel','upperPixel','误差区间上下界');
+      if(isStack(project)&&!evidence.valueOverride)check('start','end','startPixel','pixel','堆叠段端点');
+      if(isPercentStack(project)&&!evidence.valueOverride&&
+          (row.value===null||row.value===0)&&percentStackMeasurement(project,row,evidence).difference>0)
+        warn(i,'百分比舍入后无法表示正柱段');
+    }catch{/* Existing calibration checks report invalid axes. */}
+  }
+  return issues;
+}
+
+function unresolvedPieRays(angle){
+  if(!angle)return false;
+  const {center,from,to}=angle;
+  if(!center||!from||!to||from.x===to.x&&from.y===to.y)return false;
+  const ax=from.x-center.x,ay=from.y-center.y,bx=to.x-center.x,by=to.y-center.y;
+  const radiusA=Math.hypot(ax,ay),radiusB=Math.hypot(bx,by);
+  return Math.min(radiusA,radiusB)*Math.hypot(ax/radiusA-bx/radiusB,ay/radiusA-by/radiusB)<1;
+}
+
 function validateModel(p) {
   if(isHeatmap(p))return validateHeatmap(p);
   try{p=ensureIdentities(copy(p));}catch(e){return [{severity:'error',message:e.message}];}
@@ -351,6 +432,7 @@ function validateModel(p) {
   if(!p || !KINDS.includes(p.kind)) return [{severity:'error',message:'未知图表类型'}];
   if(!Array.isArray(p.rows)||!p.rows.length) return [{severity:'error',message:'至少需要一行观测数据'}];
   if(p.rows.some(r=>!r||typeof r!=='object'||Array.isArray(r)))return [{severity:'error',message:'每一行必须为观测对象'}];
+  if(isRadar(p))return validateRadar(p);
   if(isComposite(p))return validateComposite(p);
   if(isStat(p))return validateStat(p);
   const bar=isBar(p), stack=isStack(p), percent=isPercentStack(p), line=isLine(p), lineCategory=lineCategoryAxis(p);
@@ -381,8 +463,8 @@ function validateModel(p) {
     for(const f of bar?['value']:['x','y'].filter(axis=>axis!==discrete)) if(!finite(r[f])) issue('error',prefix+f+' 必须是有限数字');
     for(const f of ['lower','upper','start','end','path_order','stack_order']) if(present(r[f])&&!finite(r[f])) issue('error',prefix+f+' 必须是有限数字');
     if(bar&&!present(r.category)) issue('error',prefix+'缺少类别');
-    if(!bar&&discrete&&!present(r[discrete])) issue('error',prefix+'缺少 '+discrete+' 类别');
-    if(lineCategory&&typeof r[lineCategory]!=='string'&&!(p.xType==='ordinal'&&finite(r[lineCategory])))issue('error',prefix+lineCategory+' 类别必须为文本');
+    if(!bar&&discrete&&!present(r[discrete])&&!(isSmoothLine(p)&&p.smoothPositioned&&r[discrete]===null)) issue('error',prefix+'缺少 '+discrete+' 类别');
+    if(lineCategory&&typeof r[lineCategory]!=='string'&&!(p.xType==='ordinal'&&finite(r[lineCategory]))&&!(isSmoothLine(p)&&p.smoothPositioned&&r[lineCategory]===null))issue('error',prefix+lineCategory+' 类别必须为文本');
     if(present(r.lower)&&finite(r.lower)&&finite(r.upper)&&r.lower>r.upper) issue('error',prefix+'lower 不能大于 upper');
     if(!percent&&finite(r.start)&&finite(r.end)&&finite(r.value)&&Math.abs((r.end-r.start)-r.value)>1e-8*Math.max(1,Math.abs(r.value))) issue('error',prefix+'堆叠段 value 必须等于 end − start');
     for(const channel of ['x','y']) {
@@ -395,7 +477,8 @@ function validateModel(p) {
   if(p.errorBars&&(!bar||p.rows.some(r=>!finite(r.lower)||!finite(r.upper))))issue('error','误差棒柱图需为每条记录填写数值下界和上界');
   validateAxes(p,issue);
   if(bar&&fields.includes('lower')&&p.rows.some(r=>finite(r.lower)&&finite(r.upper)&&(r.value<r.lower||r.value>r.upper))) issue('warning','部分数值位于误差区间外，请核对区间是否为绝对上下界');
-  if(line&&!fields.includes('path_order')) {
+  if(isSmoothLine(p))validateSmoothLine(p,issue);
+  else if(line&&!fields.includes('path_order')) {
     const last=new Map();let nonmonotonic=false;
     for(const r of p.rows){const position=lineCategory?p.categoryObjects.findIndex(c=>c.key===categoryIdentity(r)):r.x;const s=identity(r);if(last.has(s)&&position<last.get(s))nonmonotonic=true;last.set(s,position);}
     if(nonmonotonic) issue('warning',`折线路径包含 ${(lineCategory??'x').toUpperCase()} 回退，导出时自动生成 path_order`);
@@ -422,9 +505,12 @@ function validatePercentStack(p,issue){
   const offTotal=[...totals.values()].filter(total=>finite(total)&&Math.abs(total-100)>1e-8).length;
   if(offTotal)issue('warning',`有 ${offTotal} 个类别的占比合计偏离 100%，请核对原图和标注范围`);
   if(Object.keys(p.percentStackRatioCategories??{}).length){
-    const {groups}=percentStackRatioData(p);
+    const groups=percentStackRatioInputs(p);
     for(const [category,group] of groups){
       if(!usesPercentStackRatio(p,category)||!group.automatic)continue;
+      if(group.complete&&group.rows.some(({row,segment,override})=>!override&&segment>0&&(row.value===0||row.value===null))&&
+          validPercentStackRatioTotal(group))
+        issue('warning',`类别「${categoryName(p,category)}」存在舍入后无法表示的正占比，请复核并手填`);
       if(!group.complete){
         const action=group.height===null?'暂无法自动计算该类别的比值':'暂无法计算这些柱段的比值';
         issue('warning',`类别「${categoryName(p,category)}」有柱段缺少有效端点，${action}`);
@@ -444,6 +530,11 @@ function stackNeedsEndpoints(p) {
   return false;
 }
 function annotationOrder(p) {
+  if(isRadar(p))return {
+    series:isRadarStack(p)?'每个类别可独立调整从内到外的堆叠顺序。':'按图例顺序录入系列。',
+    category:'从首类别起按原图顺时针排列，类别名称须唯一。',
+    records:isRadarStack(p)?'逐类别从内到外取各段外边界。':'完成当前系列的所有类别后，自动切换至下一个系列。'
+  };
   if(isComposite(p))return {series:'每个系列选择柱或线。柱按组内从左到右；折线按首次可见顺序。',category:'共享类别轴从左到右填写；同名位置保持独立。',records:'先标柱、再沿折线路径标点。双 Y 轴时柱用左轴，线用右轴，分别校准。'};
   const stack=isStack(p),horizontal=isHorizontal(p),bar=isBar(p),line=p.kind.startsWith('line');
   let series,category,records;
@@ -485,6 +576,7 @@ function tableMetadata(p,s){
   return [{id:'data',path:'/data/values'}];
 }
 function percentLabels(p,key){
+  if(isSmoothLine(p)&&p.smoothPositioned&&lineCategoryAxis(p)===key)return false;
   if(key==='theta')return p.valueMode==='percent';
   return p.percentLabels?.[key]===true;
 }
@@ -683,10 +775,37 @@ function rememberPercentTables(project,converted,losses){
   }
   if(exact.length)project.percentExact=exact;
 }
+function bindImportedFractions(project){
+  if(!project.percentExact?.length)return;
+  const indexed={...project,rows:project.rows.map((row,index)=>({...row,_fractionImportIndex:index}))};
+  const origins=new WeakMap();
+  const tables=new Map(percentTables(baseSpec(indexed,(row,source,outlier)=>{
+    origins.set(row,{index:source._fractionImportIndex,outlier});
+    return row;
+  })));
+  for(const saved of project.percentExact){
+    const target=tables.get(saved.path)?.[saved.index];
+    const origin=target&&origins.get(target);
+    if(!origin||target[saved.key]!==saved.displayed)continue;
+    const source=project.rows[origin.index];
+    const field=origin.outlier===undefined?saved.key:'outlier:'+origin.outlier;
+    (source._exactFractions??={})[field]={original:saved.original,displayed:saved.displayed};
+  }
+  delete project.percentExact;
+}
+
 function makeSpec(p){
   const issues=percentLabelIssues(p);
   if(issues.length)throw Error(issues[0].message);
-  const spec=baseSpec(projectWithFractionLabels(p));
+  const preserved=[];
+  const spec=baseSpec(projectWithFractionLabels(p),(row,source,outlier)=>{
+    for(const [key,saved] of Object.entries(source._exactFractions??{})){
+      const field=outlier===undefined?key:key==='outlier:'+outlier?'value':null;
+      if(field&&row[field]===saved.displayed)
+        preserved.push({row,field,...saved});
+    }
+    return row;
+  });
   spec.usermeta={...spec.usermeta,table_export:{tables:tableMetadata(p,spec)}};
   const tables=new Map(percentTables(spec));
   const retained=(p.percentExact??[]).filter(saved=>{
@@ -694,6 +813,12 @@ function makeSpec(p){
     return row&&percentRowKey(row)===saved.signature;
   });
   mapPercentScales(spec,p,false);
+  if(isRadar(p)&&percentLabels(p,'y')&&!p.percentGuides?.y?.domain){
+    const domain=spec.encoding.y.scale.domain;
+    spec.encoding.y.scale.domain=domain.map(value=>shiftDecimal(value,-2));
+  }
+  for(const {row,field,original,displayed} of preserved)
+    if(row[field]!==displayed)row[field]=original;
   for(const saved of retained){
     const row=tables.get(saved.path)[saved.index];
     if(JSON.stringify(row[saved.key])!==JSON.stringify(saved.displayed))row[saved.key]=copy(saved.original);
@@ -721,7 +846,7 @@ function importSpec(input,preferredKind){
   const tables=spec.usermeta?.table_export?.tables;
   if(Array.isArray(tables)&&!spec.usermeta.semantic)delete spec.usermeta.table_export;
   if(spec.usermeta&&!Object.keys(spec.usermeta).length)delete spec.usermeta;
-  const p=baseImport(spec,preferredKind,flags);
+  const p=radarGT(spec)?importRadarSpec(spec,flags.y):baseImport(spec,preferredKind,flags);
   p.percentLabels=flags;
   if(isBar(p)&&errorCurrency)p.valueFormat=errorCurrency;
   if(Object.keys(guides).length)p.percentGuides=guides;
@@ -740,17 +865,20 @@ function importSpec(input,preferredKind){
     rememberNormalizedPercentTables(p,baseSpec(p),baseSpec(baseImport(input,preferredKind,flags)));
   }
   else rememberPercentTables(p,spec,losses);
+  bindImportedFractions(p);
   return p;
 }
 
-function baseSpec(p) {
-  if(isComposite(p))return makeCompositeSpec(p);
+function baseSpec(p,observation=row=>row) {
+  if(isComposite(p))return makeCompositeSpec(p,observation);
   const errors=validate(p).filter(x=>x.severity==='error');
   if(errors.length) throw Error(errors.map(x=>x.message).join('\n'));
-  if(isHeatmap(p))return makeHeatmapSpec(p);
-  if(isStat(p))return makeStatSpec(p);
-  if(isArea(p))return makeAreaSpec(ensureIdentities(copy(p)));
-  if(isHistogram(p))return makeHistogramSpec(ensureIdentities(copy(p)));
+  if(isSmoothLine(p))return makeSmoothSpec(ensureIdentities(copy(p)),observation);
+  if(isRadar(p))return makeRadarSpec(ensureIdentities(copy(p)),observation);
+  if(isHeatmap(p))return makeHeatmapSpec(p,observation);
+  if(isStat(p))return makeStatSpec(p,observation);
+  if(isArea(p))return makeAreaSpec(ensureIdentities(copy(p)),observation);
+  if(isHistogram(p))return makeHistogramSpec(ensureIdentities(copy(p)),observation);
   const bar=isBar(p),stack=isStack(p),percent=isPercentStack(p),horizontal=isHorizontal(p),line=p.kind.startsWith('line');
   p=ensureIdentities(copy(p));
   const ordered=orderedRows(p),lineCategory=lineCategoryAxis(p),categoryField=bar?'category':lineCategory??'x';
@@ -777,7 +905,7 @@ function baseSpec(p) {
     if(percent)out.stack_order=ranks.get(identity(r));
     else if(stack&&!optional.includes('start')&&!optional.includes('stack_order'))out.stack_order=stackKeys.indexOf(identity(r));
     if(withSeries){out.series=p.legend===false?'Series '+(seriesKeys.indexOf(identity(r))+1):r.series;if(repeatedSeries&&p.legend!==false)out.series_id='S'+(seriesKeys.indexOf(identity(r))+1);}
-    return orderRow(out);
+    return observation(orderRow(out),r);
   });
   const axis=(channel,field,type)=>{
     const out={field,type};
@@ -805,7 +933,7 @@ function baseSpec(p) {
     if(optional.includes('start')) {enc[val].field='end';enc[val].stack=null;enc[val+'2']={field:'start'};}
     else {enc[val].stack='zero';enc.order={field:'stack_order',type:'quantitative'};}
   }
-  let mark={type:bar?'bar':line?'line':'point'};
+  let mark={type:bar?'bar':line?'line':'point',...(line?{interpolate:'linear'}:{})};
   if(line&&unique(p.rows.map(identity)).some(id=>p.rows.filter(r=>identity(r)===id).length===1))mark.point=true;
   if(line&&optional.includes('path_order'))enc.order={field:'path_order',type:'quantitative'};
   else if(line&&!lineCategory){const last=new Map();if(ordered.some(r=>{const id=identity(r),x=r.x;const same=last.has(id)&&x<=last.get(id);last.set(id,x);return same;}))mark.order=false;}
@@ -837,11 +965,14 @@ function baseImport(input,preferredKind,percentAxes={}) {
   const mark=primary?.mark??s.mark;
   const type=typeof mark==='string'?mark:mark?.type;
   if(!['bar','line','point'].includes(type)||!enc.x||!enc.y)throw Error('仅支持柱、折线、散点图的 x/y 编码');
+  if(type==='line'&&mark?.interpolate==='monotone')return importSmoothSpec(s,percentAxes);
+  if(type==='line'&&mark?.interpolate!==undefined&&mark.interpolate!=='linear')
+    throw Error('只支持 linear 折线和 monotone 平滑曲线，请检查阶梯或闭合曲线');
   const lineCategory=type==='line'?(nominalType(enc.x.type)?'x':enc.y.type==='nominal'?'y':null):null;
   if(type==='line'&&(['x','y'].some(ch=>ch!==lineCategory&&enc[ch].type!=='quantitative'))){
     throw Error('折线图支持双数值轴，或一个 Nominal 类别轴与一个 Quantitative 数值轴');
   }
-  if(typeof mark==='object'&&Object.keys(mark).some(k=>!['type','order','point'].includes(k)&&!(k==='orient'&&lineCategory)))throw Error('导入包含额外标记属性，请先转换为精简 GT');
+  if(typeof mark==='object'&&Object.keys(mark).some(k=>!['type','order','point'].includes(k)&&!(k==='interpolate'&&type==='line')&&!(k==='orient'&&lineCategory)))throw Error('导入包含额外标记属性，请先转换为精简 GT');
   if(lineCategory&&mark?.orient&&mark.orient!==(lineCategory==='y'?'horizontal':'vertical')&&!enc.order&&mark.order!==false){
     throw Error('折线方向与类别轴的默认路径不一致，请用 path_order 明确路径后导入');
   }
@@ -949,7 +1080,7 @@ function baseImport(input,preferredKind,percentAxes={}) {
 
 function markType(mark){return typeof mark==='string'?mark:mark?.type;}
 
-function measurePieSectors(center,boundaries){
+function measurePieSectors(center,boundaries,apportion=true){
   if(!boundaries.length)return [];
   const turn=2*Math.PI,epsilon=1e-10;
   const angle=point=>{
@@ -967,18 +1098,10 @@ function measurePieSectors(center,boundaries){
     }
     offsets.push(offset);
   }
-  const shortestRay=Math.min(...boundaries.map(point=>Math.hypot(point.x-center.x,point.y-center.y)));
-  const uncertainty=100*Math.atan2(2,shortestRay)/turn;
-  const totalUnits=100*10**-Math.max(-2,Math.floor(Math.log10(uncertainty)));
-  const sectors=offsets.map((offset,i)=>{
-    const span=(offsets[i+1]??turn)-offset;
-    const quota=span/turn*totalUnits,units=Math.floor(quota);
-    return {degrees:span*180/Math.PI,units,remainder:quota-units,index:i};
-  });
-  const missing=totalUnits-sectors.reduce((sum,sector)=>sum+sector.units,0);
-  const byRemainder=[...sectors].sort((a,b)=>b.remainder-a.remainder||a.index-b.index);
-  for(const sector of byRemainder.slice(0,missing))sector.units++;
-  return sectors.map(({degrees,units})=>({degrees,value:units/(totalUnits/100)}));
+  const spans=offsets.map((offset,i)=>(offsets[i+1]??turn)-offset);
+  const values=apportion?percentageParts(spans):
+    spans.map(span=>quantizeMeasurement(span/turn*100,{percent:true}));
+  return spans.map((span,i)=>({degrees:span*180/Math.PI,value:values[i]}));
 }
 
 function validateArea(p,issue){
@@ -1033,7 +1156,7 @@ function validateArea(p,issue){
   }))issue('warning','部分堆叠层在共同 X 处的相邻边界未对齐，请核对原图或堆叠顺序');
 }
 
-function makeAreaSpec(p){
+function makeAreaSpec(p,observation=row=>row){
   const stacked=p.kind==='area_stack',multi=p.kind!=='area_1',nominal=isNominalArea(p);
   const xField=categoryField(p);
   const ranks=new Map(p.series.map((s,i)=>[s.key,stackRank(s,i)]));
@@ -1043,8 +1166,8 @@ function makeAreaSpec(p){
     rows=[...rows].sort((a,b)=>positions.get(categoryIdentity(a))-positions.get(categoryIdentity(b))||
       (stacked?ranks.get(identity(a))-ranks.get(identity(b)):0));
   }
-  const values=rows.map(r=>({[xField]:r[xField],y:r.y,baseline:r.baseline,
-    ...(multi?{series:r.series}:{}),...(stacked?{stack_order:ranks.get(identity(r))}:{})}));
+  const values=rows.map(r=>observation({[xField]:r[xField],y:r.y,baseline:r.baseline,
+    ...(multi?{series:r.series}:{}),...(stacked?{stack_order:ranks.get(identity(r))}:{})},r));
   // Vega-Lite uses order for path sorting. Equal ranks within a series therefore need X-ordered input.
   if(stacked&&!nominal)values.sort((a,b)=>a.x-b.x||a.stack_order-b.stack_order);
   const encoding={};
@@ -1179,7 +1302,7 @@ function validateHistogram(p,issue){
       }
     }
     if(finite(row.bin_start)&&finite(row.bin_end)&&row.bin_end<=row.bin_start){
-      issue('error',prefix+'bin_end 必须大于 bin_start');
+      issue('error',prefix+'bin_end 必须大于 bin_start，请复核分箱或手填原始边界');
     }
     if(stacked&&finite(row.value)&&row.value<0)issue('error',prefix+'堆叠段 value 不能为负数');
     bySeries.get(identity(row)).push(row);
@@ -1276,11 +1399,11 @@ function histogramEncoding(p){
   };
 }
 
-function makeHistogramSpec(p){
+function makeHistogramSpec(p,observation=row=>row){
   const ranks=new Map(p.series.map(s=>[s.key,s.stackOrder]));
-  const values=p.rows.map(r=>({bin_start:r.bin_start,bin_end:r.bin_end,value:r.value,
+  const values=p.rows.map(r=>observation({bin_start:r.bin_start,bin_end:r.bin_end,value:r.value,
     ...(isHistogramStack(p)?{stack_order:ranks.get(identity(r))}:{}),
-    ...(!p.kind.endsWith('_1')?{series:r.series}:{})}));
+    ...(!p.kind.endsWith('_1')?{series:r.series}:{})},r));
   return {...(present(p.title)?{title:copy(p.title)}:{}),data:{values},mark:{type:'bar'},encoding:histogramEncoding(p)};
 }
 
@@ -1353,9 +1476,9 @@ function validateStat(p){
   for(const a of requiredAxes(p))if(p.axes?.[a]?.calibrated)try{axisTransform(p.axes[a]);}catch(e){issue('error',a.toUpperCase()+' 轴：'+e.message);}
   return issues;
 }
-function makeStatSpec(p){
+function makeStatSpec(p,observation=row=>row){
   const fields=isPie(p)?['category','value']:['category',...BOX_FIELDS];
-  const spec={data:{values:p.rows.map(r=>Object.fromEntries(fields.map(k=>[k,copy(r[k])])) )}};
+  const spec={data:{values:p.rows.map(r=>observation(Object.fromEntries(fields.map(k=>[k,copy(r[k])])),r))}};
   if(present(p.title))spec.title=copy(p.title);
   if(isPie(p)){
     const metricTitle=pieMetricTitle(p.valueTitle);
@@ -1372,7 +1495,7 @@ function makeStatSpec(p){
       {mark:{type:'rule'},encoding:{[v]:position,[v+'2']:{field:'upper'}}},
       {mark:{type:'bar'},encoding:{[v]:{field:'q1',type:'quantitative'},[v+'2']:{field:'q3'}}},
       {mark:{type:'tick'},encoding:{[v]:{field:'median',type:'quantitative'}}},
-      {data:{values:p.rows.flatMap(r=>r.outliers.map(value=>({category:r.category,value})))},mark:{type:'point'},encoding:{[v]:{field:'value',type:'quantitative'}}}
+      {data:{values:p.rows.flatMap(r=>r.outliers.map((value,index)=>observation({category:r.category,value},r,index)))},mark:{type:'point'},encoding:{[v]:{field:'value',type:'quantitative'}}}
     ];
   }
   return spec;
@@ -1445,7 +1568,10 @@ function importStatSpec(s){
 function compositePart(p,role){
   const part=copy(p);part.series=part.series.filter(s=>s.role===role);
   const keys=new Set(part.series.map(s=>s.key));
-  part.rows=part.rows.filter(r=>keys.has(identity(r)));
+  const selected=part.rows.map((row,index)=>({row,evidence:part.evidence?.[index]}))
+    .filter(({row})=>keys.has(identity(row)));
+  part.rows=selected.map(({row})=>row);
+  part.evidence=selected.map(({evidence})=>evidence);
   part.kind=role==='bar'?(part.series.length>1?'barv_n':'barv_1'):(part.series.length>1?'line_n':'line_1');
   part.errorBars=role==='bar'&&!!p.errorBars;part.xType='ordinal';
   if(role==='line'){
@@ -1474,7 +1600,7 @@ function validateComposite(p){
   }
   return issues;
 }
-function makeCompositeSpec(input){
+function makeCompositeSpec(input,observation=row=>row){
   const p=ensureIdentities(copy(input)),errors=validateComposite(p).filter(i=>i.severity==='error');
   if(errors.length)throw Error(errors.map(i=>i.message).join('\n'));
   const categories=p.categoryObjects.filter(c=>p.rows.some(r=>categoryIdentity(r)===c.key));
@@ -1489,7 +1615,7 @@ function makeCompositeSpec(input){
   const rows=['bar','line'].flatMap(role=>ordered[role].map(r=>{
     const row={category:categoryName(p,categoryIdentity(r)),...(duplicateCategory?{category_id:categoryID(categoryIdentity(r))}:{}),value:role==='bar'?r.value:r.y};
     for(const key of role==='bar'?['lower','upper']:['path_order'])if(present(r[key]))row[key]=r[key];
-    row.series_role=role;row.series=seriesLabel(identity(r));if(duplicateSeries)row.series_id=seriesID(identity(r));return row;
+    row.series_role=role;row.series=seriesLabel(identity(r));if(duplicateSeries)row.series_id=seriesID(identity(r));return observation(row,r);
   }));
   const field=duplicateSeries?'series_id':'series';
   const x={field:duplicateCategory?'category_id':'category',type:'nominal',sort:null,...(present(p.xTitle)?{title:copy(p.xTitle)}:{})};
@@ -1501,6 +1627,7 @@ function makeCompositeSpec(input){
   const bars=[{mark:{type:'bar'},...(offset?{encoding:{xOffset:copy(offset)}}:{})}];
   if(rows.some(r=>r.series_role==='bar'&&present(r.lower)))bars.push({mark:{type:'errorbar'},encoding:orderEncoding({y:{field:'lower',type:'quantitative'},y2:{field:'upper'},...(offset?{xOffset:copy(offset)}:{})})});
   const lineGT=baseSpec(parts.line),lineMark=copy(lineGT.mark);
+  delete lineMark.interpolate;
   const line={data:{values:lineRows},mark:lineMark};
   const overrides={};if(p.dualYAxis)overrides.y={...y('r',p.rightYTitle),scale:{...y('r',p.rightYTitle).scale,type:p.axes.r.type}};
   if(JSON.stringify(unique(rows.map(r=>r.category_id??r.category)))!==JSON.stringify(categories.map(c=>duplicateCategory?categoryID(c.key):c.name)))x.sort=categories.map(c=>duplicateCategory?categoryID(c.key):c.name);
@@ -1581,7 +1708,7 @@ function importCompositeSpec(input){
   const errors=validate(p).filter(i=>i.severity==='error');if(errors.length)throw Error(errors.map(i=>i.message).join('\n'));return p;
 }
 
-function requiredAxes(p){if(isHeatmap(p))return heatmapAxes.filter(axis=>heatmapContinuous(p,axis));if(isComposite(p))return p.dualYAxis?['y','r']:['y'];if(isLine(p))return ['x','y'].filter(axis=>axis!==lineCategoryAxis(p));return isPie(p)?[]:isHistogram(p)?['x','y']:isBar(p)||isBox(p)?[valueAxis(p)]:isNominalArea(p)||!isArea(p)&&p.xType==='ordinal'?['y']:['x','y'];}
+function requiredAxes(p){if(isRadar(p))return [];if(isHeatmap(p))return heatmapAxes.filter(axis=>heatmapContinuous(p,axis));if(isComposite(p))return p.dualYAxis?['y','r']:['y'];if(isLine(p))return ['x','y'].filter(axis=>axis!==lineCategoryAxis(p));return isPie(p)?[]:isHistogram(p)?['x','y']:isBar(p)||isBox(p)?[valueAxis(p)]:isNominalArea(p)||!isArea(p)&&p.xType==='ordinal'?['y']:['x','y'];}
 
 function percentStackCalibration(project,category){
   const axis=valueAxis(project);
@@ -1602,9 +1729,7 @@ function percentStackMeasurement(project,row,evidence,numericAxis=false){
     try{return pixelToValue(pixel[axis],calibration);}catch{return null;}
   };
   const start=coordinate('start',evidence?.startPixel),end=coordinate('end',evidence?.pixel);
-  const uncertainty=(finite(start)&&evidence?.startPixel?axisUncertainty(start,calibration):0)+
-    (finite(end)&&evidence?.pixel?axisUncertainty(end,calibration):0);
-  return {start,end,difference:finite(start)&&finite(end)?Math.abs(decimalDifference(end,start)):null,uncertainty};
+  return {start,end,difference:finite(start)&&finite(end)?Math.abs(decimalDifference(end,start)):null};
 }
 
 const positiveHeight=value=>finite(value)&&value>0;
@@ -1627,15 +1752,15 @@ function recordedPercentStackHeight(project,category){
   if(positiveHeight(record?.value))return record.value;
   return percentStackHeightFromPoints(project,record?.startPixel,record?.endPixel);
 }
-function percentStackRatioData(project){
+function percentStackRatioInputs(project){
   const groups=new Map(),first=firstPercentStackHeightCategory(project);
-  const segments=project.rows.map((row,i)=>{
+  for(const [i,row] of project.rows.entries()){
     const category=categoryIdentity(row),evidence=project.evidence?.[i];
-    const {difference,uncertainty}=percentStackMeasurement(project,row,evidence);
+    const {start,end,difference}=percentStackMeasurement(project,row,evidence);
     if(!groups.has(category)){
       const source=percentStackHeightSource(project,category,first);
       const height=source===null?null:recordedPercentStackHeight(project,source);
-      groups.set(category,{height,total:0,complete:true,automatic:false});
+      groups.set(category,{height,total:0,complete:true,automatic:false,rows:[]});
     }
     const group=groups.get(category);
     // Older projects can contain a height for an individual segment.
@@ -1643,23 +1768,50 @@ function percentStackRatioData(project){
       usesPercentBarLength(project,category)?percentStackMeasurement(project,row,evidence,true).difference:difference;
     if(validPercent(segment))group.total+=segment;
     else group.complete=false;
-    if(!evidence?.valueOverride)group.automatic=true;
-    return {segment,uncertainty};
-  });
-  return {segments,groups};
+    const override=!!evidence?.valueOverride;
+    if(!override)group.automatic=true;
+    group.rows.push({row,start,end,difference,segment,override});
+  }
+  return groups;
 }
 
 const validPercentStackRatioTotal=group=>group.height!==null||group.complete&&positiveHeight(group.total);
-function syncPercentStackRatios(project){
-  if(project.precisionVersion!==1)return;
-  const {segments,groups}=percentStackRatioData(project);
-  for(const [i,row] of project.rows.entries()){
-    const {segment,uncertainty}=segments[i],category=categoryIdentity(row);
-    row.difference=finite(row.start)&&finite(row.end)?Math.abs(decimalDifference(row.end,row.start)):null;
-    if(!usesPercentStackRatio(project,category)||project.evidence?.[i]?.valueOverride)continue;
-    const group=groups.get(category);
-    row.value=validPercent(segment)&&validPercentStackRatioTotal(group)?
-      measuredNumber(segment/(group.height??group.total)*100,uncertainty/(group.height??group.total)*100):null;
+function closedPercentStack(group){
+  if(!group?.rows.length||group.rows.some(({start,end,override})=>override||!finite(start)||!finite(end)||end<start))
+    return false;
+  const segments=[...group.rows].sort((a,b)=>a.start-b.start||a.end-b.end);
+  return segments[0].start===0&&segments.at(-1).end===100&&
+    segments.every(({start},i)=>i===0||start===segments[i-1].end);
+}
+
+function syncPercentStackRatios(project,previous){
+  const oldGroups=previous&&isPercentStack(previous)?percentStackRatioInputs(previous):new Map();
+  const signature=group=>JSON.stringify([group.height,group.complete,group.rows.map(
+    ({row,start,end,segment,override})=>[identity(row),start,end,segment,override])]);
+  for(const [category,group] of percentStackRatioInputs(project)){
+    const ratio=usesPercentStackRatio(project,category),oldRatio=previous&&usesPercentStackRatio(previous,category);
+    const oldGroup=oldGroups.get(category);
+    if(oldGroup&&ratio===oldRatio&&signature(group)===signature(oldGroup))continue;
+    const divisor=group.height??group.total;
+    let apportioned,precisionError=false;
+    if(group.rows.every(({override})=>!override)){
+      const wholeRatio=group.complete&&validPercentStackRatioTotal(group)&&
+        (group.height===null||Math.abs(group.total-divisor)<=Number.EPSILON*8*divisor);
+      if(ratio?wholeRatio:closedPercentStack(group)){
+        try{apportioned=percentageParts(group.rows.map(({difference,segment})=>ratio?segment:difference));}
+        catch{precisionError=true;}
+      }
+    }
+    // A formerly complete bar can become partial after an edit or removal.
+    if(!ratio&&!apportioned&&!precisionError&&(oldRatio||!closedPercentStack(oldGroup)))continue;
+    for(const [i,{row,segment,difference,override}] of group.rows.entries()){
+      if(!finite(row.difference))row.difference=finite(row.start)&&finite(row.end)?Math.abs(decimalDifference(row.end,row.start)):null;
+      if(override)continue;
+      if(apportioned||precisionError||ratio){
+        row.value=apportioned?.[i]??(!precisionError&&validPercent(segment)&&validPercentStackRatioTotal(group)?
+          quantizeMeasurement(segment/divisor*100,{percent:true}):null);
+      }else if(finite(difference))row.value=quantizeMeasurement(difference,{percent:true});
+    }
   }
 }
 function hasRows(p){
@@ -1689,7 +1841,7 @@ function keepOtherAreaMode(p,next){
   if(!isArea(next)||next.kind!==p.kind)return;
   next.areaModes=areaMode(next)===areaMode(p)?p.areaModes:{[areaMode(p)]:areaModeData(p)};
 }
-const LINE_MODE_FIELDS=[...AREA_MODE_FIELDS,'legend'];
+const LINE_MODE_FIELDS=[...AREA_MODE_FIELDS,'legend','smoothPositioned','smoothPhase','smoothSkipped'];
 const lineMode=p=>lineCategoryAxis(p)??'quantitative';
 const lineModeData=p=>Object.fromEntries(LINE_MODE_FIELDS.map(key=>[key,p[key]]));
 function switchLineMode(p,next){
@@ -1776,14 +1928,59 @@ function validHeatmapCalibration(calibration) {
   catch{return false;}
 }
 
-function heatmapIntervals(p,axis) {
+function heatmapIntervals(p,axis){
+  return projectHeatmapIntervals(p,axis,(pixel,calibration)=>
+    measuredAxisValue(pixel,calibration,percentLabels(p,axis)));
+}
+
+function projectHeatmapIntervals(p,axis,measure){
+  const bands=p.heatmap[axis];
+  if(!bands.some(band=>band.fromPixels&&!band.savedInterval))
+    return bands.map(band=>band.savedInterval??[band.start,band.end]);
   const calibration=heatmapAxisCalibration(p,axis),pixels=heatmapPixelBoundaries(p,axis);
   const values=validHeatmapCalibration(calibration)?
-    pixels.map(pixel=>!finite(pixel)?null:p.precisionVersion===1?measuredAxisValue(pixel,calibration):Number(pixelToValue(pixel,calibration).toFixed(2))):[];
-  return p.heatmap[axis].map((band,i)=>{
-    if(!band.fromPixels)return [band.start,band.end];
+    pixels.map(pixel=>{
+      if(!finite(pixel))return null;
+      try{return measure(pixel,calibration);}catch{return null;}
+    }):[];
+  return bands.map((band,i)=>{
+    if(!band.fromPixels||band.savedInterval)return band.savedInterval??[band.start,band.end];
     const start=values[i],end=values[i+1];
     return finite(start)&&finite(end)&&pixels[i]<pixels[i+1]?[Math.min(start,end),Math.max(start,end)]:[null,null];
+  });
+}
+
+function preserveLegacyHeatmapIntervals(project){
+  if(!isHeatmap(project)||project.precisionVersion===2)return;
+  for(const channel of heatmapAxes){
+    if(!heatmapContinuous(project,channel))continue;
+    const intervals=projectHeatmapIntervals(project,channel,(pixel,axis)=>{
+      const value=pixelToValue(pixel,axis);
+      // Recover saved scientific values using the archive's original display rule.
+      if(project.precisionVersion!==1)return Number(value.toFixed(2));
+      if(!value||pixel===axis.p1||pixel===axis.p2)return value;
+      const uncertainty=axis.type==='log'?Math.abs(value)*Math.expm1(
+        Math.abs(Math.log(axis.v2)-Math.log(axis.v1))/Math.abs(axis.p2-axis.p1)):
+        Math.abs((axis.v2-axis.v1)/(axis.p2-axis.p1));
+      const parts=decimalParts(value),significant=parts.exponent+parts.digits.length-4;
+      const resolution=uncertainty>0&&finite(uncertainty)?Math.floor(Math.log10(uncertainty)):-Infinity;
+      const rounded=roundMeasurementAt(value,parts,Math.max(significant,resolution));
+      return rounded||axis.type!=='log'?rounded:roundMeasurementAt(value,parts,significant);
+    });
+    project.heatmap[channel].forEach((band,i)=>{
+      if(band.fromPixels)band.savedInterval=intervals[i];
+    });
+  }
+  project.precisionVersion=2;
+}
+
+function updateHeatmapIntervals(project,axis){
+  if(!heatmapContinuous(project,axis))return;
+  const bands=project.heatmap[axis];
+  for(const band of bands)delete band.savedInterval;
+  const intervals=heatmapIntervals(project,axis);
+  bands.forEach((band,i)=>{
+    if(band.fromPixels)band.savedInterval=intervals[i];
   });
 }
 
@@ -1845,7 +2042,7 @@ function validateHeatmap(p) {
       previous=interval;
     }
     if(incomplete)issue('error',name+' 轴有 '+incomplete+(heatmapContinuous(p,axis)?' 个已使用区间缺少有效的起止值（起点须小于终点）':' 个已使用位置未填写原始标签'));
-    if(collapsed)issue('error',name+' 轴有 '+collapsed+' 个自动区间在当前图像精度下起止值相同，请手填更高精度的起止值');
+    if(collapsed)issue('error',name+' 轴有 '+collapsed+' 个自动区间在 Precision V2 舍入后起止值相同，请手填更高精度的起止值');
     if(overlap||unordered)issue('error',name+' 轴区间不能重叠，须按视觉方向递增或递减排列');
     if(rows.length&&used.size<bands.length)issue('warning',name+' 轴有整行或整列没有 GT 记录；可将其中一格标为缺测以保留该位置的标签或区间');
     const pixels=p.heatmap.pixels[axis].filter(finite);
@@ -1860,17 +2057,17 @@ function validateHeatmap(p) {
   return out;
 }
 
-function makeHeatmapSpec(p) {
+function makeHeatmapSpec(p,observation=row=>row) {
   const records=heatmapRecords(p),values=[];
   const coordinates=axis=>heatmapContinuous(p,axis)?heatmapIntervals(p,axis):p.heatmap[axis].map(band=>[band.label]);
   const x=coordinates('x'),y=coordinates('y');
   for(const [j,yBand] of p.heatmap.y.entries())for(const [i,xBand] of p.heatmap.x.entries()){
     const record=records.get(heatmapCellKey(xBand.key,yBand.key))?.row;
     if(!record||!Object.hasOwn(record,'value'))continue;
-    values.push({
+    values.push(observation({
       x:x[i][0],x_id:heatmapId('x',i),...(x[i].length===2?{x2:x[i][1]}:{}),
       y:y[j][0],y_id:heatmapId('y',j),...(y[j].length===2?{y2:y[j][1]}:{}),value:record.value
-    });
+    },record));
   }
   const encoding={};
   for(const axis of heatmapAxes){
@@ -1999,14 +2196,18 @@ function recordPercentScale(key,value){
     }
   }
 }
+function clearMeasuredField(row,field){
+  if(row._percentData)delete row._percentData[field];
+  if(row._exactFractions)delete row._exactFractions[field.replace(/^outliers:/,'outlier:')];
+}
 function recordTablePercent(row,field,key){
+  clearMeasuredField(row,field);
   if(key==='theta'){
     if(p.valueMode!=='percent'&&p.rows.some(other=>other!==row&&finite(other.value)))
       throw Error('请核对饼图其它数值并明确选择百分比模式');
     p.valueMode='percent';
   }
   if(key&&key!=='theta'&&!isPercentStack(p))(row._percentData??={})[field]=key;
-  else if(row._percentData)delete row._percentData[field];
   if(key&&percentLabels(p,key)&&p.percentGuides?.[key])delete p.percentGuides[key].format;
 }
 function percentCells(p){
@@ -2119,7 +2320,7 @@ function heatmapColorRamp(points,read) {
   return ramp;
 }
 
-function measureHeatmapColor(read,ramp,bounds,point) {
+function measureHeatmapColor(read,ramp,bounds,point,percent=false) {
   const positions=[.12,.24,.37,.50,.63,.76,.88];
   const points=bounds?positions.flatMap(fy=>positions.map(fx=>({
     x:bounds.x[0]+fx*(bounds.x[1]-bounds.x[0]),y:bounds.y[0]+fy*(bounds.y[1]-bounds.y[0])
@@ -2135,14 +2336,13 @@ function measureHeatmapColor(read,ramp,bounds,point) {
     const d=heatmapColorDistance(sample.rgb,a.rgb.map((v,j)=>v+t*delta[j]));
     if(d<distance){
       distance=d;
-      best={t:a.t+t*(b.t-a.t),value:a.value*(1-t)+b.value*t,pixel:t<.5?a.pixel:b.pixel,
-        uncertainty:Math.abs(b.value-a.value)};
+      best={t:a.t+t*(b.t-a.t),value:a.value*(1-t)+b.value*t,pixel:t<.5?a.pixel:b.pixel};
     }
   }
   if(!best)return {warning:'色标上缺少连续可用像素',...sample,bounds,point};
   const ambiguous=ramp.some(q=>Math.abs(q.t-best.t)>.08&&heatmapColorDistance(sample.rgb,q.rgb)<=distance+6);
   const warning=distance>36?'格内颜色偏离色标':sample.agreement<.60?'格内颜色不一致':ambiguous?'相似颜色对应多个色标位置':'';
-  return {value:measuredNumber(best.value,best.uncertainty),...sample,bounds,point,distance,legendPixel:best.pixel,warning};
+  return {value:quantizeMeasurement(best.value,{percent,computed:true}),...sample,bounds,point,distance,legendPixel:best.pixel,warning};
 }
 
 function heatmapPixelRanges(p,axis) {
@@ -2165,17 +2365,20 @@ function heatmapPixelRanges(p,axis) {
 
 const $=id=>document.getElementById(id), clone=x=>structuredClone(x);
 const labels={
+  radar_1:'单系列雷达图',radar_n:'多系列雷达图',polar_bar_1:'单系列极坐标柱状图',
+  polar_bar_n:'多系列极坐标柱状图',polar_bar_stack:'极坐标堆叠柱状图',
   heatmap_dd:'离散 × 离散',heatmap_cc:'连续 × 连续',heatmap_dc:'离散 X × 连续 Y',heatmap_cd:'连续 X × 离散 Y',
-  barline_n:'柱线复合图 / 共用类别轴',barh_1:'单系列横向柱图',barh_n:'分组横向柱图',barv_1:'单系列纵向柱图',barv_n:'分组纵向柱图',barv_stack:'堆叠纵向柱图',barh_stack:'堆叠横向柱图',barv_stack_percent:'纵向百分比堆叠',barh_stack_percent:'横向百分比堆叠',line_1:'单系列折线图',line_n:'多系列折线图',scatter_1:'单系列散点图',scatter_n:'多系列散点图',area_1:'Single-series Area / 单系列',area_n:'Multi-series Area / 多系列',area_stack:'Stacked Area / 堆叠',pie:'Pie / 饼图（含环形）',boxplot_v:'Box Plot Vertical / 纵向',boxplot_h:'Box Plot Horizontal / 横向',
+  barline_n:'柱线复合图 / 共用类别轴',barh_1:'单系列横向柱图',barh_n:'分组横向柱图',barv_1:'单系列纵向柱图',barv_n:'分组纵向柱图',barv_stack:'堆叠纵向柱图',barh_stack:'堆叠横向柱图',barv_stack_percent:'纵向百分比堆叠',barh_stack_percent:'横向百分比堆叠',line_1:'单系列折线图',line_n:'多系列折线图',line_smooth_1:'单系列平滑曲线',line_smooth_n:'多系列平滑曲线',scatter_1:'单系列散点图',scatter_n:'多系列散点图',area_1:'Single-series Area / 单系列',area_n:'Multi-series Area / 多系列',area_stack:'Stacked Area / 堆叠',pie:'Pie / 饼图（含环形）',boxplot_v:'Box Plot Vertical / 纵向',boxplot_h:'Box Plot Horizontal / 横向',
   histogram_v_1:'单系列纵向直方图',histogram_h_1:'单系列横向直方图',
   histogram_v_n:'重叠纵向直方图',histogram_h_n:'重叠横向直方图',
   histogram_v_stack:'堆叠纵向直方图',histogram_h_stack:'堆叠横向直方图'};
 for(const kind of ['barh_1','barh_n','barv_1','barv_n'])labels[kind+'_error']=labels[kind]+' · 误差棒';
 let projects=[],currentProjectId=null,focusMode=false,focusZoom=1,imageLoadVersion=0,activationVersion=0;
 let hover=null,selectedHandle='pixel',dragOrigin=null,projectionInfo=null;
-let p=defaultProject('scatter_1'),image=null,imageData=null,fileName='',tool='select',selected=-1,zoom=1,calTarget='x1',pendingStart=null,drag=null,history=[],future=[],queue=[],activeId=null,renderTimer,saveTimer,renderOk=false,lastSpec=null;
+let spaceHeld=false,hideAnnotations=false,viewDrag=null,activeShortcutScope=null;
+let p=defaultProject('scatter_1'),image=null,imageData=null,fileName='',tool='select',selected=-1,zoom=1,calTarget='x1',pendingStart=null,drag=null,queue=[],activeId=null,renderTimer,saveTimer,renderOk=false,lastSpec=null;
 const canvas=$('canvas'),ctx=canvas.getContext('2d');
-const bar=()=>p.kind.startsWith('bar'), horizontal=()=>isHorizontal(p), categorical=()=>!isPie(p)&&(bar()||isBox(p)||isNominalArea(p)||lineCategoryAxis(p)||!isHistogram(p)&&p.xType==='ordinal');
+const bar=()=>p.kind.startsWith('bar'), horizontal=()=>isHorizontal(p), categorical=()=>!isPie(p)&&(isRadar(p)||bar()||isBox(p)||isNominalArea(p)||lineCategoryAxis(p)||!isHistogram(p)&&p.xType==='ordinal');
 const categoryPixelAxis=()=>lineCategoryAxis(p)??(horizontal()?'y':'x');
 function fresh(kind,xType,yType){
   const q=defaultProject(kind);
@@ -2185,12 +2388,221 @@ function fresh(kind,xType,yType){
 }
 p=fresh('scatter_1');
 function toast(message){$('toast').textContent=message;$('toast').style.display='block';clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').style.display='none',4500);}
-function checkpoint(){history.push(clone(p));if(history.length>80)history.shift();future=[];}
+// History entries retain only changed paths. Calibration replay recalculates live
+// observations from their evidence instead of restoring historical data rows.
+const annotationHistory={
+  data:{past:[],next:[]},calibration:{past:[],next:[]}
+};
+const historyTargetFields=['series','category','boxField','outlierTarget','histogramBin',
+  'histogramHandle','percentStackEndpoint'];
+function interactionState(){
+  return clone({selected,selectedHandle,tool,calTarget,pendingStart,heatmapCapture,percentStackHeightCapture,
+    histogramStep:p.histogramRun?.step,histogramHandle:p.histogramRun?.handle,
+    target:Object.fromEntries(historyTargetFields.map(key=>[key,p.assist?.[key]]))});
+}
+function checkpoint(){return {project:clone(p),interaction:interactionState()};}
+function historyDelta(before,after,path=[],out=[]){
+  if(Object.is(before,after))return out;
+  if(Array.isArray(before)&&Array.isArray(after)&&before.length!==after.length){
+    const limit=Math.min(before.length,after.length),same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+    let index=0,suffix=0;
+    while(index<limit&&same(before[index],after[index]))index++;
+    while(index+suffix<limit&&same(before.at(-1-suffix),after.at(-1-suffix)))suffix++;
+    out.push({path,index,before:clone(before.slice(index,before.length-suffix)),
+      after:clone(after.slice(index,after.length-suffix))});
+  }else if(before&&after&&typeof before==='object'&&typeof after==='object'&&
+      Array.isArray(before)===Array.isArray(after)){
+    for(const key of new Set([...Object.keys(before),...Object.keys(after)]))
+      historyDelta(before[key],after[key],[...path,key],out);
+  }else out.push({path,before:clone(before),after:clone(after)});
+  return out;
+}
+function applyHistoryDelta(delta,direction){
+  const opposite=direction==='before'?'after':'before';
+  for(const entry of delta){
+    const {path,index,[direction]:value}=entry;
+    let item=p;
+    for(let i=0;i<path.length-1;i++)item=item[path[i]]??={};
+    const field=path.at(-1);
+    if(index!==undefined){
+      const array=item[field];
+      item[field]=array.slice(0,index).concat(clone(value),array.slice(index+entry[opposite].length));
+    }else if(value===undefined)delete item[field];
+    else item[field]=clone(value);
+  }
+}
+function clearAnnotationHistory(scope){
+  for(const key of scope?[scope]:Object.keys(annotationHistory)){
+    annotationHistory[key].past.length=0;
+    annotationHistory[key].next.length=0;
+  }
+}
+function historySchema(project){return [project.kind,project.xType,project.yType,!!project.dualYAxis].join('|');}
+function historyStructure(project){
+  return JSON.stringify([project.categoryObjects?.map(item=>item.key),
+    project.heatmap?.x.map(item=>item.key),project.heatmap?.y.map(item=>item.key)]);
+}
+function discardStructuralCalibration(){
+  const dependent=entry=>entry.delta.some(({path})=>['categoryObjects','heatmap'].includes(path[0])||
+    path[0]==='assist'&&path[1]==='categoryPixels');
+  const stack=annotationHistory.calibration;
+  stack.past=stack.past.filter(entry=>!dependent(entry));
+  stack.next=stack.next.filter(entry=>!dependent(entry));
+}
+function calibrationChanges(delta){
+  return delta.some(({path:[root,field,key]})=>root==='axes'&&key!=='point1'&&key!=='point2'||
+    ['percentLabels','percentGuides','percentFormats'].includes(root)||
+    root==='radar'&&['center','centerZero','tickPoints','tickValues','domain','anchor'].includes(field)||
+    root==='heatmap'&&['pixels','colorPoints'].includes(field)||
+    root==='categoryObjects'&&key?.startsWith('curve')||
+    root==='assist'&&['categoryPixels','fixedXPixel','fixedXValue'].includes(field)||
+    root==='pieMeasurement');
+}
+function invalidateDataHistory(entry){
+  if(!calibrationChanges(entry.delta))return;
+  const stack=annotationHistory.data;
+  if(entry.delta.every(({path})=>path[0]==='pieMeasurement')){
+    // The prior draft depends on its circle. Applied values and their pixel evidence
+    // remain independent and can still be undone after starting a new draft.
+    const removeDraft=entries=>entries.flatMap(item=>{
+      const delta=item.delta.filter(({path})=>path[0]!=='pieMeasurement');
+      if(delta.length===item.delta.length)return [item];
+      if(!delta.length)return [];
+      return [{...item,delta,before:{...item.before,tool:item.after.tool}}];
+    });
+    stack.past=removeDraft(stack.past);
+    stack.next=removeDraft(stack.next);
+    return;
+  }
+  const independent=new Set(['title','xTitle','yTitle','rightYTitle','heatmapTitle','notes','legend','donut']);
+  const stillValid=item=>item.delta.length&&item.delta.every(({path})=>independent.has(path[0]));
+  stack.past=stack.past.filter(stillValid);
+  stack.next=stack.next.filter(stillValid);
+  discardPendingDataCapture();
+}
+function discardPendingDataCapture(){
+  pendingStart=null;
+  percentStackHeightCapture=null;
+  const run=activeHistogramRun();
+  if(run?.pending?.[run.step])delete run.pending[run.step];
+}
+function finishHistory(before,scope){
+  if(historySchema(before.project)!==historySchema(p)){
+    clearAnnotationHistory();
+    discardPendingDataCapture();
+    heatmapCapture=null;
+    return true;
+  }
+  const after=interactionState();
+  const delta=historyDelta(before.project,p).filter(({path:[root,field]})=>root!=='reviewed'&&
+    (scope!=='calibration'||!['rows','evidence','histogramBins','histogramRun','smoothPositioned'].includes(root)&&
+      !(root==='heatmap'&&['x','y'].includes(field))&&
+      !(root==='assist'&&historyTargetFields.includes(field))));
+  const interactionChanged=scope==='calibration'?
+    JSON.stringify(before.interaction.heatmapCapture)!==JSON.stringify(after.heatmapCapture):
+    ['pendingStart','percentStackHeightCapture'].some(key=>JSON.stringify(before.interaction[key])!==JSON.stringify(after[key]));
+  if(!delta.length&&!interactionChanged)return;
+  const entry={delta,before:before.interaction,after};
+  if(scope==='calibration')invalidateDataHistory(entry);
+  else if(historyStructure(before.project)!==historyStructure(p))discardStructuralCalibration();
+  const stack=annotationHistory[scope];
+  stack.past.push(entry);
+  if(stack.past.length>80)stack.past.shift();
+  stack.next.length=0;
+  return historyTouchesReview(entry);
+}
+const historyTouchesReview=entry=>entry.delta.some(({path})=>path[0]!=='pieMeasurement');
+function restoreInteraction(state,scope,entry){
+  const changed=key=>!entry||JSON.stringify(entry.before[key])!==JSON.stringify(entry.after[key]);
+  if(scope==='data'||!entry){
+    selected=state.selected;
+    selectedHandle=state.selectedHandle;
+    if(p.histogramRun&&p.histogramRun.step===state.histogramStep)p.histogramRun.handle=state.histogramHandle;
+    for(const [key,value] of Object.entries(state.target)){
+      if(value===undefined)delete assist()[key];
+      else assist()[key]=clone(value);
+    }
+  }
+  const restoreTool=changed('tool')||scope==='data'&&(changed('pendingStart')||changed('percentStackHeightCapture'))||
+    scope==='calibration'&&changed('heatmapCapture');
+  if(!entry||scope==='calibration'&&(restoreTool||tool==='calibrate'))calTarget=state.calTarget;
+  if(restoreTool)setTool(state.tool);
+  if(scope==='data'||!entry){
+    pendingStart=clone(state.pendingStart);
+    percentStackHeightCapture=clone(state.percentStackHeightCapture);
+  }
+  if((scope==='calibration'||!entry)&&changed('heatmapCapture'))heatmapCapture=clone(state.heatmapCapture);
+  if(tool==='heatmap-corners'&&heatmapCapture?.first)$('hint').textContent='点击网格的另一个对角。';
+  if(tool==='heatmap-boundary'&&heatmapCapture){
+    $('heatmapBoundaryAxis').value=heatmapCapture.axis;
+    syncHeatmapBoundaryOptions();
+    $('heatmapBoundaryIndex').value=heatmapCapture.index;
+  }
+}
+function recalculateCalibrationHistory(entry,previous){
+  const roots=new Set(entry.delta.map(({path})=>path[0]));
+  const axes=new Set(entry.delta.filter(({path})=>path[0]==='axes').map(({path})=>path[1]));
+  if(roots.has('percentLabels'))for(const axis of requiredAxes(p))axes.add(axis);
+  for(const axis of axes){
+    if(!p.axes[axis])continue;
+    if(isHeatmap(p))updateHeatmapCalibration(axis);
+    else if(isHistogram(p))updateHistogramCalibration(axis);
+    else if(isPercentStack(p))updatePercentStackCalibration(axis);
+    else recalculate(axis);
+  }
+  if(isRadar(p)&&(roots.has('radar')||roots.has('percentLabels')||roots.has('percentGuides')))recalculateRadar(p);
+  if(isHeatmap(p)&&roots.has('heatmap'))for(const axis of heatmapAxes)updateHeatmapIntervals(p,axis);
+  if(discreteSmooth(p)&&roots.has('categoryObjects'))refreshSmoothPositions(p);
+  if(isPercentStack(p))syncPercentStackRatios(p,previous);
+}
+function navigateHistory(scope,redo=false){
+  if(drag)endDrag();
+  const stack=annotationHistory[scope],from=redo?stack.next:stack.past,to=redo?stack.past:stack.next;
+  const entry=from.at(-1);
+  if(!entry)return;
+  const old=checkpoint(),direction=redo?'after':'before';
+  try{
+    applyHistoryDelta(entry.delta,direction);
+    if(scope==='calibration')recalculateCalibrationHistory(entry,old.project);
+    restoreInteraction(entry[direction],scope,entry);
+  }catch(error){
+    p=old.project;
+    restoreInteraction(old.interaction,scope);
+    toast(error.message);
+    return;
+  }
+  if(scope==='calibration')invalidateDataHistory(entry);
+  else if(historyStructure(old.project)!==historyStructure(p))discardStructuralCalibration();
+  from.pop();
+  to.push(entry);
+  if(historyTouchesReview(entry))dirty();
+  refresh(true);
+}
 function dirty(){p.reviewed=false;$('reviewed').checked=false;}
-function change(fn,{form=false,keepTable=false}={}){const old=clone(p);checkpoint();try{fn();}catch(e){p=old;history.pop();toast(e.message);return;}dirty();refresh(form,keepTable);}
+function change(fn,{form=false,keepTable=false,scope='data',resetHistory=false}={}){
+  const old=checkpoint();
+  try{
+    fn();
+    if(isPercentStack(p))syncPercentStackRatios(p,old.project);
+  }catch(error){
+    p=old.project;
+    restoreInteraction(old.interaction,scope);
+    toast(error.message);
+    return false;
+  }
+  if(resetHistory){
+    clearAnnotationHistory();
+    discardPendingDataCapture();
+    heatmapCapture=null;
+    dirty();
+  }else if(finishHistory(old,scope))dirty();
+  refresh(form,keepTable);
+  return true;
+}
+function calibrateChange(fn,options){return change(fn,{...options,scope:'calibration'});}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function options(el,values,chosen){el.innerHTML=values.map(([v,t])=>`<option value="${esc(v)}">${esc(t)}</option>`).join('');if(values.some(([v])=>String(v)===String(chosen)))el.value=chosen;}
-const familyOf=kind=>isHeatmap({kind})?'heatmap':kind==='barline_n'?'composite':kind==='pie'?'pie':kind.startsWith('boxplot')?'boxplot':kind.startsWith('bar')?'bar':kind.startsWith('line')?'line':kind.startsWith('area_')?'area':isHistogram({kind})?'histogram':'scatter';
+const familyOf=kind=>isRadar({kind})?'radar':isHeatmap({kind})?'heatmap':kind==='barline_n'?'composite':kind==='pie'?'pie':kind.startsWith('boxplot')?'boxplot':kind.startsWith('bar')?'bar':kind.startsWith('line')?'line':kind.startsWith('area_')?'area':isHistogram({kind})?'histogram':'scatter';
 function syncTypes(){const family=familyOf(p.kind);$('family').value=family;options($('kind'),Object.entries(labels).filter(([k])=>familyOf(k)===family),p.kind+(hasErrors(p)&&!isStack(p)&&!isComposite(p)?'_error':''));}
 syncTypes();
 let heatmapCapture=null;
@@ -2300,7 +2712,7 @@ function syncHeatmapForm() {
   document.querySelector('[data-tool="point"]').hidden=true;
   document.querySelector('[data-tool="calibrate"]').hidden=$('calibrationPanel').hidden=!requiredAxes(p).length;
   $('orderGuide').textContent='列按左到右、行按上到下。标签可以重名。';
-  $('tableNote').textContent='方向键切换相邻格，Enter 前进到下一格。留空省略该格，null 表示显式缺测。自动测量依图像分辨率保留有效数字。';
+  $('tableNote').textContent='方向键切换相邻格，Enter 前进到下一格。留空省略该格，null 表示显式缺测。自动测量采用 Precision V2。';
   $('heatmapRows').value=y.length||'';
   $('heatmapColumns').value=x.length||'';
   $('heatmapAxes').innerHTML=heatmapAxes.map(axis=>{
@@ -2349,9 +2761,11 @@ function editHeatmapRecords(updates) {
   const records=heatmapRecords(p);
   for(const {x,y,value,evidence,percent} of updates){
     const key=heatmapCellKey(x,y);
+    const saved={...records.get(key)?.row._exactFractions};
+    delete saved.value;
     if(value===undefined&&!evidence)records.delete(key);
     else records.set(key,{row:{_xKey:x,_yKey:y,...(value===undefined?{}:{value}),
-      ...(percent?{_percentData:{value:'color'}}:{})},evidence});
+      ...(percent?{_percentData:{value:'color'}}:{}),...(Object.keys(saved).length?{_exactFractions:saved}:{})},evidence});
   }
   const entries=[...records.values()];
   p.rows=entries.map(e=>e.row);
@@ -2390,15 +2804,6 @@ function advanceHeatmapCell(focus=false) {
   if(heatmapCell(next))selectHeatmapCell(next,focus);
 }
 
-const heatmapArrowSteps={ArrowUp:[-1,0],ArrowDown:[1,0],ArrowLeft:[0,-1],ArrowRight:[0,1]};
-function moveHeatmapSelection(index,key,focus=false) {
-  const cell=heatmapCell(index);
-  if(!cell)return;
-  const [dy,dx]=heatmapArrowSteps[key],row=cell.row+dy,column=cell.column+dx;
-  const {x,y}=p.heatmap;
-  if(row>=0&&row<y.length&&column>=0&&column<x.length)selectHeatmapCell(row*x.length+column,focus);
-}
-
 function keepHeatmapBands(axis,bands) {
   const keys=new Set(bands.map(b=>b.key)),ref='_'+axis+'Key',old=p.heatmap[axis];
   if(heatmapContinuous(p,axis)){
@@ -2408,6 +2813,7 @@ function keepHeatmapBands(axis,bands) {
       const index=oldIndex.get(band.key);
       if(index===undefined||!band.fromPixels)return;
       const [start,end]=intervals[index];
+      delete band.savedInterval;
       if(finite(start)&&finite(end)&&start<end)Object.assign(band,{start,end,fromPixels:false});
     });
   }
@@ -2441,7 +2847,7 @@ function resizeHeatmap(x,y) {
 function reshapeHeatmapAxis(axis,action,index) {
   const old=p.heatmap[axis],bands=[...old],name=heatmapAxisName(axis);
   if(action==='pixels'){
-    change(()=>old[index].fromPixels=true,{form:true});
+    change(()=>{old[index].fromPixels=true;delete old[index].savedInterval;old[index].savedInterval=heatmapIntervals(p,axis)[index];},{form:true});
     return;
   }
   let names;
@@ -2519,11 +2925,11 @@ function heatmapBounds(geometry,cell) {
   return x&&y?{x,y}:null;
 }
 
-function heatmapMeasure({batch=false,point}={}) {
+function heatmapMeasure({batch=false,point,index}={}) {
   if(!image)throw Error('请先添加原图');
   const geometry=heatmapGeometry(),read=heatmapReadPixel(),calibration=JSON.stringify(p.heatmap.colorPoints);
   const ramp=heatmapColorRamp(p.heatmap.colorPoints,read);
-  const targets=batch?Array.from({length:p.heatmap.x.length*p.heatmap.y.length},(_,i)=>heatmapCell(i)):[heatmapCell(selected)];
+  const targets=batch?Array.from({length:p.heatmap.x.length*p.heatmap.y.length},(_,i)=>heatmapCell(i)):[heatmapCell(index??selected)];
   if(!targets[0])throw Error('请先选中一个单元格');
   const records=heatmapRecords(p),updates=[];
   let skipped=0,ambiguous=0;
@@ -2532,15 +2938,18 @@ function heatmapMeasure({batch=false,point}={}) {
     if(batch&&(row&&Object.hasOwn(row,'value')||evidence?.source==='heatmap_omitted'))continue;
     const bounds=heatmapBounds(geometry,cell);
     if(!bounds&&!point){skipped++;continue;}
-    const result=measureHeatmapColor(read,ramp,bounds,point);
+    const result=measureHeatmapColor(read,ramp,bounds,point,percentLabels(p,'color'));
     if(result.warning)ambiguous++;
     updates.push({...cell,value:result.warning?row?.value:result.value,evidence:{
       ...result,source:'heatmap_color',role:'color_estimate',calibration,measuredAt:new Date().toISOString()
     }});
   }
   if(!updates.length)throw Error(skipped?'请先定位待测单元格的原图边界':'没有待测空格');
-  change(()=>editHeatmapRecords(updates));
-  if(!batch&&ambiguous===0)advanceHeatmapCell();
+  change(()=>{
+    if(index!==undefined)selected=index;
+    editHeatmapRecords(updates);
+    if(!batch&&ambiguous===0)advanceHeatmapCell();
+  });
   $('heatmapMeasurementStatus').textContent='已估算 '+(updates.length-ambiguous)+' 格'+(ambiguous?'；'+ambiguous+' 格待核对':'')+(skipped?'；'+skipped+' 格缺少边界':'');
 }
 
@@ -2556,23 +2965,22 @@ function handleHeatmapPointer(raw) {
   if(tool==='heatmap-corners'){
     const first=heatmapCapture?.first;
     if(!first){
-      heatmapCapture={first:pt};
+      calibrateChange(()=>{heatmapCapture={first:pt};});
       $('hint').textContent='点击网格的另一个对角。';
-      draw();
       return;
     }
     if(heatmapAxes.some(axis=>Math.abs(first[axis]-pt[axis])<1))throw Error('两个角须形成有宽度和高度的区域');
-    change(()=>{
-      p.precisionVersion=1;
+    calibrateChange(()=>{
       for(const axis of heatmapAxes){
         const bounds=p.heatmap.pixels[axis];
         bounds.fill(null);
         bounds[0]=Math.min(first[axis],pt[axis]);bounds[bounds.length-1]=Math.max(first[axis],pt[axis]);
+        updateHeatmapIntervals(p,axis);
       }
+      setTool('select');
     },{form:true});
     if(p.heatmap[$('heatmapBoundaryAxis').value].length>1)$('heatmapBoundaryIndex').value='1';
     if(requiredAxes(p).some(axis=>!validHeatmapCalibration(heatmapAxisCalibration(p,axis))))$('calibrationPanel').open=true;
-    setTool('select');
     return;
   }
   if(tool==='heatmap-boundary'){
@@ -2580,11 +2988,14 @@ function handleHeatmapPointer(raw) {
     const bounds=p.heatmap.pixels[axis],previous=bounds.slice(0,index).filter(finite).at(-1),next=bounds.slice(index+1).find(finite);
     if(finite(previous)&&previous>=pt[axis]||finite(next)&&next<=pt[axis])
       throw Error('共享边界须按从左到右或从上到下排列');
-    change(()=>{p.precisionVersion=1;bounds[index]=pt[axis];},{form:true});
-    const last=bounds.length-1;
-    if(index===last||index+1===last&&finite(bounds[last]))setTool('select');
-    else{
-      heatmapCapture.index++;
+    calibrateChange(()=>{
+      bounds[index]=pt[axis];
+      updateHeatmapIntervals(p,axis);
+      const last=bounds.length-1;
+      if(index===last||index+1===last&&finite(bounds[last]))setTool('select');
+      else heatmapCapture.index++;
+    },{form:true});
+    if(heatmapCapture){
       $('heatmapBoundaryIndex').value=heatmapCapture.index;
       $('hint').textContent='继续点击 '+axis.toUpperCase()+' 轴 '+$('heatmapBoundaryIndex').selectedOptions[0].textContent+'。';
     }
@@ -2593,18 +3004,24 @@ function handleHeatmapPointer(raw) {
   if(tool==='heatmap-color'){
     const index=heatmapCapture.index??p.heatmap.colorPoints.length;
     if(index>=64)throw Error('色标最多支持 64 个校准点');
-    change(()=>{p.heatmap.colorPoints[index]={...pt,value:p.heatmap.colorPoints[index]?.value??null};},{form:true});
-    setTool('select');
+    calibrateChange(()=>{
+      p.heatmap.colorPoints[index]={...pt,value:p.heatmap.colorPoints[index]?.value??null};
+      setTool('select');
+    },{form:true});
     $('heatmapColorPoints').querySelector('[data-hm-color="'+index+'"]').focus();
     return;
   }
   const geometry=heatmapGeometry();
   const band=axis=>geometry[axis].findIndex(range=>range&&pt[axis]>=range[0]&&pt[axis]<range[1]);
   const column=band('x'),row=band('y');
-  if(column>=0&&row>=0)selectHeatmapCell(row*p.heatmap.x.length+column);
-  else if(tool==='select')return;
-  else if(!heatmapCell(selected)||heatmapBounds(geometry,heatmapCell(selected)))throw Error('请点击已定位的格子，或选中一个尚未定位的格子再局部取色');
-  if(tool==='heatmap-measure')heatmapMeasure({point:pt});
+  const index=column>=0&&row>=0?row*p.heatmap.x.length+column:null;
+  if(tool==='select'){
+    if(index!==null)selectHeatmapCell(index);
+    return;
+  }
+  if(index===null&&(!heatmapCell(selected)||heatmapBounds(geometry,heatmapCell(selected))))
+    throw Error('请点击已定位的格子，或选中一个尚未定位的格子再局部取色');
+  if(tool==='heatmap-measure')heatmapMeasure({point:pt,index:index??selected});
 }
 
 function drawHeatmap(mark) {
@@ -2654,6 +3071,7 @@ $('heatmapAxes').onchange=e=>{
     if(hmField==='label')band.label=input.value;
     else{
       const [start,end]=heatmapIntervals(p,hmAxis)[Number(hmIndex)];
+      delete band.savedInterval;
       Object.assign(band,{start,end,fromPixels:false,[hmField]:input.value===''?null:input.valueAsNumber});
     }
   });
@@ -2670,18 +3088,18 @@ $('heatmapCorners').onclick=()=>heatmapAction(()=>startHeatmapCapture('heatmap-c
 $('heatmapBoundary').onclick=()=>heatmapAction(()=>startHeatmapCapture('heatmap-boundary',{
   axis:$('heatmapBoundaryAxis').value,index:Number($('heatmapBoundaryIndex').value)
 }));
-$('heatmapClearGrid').onclick=()=>change(()=>{
-  for(const axis of heatmapAxes)p.heatmap.pixels[axis].fill(null);
+$('heatmapClearGrid').onclick=()=>calibrateChange(()=>{
+  for(const axis of heatmapAxes){p.heatmap.pixels[axis].fill(null);updateHeatmapIntervals(p,axis);}
 },{form:true});
 $('heatmapColorPoint').onclick=()=>heatmapAction(()=>startHeatmapCapture('heatmap-color'));
 $('heatmapColorPoints').onclick=e=>{
   const {hmRetake,hmRemoveColor}=e.target.dataset;
   if(hmRetake!==undefined)heatmapAction(()=>startHeatmapCapture('heatmap-color',{index:Number(hmRetake)}));
-  if(hmRemoveColor!==undefined)change(()=>p.heatmap.colorPoints.splice(Number(hmRemoveColor),1),{form:true});
+  if(hmRemoveColor!==undefined)calibrateChange(()=>p.heatmap.colorPoints.splice(Number(hmRemoveColor),1),{form:true});
 };
 $('heatmapColorPoints').onchange=e=>{
   const {hmColor}=e.target.dataset;
-  if(hmColor!==undefined)change(()=>{
+  if(hmColor!==undefined)calibrateChange(()=>{
     const value=e.target.value.trim(),percent=printedPercent(value);
     if(value&&!finite(percent??Number(value)))throw Error('色标刻度需要有限数值');
     if(percent!==null)recordPercentScale('color',percent);
@@ -2691,18 +3109,15 @@ $('heatmapColorPoints').onchange=e=>{
 $('heatmapMeasureCell').onclick=()=>heatmapAction(()=>heatmapMeasure());
 $('heatmapMeasureBatch').onclick=()=>heatmapAction(()=>heatmapMeasure({batch:true}));
 $('heatmapMissing').onclick=()=>{
-  change(()=>editHeatmapRecords([manualHeatmapRecord(heatmapCell(selected),null)]));
-  advanceHeatmapCell();
+  change(()=>{editHeatmapRecords([manualHeatmapRecord(heatmapCell(selected),null)]);advanceHeatmapCell();});
 };
 $('heatmapOmit').onclick=()=>{
-  change(()=>editHeatmapRecords([{...heatmapCell(selected),evidence:{source:'heatmap_omitted',role:'structure'}}]));
-  advanceHeatmapCell();
+  change(()=>{editHeatmapRecords([{...heatmapCell(selected),evidence:{source:'heatmap_omitted',role:'structure'}}]);advanceHeatmapCell();});
 };
 $('heatmapClearCell').onclick=()=>change(()=>editHeatmapRecords([manualHeatmapRecord(heatmapCell(selected),undefined)]));
 $('heatmapAcceptEstimate').onclick=()=>{
   const cell=heatmapCell(selected),{evidence}=heatmapCellRecord(cell);
-  change(()=>editHeatmapRecords([{...cell,value:evidence.value,evidence:{...evidence,accepted:true}}]));
-  advanceHeatmapCell();
+  change(()=>{editHeatmapRecords([{...cell,value:evidence.value,evidence:{...evidence,accepted:true}}]);advanceHeatmapCell();});
 };
 $('heatmapApplyPaste').onclick=()=>heatmapAction(()=>pasteHeatmap($('heatmapPaste').value));
 $('tableBody').addEventListener('focusin',e=>{
@@ -2714,17 +3129,9 @@ $('tableBody').addEventListener('change',e=>{
 $('tableBody').addEventListener('keydown',e=>{
   const index=e.target.dataset.heatmapCell;
   if(index===undefined||e.isComposing||e.ctrlKey||e.metaKey||e.altKey||e.shiftKey)return;
-  const arrow=Object.hasOwn(heatmapArrowSteps,e.key);
-  if(!arrow&&e.key!=='Enter')return;
+  if(e.key!=='Enter')return;
   e.preventDefault();
-  if(!editHeatmapValue(Number(index),e.target.value))return;
-  if(arrow)moveHeatmapSelection(Number(index),e.key,true);
-  else advanceHeatmapCell(true);
-});
-canvas.addEventListener('keydown',e=>{
-  if(!isHeatmap(p)||tool!=='select'||selected<0||!Object.hasOwn(heatmapArrowSteps,e.key))return;
-  e.preventDefault();
-  moveHeatmapSelection(selected,e.key);
+  if(editHeatmapValue(Number(index),e.target.value))advanceHeatmapCell(true);
 });
 $('tableBody').addEventListener('paste',e=>{
   const index=e.target.dataset.heatmapCell,raw=e.clipboardData?.getData('text/plain');
@@ -2741,7 +3148,7 @@ if(isLine(p))options($('yType'),axisTypes,nominalType(p.yType)?'nominal':'quanti
 $('areaModeNote').hidden=!isArea(p);$('addSeries').hidden=p.kind.endsWith('_1');$('activeSeries').closest('label').hidden=p.kind.endsWith('_1');$('seriesSection').hidden=p.kind.endsWith('_1')&&!p.legend;$('roleLabel').hidden=!p.kind.startsWith('line');$('connect').closest('label').hidden=!p.kind.startsWith('line');$('tableNote').textContent=bar()?(hasErrors(p)?'下限 / 上限是绝对数值界限，不是误差长度。':isStack(p)?'数据记录保留段起点 / 段终点供测量核对；普通堆叠的精简 GT / 导出 GT 统一使用 value、stack_order，不导出这些中间端点。':'每条记录对应一个柱子。'):p.kind.startsWith('line')?'默认按取点顺序连接；复杂路径可展开高级字段调整顺序。':'每条记录对应一个可见散点。';$('categoryLabel').hidden=!categorical();$('activeCategoryLabel').hidden=!categorical();const order=annotationOrder(p);$('orderGuide').textContent=order.records;$('seriesOrderNote').textContent=order.series;$('categoryOrderNote').textContent=order.category;
 const active=$('activeSeries').value;options($('activeSeries'),p.series.map((s,i)=>[s.key,s.name+'（'+(i+1)+'）']),active);options($('activeCategory'),p.categoryObjects.map((c,i)=>[c.key,c.name+'（'+(i+1)+'）']),$('activeCategory').value);
 $('seriesList').innerHTML=p.series.map((s,i)=>`<div class="series-row"><input type="color" aria-label="系列颜色" value="${esc(s.color||'#008b7e')}" data-series="${i}" data-prop="color"><input aria-label="系列名称" value="${esc(s.name)}" data-series="${i}" data-prop="name">${isComposite(p)?`<select aria-label="系列角色" data-series="${i}" data-prop="role"><option value="bar" ${s.role==='bar'?'selected':''}>柱</option><option value="line" ${s.role==='line'?'selected':''}>线</option></select>`:''}<button data-move-series="${i}" data-delta="-1" title="上移">↑</button><button data-move-series="${i}" data-delta="1" title="下移">↓</button><button data-remove-series="${i}" title="删除系列">×</button></div>`).join('');
-syncStatForm();syncCompositeForm();syncHeatmapForm();syncPercentStackRatioCategories();
+syncStatForm();syncCompositeForm();syncHeatmapForm();syncPercentStackRatioCategories();syncRadarForm();syncSmoothForm();
 if(isHistogram(p)){
   $('legend').parentElement.hidden=p.kind.endsWith('_1');
   $('seriesSection').hidden=p.kind.endsWith('_1');
@@ -2768,7 +3175,7 @@ function syncCompositeForm(){
   $('connect').closest('label').hidden=false;$('tableNote').textContent='类别轴共用；每条记录的数值按系列角色对应柱端点或折线点。误差界限只属于柱，路径顺序只属于线。';
   if(!requiredAxes(p).includes(calTarget[0]))calTarget='y1';
 }
-$('dualYAxis').onchange=()=>change(()=>{p.dualYAxis=$('dualYAxis').checked;recalculate();},{form:true});
+$('dualYAxis').onchange=()=>change(()=>{p.dualYAxis=$('dualYAxis').checked;recalculate(p.dualYAxis?'r':'y');},{form:true});
 $('rightYTitle').onchange=()=>change(()=>p.rightYTitle=$('rightYTitle').value,{form:true});
 $('compositeErrors').onchange=()=>change(()=>{if(!$('compositeErrors').checked&&p.rows.some(r=>present(r.lower)||present(r.upper)))throw Error('请先清除已有误差上下界再关闭误差棒');p.errorBars=$('compositeErrors').checked;},{form:true});
 function axisForm(){
@@ -2790,8 +3197,8 @@ function axisForm(){
   syncCalibrationStatus();
 }
 function updateHeatmapCalibration(axis){
-  p.precisionVersion=1;
   p.axes[axis].calibrated=validHeatmapCalibration(p.axes[axis]);
+  updateHeatmapIntervals(p,axis);
 }
 function syncCalibrationStatus(){
   const required=requiredAxes(p);
@@ -2800,23 +3207,33 @@ function syncCalibrationStatus(){
   for(const axis of required)document.querySelector('[data-axis-status="'+axis+'"]').textContent=calibrated.includes(axis)?'已校准':'待校准';
   $('calibrationStatus').textContent=calibrated.length===required.length?'所需数值轴已校准':'先取两个刻度再测量';
 }
-function columns(){if(isComposite(p))return ['category','value','series',...(hasErrors(p)?['lower','upper']:[]),...($('advancedFields').checked?['path_order']:[])];if(isPie(p))return ['category','value'];if(isBox(p))return ['category',...BOX_FIELDS,'outliers'];const series=p.kind.endsWith('_1')?[]:['series'];if(isArea(p))return [categoryField(p),'y','baseline',...series,...(p.kind==='area_stack'?['stack_order']:[])];if(isHistogramStack(p))return ['histogram_bin','value','series','stack_order'];if(isHistogram(p))return [...HISTOGRAM_FIELDS,...series];return bar()?['category','value',...series,...(isStack(p)?['start','end']:[]),...(isPercentStack(p)?['difference','stack_order']:[]),...(hasErrors(p)?['lower','upper']:[])]:['x','y',...series,...(p.kind.startsWith('line')&&$('advancedFields').checked?['path_order']:[])];}
-const columnNames={category:'类别',histogram_bin:'所属分箱',bin_start:'分箱起始 bin_start',bin_end:'分箱结束 bin_end',value:'数值',series:'系列',x:'X',y:'Y',baseline:'下界 baseline',start:'段起点',end:'段终点',difference:'端点差值',stack_order:'堆叠顺序',path_order:'路径顺序',lower:'下限',upper:'上限',q1:'Q1',median:'中位数',q3:'Q3',outliers:'异常值'};
+function columns(){if(isSmoothLine(p)){const axis=lineCategoryAxis(p);return ['x',...(axis==='x'?['_curvePosition']:[]),'y',...(axis==='y'?['_curvePosition']:[]),...(p.kind.endsWith('_n')||p.legend?['series']:[])];}if(isRadar(p))return ['category','value',...(!isSingleRadar(p)||p.legend?['series']:[]),...(isRadarStack(p)?['stack_order']:[])];if(isComposite(p))return ['category','value','series',...(hasErrors(p)?['lower','upper']:[]),...($('advancedFields').checked?['path_order']:[])];if(isPie(p))return ['category','value'];if(isBox(p))return ['category',...BOX_FIELDS,'outliers'];const series=p.kind.endsWith('_1')?[]:['series'];if(isArea(p))return [categoryField(p),'y','baseline',...series,...(p.kind==='area_stack'?['stack_order']:[])];if(isHistogramStack(p))return ['histogram_bin','value','series','stack_order'];if(isHistogram(p))return [...HISTOGRAM_FIELDS,...series];return bar()?['category','value',...series,...(isStack(p)?['start','end']:[]),...(isPercentStack(p)?['difference','stack_order']:[]),...(hasErrors(p)?['lower','upper']:[])]:['x','y',...series,...(p.kind.startsWith('line')&&$('advancedFields').checked?['path_order']:[])];}
+const columnNames={_curvePosition:'采样位置',category:'类别',histogram_bin:'所属分箱',bin_start:'分箱起始 bin_start',bin_end:'分箱结束 bin_end',value:'数值',series:'系列',x:'X',y:'Y',baseline:'下界 baseline',start:'段起点',end:'段终点',difference:'端点差值',stack_order:'堆叠顺序',path_order:'路径顺序',lower:'下限',upper:'上限',q1:'Q1',median:'中位数',q3:'Q3',outliers:'异常值'};
 function table(){if(isHeatmap(p)){syncHeatmapTable();return;}const cols=columns();$('tableHead').innerHTML='<tr><th># / 来源</th>'+cols.map(k=>`<th>${isArea(p)&&k==='y'?'上界 Y':isHistogram(p)&&k==='value'?'统计值 value':isPercentStack(p)&&k==='value'?'占比 (%)':columnNames[k]}</th>`).join('')+'</tr>';
-$('tableBody').innerHTML=p.rows.map((r,i)=>`<tr class="${i===selected?'selected':''}" data-row="${i}"><td>${isStat(p)?`<button class="small" data-move="-1" data-index="${i}" title="上移类别">↑</button><button class="small" data-move="1" data-index="${i}" title="下移类别">↓</button> `:''}${i+1} ${isHistogram(p)?'<span data-row-source>'+rowSource(i)+'</span>':p.evidence?.[i]?.pixel&&!(isPercentStack(p)&&p.evidence[i].valueOverride)?'⌖':'✎'}</td>${cols.map(k=>{
+$('tableBody').innerHTML=p.rows.map((r,i)=>`<tr class="${i===selected?'selected':''}" data-row="${i}"><td>${isStat(p)?`<button class="small" data-move="-1" data-index="${i}" title="上移类别">↑</button><button class="small" data-move="1" data-index="${i}" title="下移类别">↓</button> `:''}${i+1} ${isHistogram(p)?'<span data-row-source>'+rowSource(i)+'</span>':p.evidence?.[i]?.pixel&&!(isPercentStack(p)&&p.evidence[i].valueOverride)?'⌖':'✎'}${discreteSmooth(p)?
+  ` <small data-smooth-sample="${freeSmoothRow(p,r)?'free':'fixed'}">${freeSmoothRow(p,r)?'自由采样':'固定点'}</small>`:''}</td>${cols.map(k=>{
 if(isComposite(p)&&(['lower','upper'].includes(k)&&compositeRole(p,identity(r))==='line'||k==='path_order'&&compositeRole(p,identity(r))==='bar'))return '<td>—</td>';
 if(isBox(p)&&k==='outliers')return `<td>${outlierCells(r,i)}</td>`;if(isPie(p)&&k==='category')return `<td><input aria-label="第${i+1}行 类别" data-i="${i}" data-key="category" value="${esc(r.category)}"></td>`;
 if(k==='difference')return `<td data-i="${i}" data-key="difference">${finite(r.difference)?r.difference:'—'}</td>`;
+if(isRadarStack(p)&&k==='stack_order')return '<td>'+(radarRows(p,categoryIdentity(r)).indexOf(r)+1)+'</td>';
 if(hasLayerOrder(p)&&k==='stack_order'){const index=p.series.findIndex(s=>s.key===identity(r));return `<td>${stackRank(p.series[index],index)}</td>`;}
 if(k==='histogram_bin')return `<td><select aria-label="第${i+1}行 所属分箱" data-i="${i}" data-row-bin>
   <option value="">选择分箱</option>${(p.histogramBins??[]).map((bin,j)=>
     `<option value="${esc(bin.key)}"${r._histogramBin===bin.key?' selected':''}>第 ${j+1} 箱</option>`).join('')}</select></td>`;
+if(k==='_curvePosition'&&!freeSmoothRow(p,r))return `<td>${esc(smoothCategoryPositions(p,true).get(r._categoryKey))}</td>`;
+if(k==='_curvePosition')return `<td><input type="number" step="any" aria-label="第${i+1}行 采样位置" data-i="${i}" data-key="${k}" value="${esc(smoothRowPosition(p,r))}"></td>`;
 const kind=k==='series'?'series':categorical()&&k===categoryField(p)?'category':null;
+if(kind==='category'&&freeSmoothRow(p,r))return '<td>类别之间</td>';
 if(kind){const list=kind==='series'?p.series:p.categoryObjects,ref=kind==='series'?'_seriesKey':'_categoryKey';return `<td><select aria-label="第${i+1}行 ${columnNames[k]}" data-i="${i}" data-object="${kind}">${list.map((o,j)=>`<option value="${esc(o.key)}" ${r[ref]===o.key?'selected':''}>${esc(o.name)}（${j+1}）</option>`).join('')}</select></td>`;}
 return `<td><input aria-label="第${i+1}行 ${columnNames[k]}" data-i="${i}" data-key="${k}"
   value="${esc(r[k])}" type="text" inputmode="decimal"></td>`;
 }).join('')}</tr>`).join('');$('countBadge').textContent=`${p.rows.length} 条记录`;syncHistoryControls();}
-function syncHistoryControls(){$('undo').disabled=!history.length;$('redo').disabled=!future.length;}
+function syncHistoryControls(){
+  for(const button of document.querySelectorAll('[data-history-scope]')){
+    const stack=annotationHistory[button.dataset.historyScope];
+    button.disabled=!stack[button.dataset.historyAction==='redo'?'next':'past'].length;
+  }
+}
 function rowSource(i){return histogramHandleKeys(p).some(k=>p.evidence?.[i]?.[k])?'⌖':'✎';}
 function syncCategoryList(){
   const pie=isPie(p),list=$('categoryObjects');
@@ -2832,19 +3249,23 @@ function syncCategoryList(){
   list.onclick=e=>{const d=e.target.dataset;if(e.target.id==='addCategory')change(()=>addObject(p,'category','新类别'),{form:true});else if(d.moveCategory)change(()=>moveObject(p,'category',d.moveCategory,Number(d.delta)),{form:true});else if(d.removeCategory){if(p.rows.some(r=>r._categoryKey===d.removeCategory)&&!confirm('删除该类别位置及其全部记录？'))return;change(()=>{removeObject(p,'category',d.removeCategory);selected=-1;},{form:true});}};
 }
 function scheduleDraftSave(){clearTimeout(saveTimer);saveTimer=setTimeout(saveDraft,450);}
-function refresh(form=false,keepTable=false){ensureIdentities(p);if(isPercentStack(p))syncPercentStackRatios(p);queueUI();if(form)syncForm();if(keepTable)syncHistoryControls();else table();syncAssist();syncPercentStackHeightPanel();draw();clearTimeout(renderTimer);renderTimer=setTimeout(render,130);scheduleDraftSave();}
+function refresh(form=false,keepTable=false){ensureIdentities(p);queueUI();if(form)syncForm();if(keepTable)syncHistoryControls();else table();syncAssist();syncPercentStackHeightPanel();draw();clearTimeout(renderTimer);renderTimer=setTimeout(render,130);scheduleDraftSave();}
 let renderVersion=0;
 async function render(){const version=++renderVersion;renderOk=false;let issues=validate(p);if(p.rows.length===0&&!isHeatmap(p))issues=[{severity:'warning',message:'添加数据记录后生成 GT。'}];$('issues').innerHTML=issues.length?issues.map(i=>`<li class="${i.severity}">${esc(i.message)}</li>`).join(''):'<li class="ok">数据结构检查通过。请继续核对原图与科学数值。</li>';$('validationBadge').textContent=issues.filter(i=>i.severity==='error').length+' 个错误';
-try{const gt=makeSpec(p);$('jsonPreview').textContent=JSON.stringify(gt,null,2);if(!window.vegaEmbed)throw Error('本地 Vega 渲染组件未加载');const spec={...renderSpec(gt,p),width:230,height:210};for(const a of ['x','y']){if(!isHeatmap(p)&&!isStat(p)&&!isArea(p)&&!isHistogram(p)&&spec.encoding[a])spec.encoding[a].title=isPercentStack(p)?spec.encoding[a].title??null:p[a+'Title']||null;}if(!isHeatmap(p)&&!isStat(p)&&!isArea(p)&&!isHistogram(p)&&spec.encoding.color){spec.encoding.color.legend=p.legend?{...(spec.encoding.color.legend||{}),title:null}:null;const keys=unique((isComposite(p)?['bar','line'].flatMap(role=>orderedRows(compositePart(p,role))):orderedRows(p)).map(identity));spec.encoding.color.scale={domain:unique(allTableRows(gt).map(r=>r.series_id??r.series)),range:keys.map(k=>p.series.find(s=>s.key===k)?.color||'#008b7e')};}if(isHistogram(p))styleHistogramPreview(spec);if(isPie(p)&&p.donut)spec.mark={type:'arc',innerRadius:55};if(isBox(p)){const v=valueAxis(p);spec.layer[1].mark={type:'bar',size:26};spec.layer[2].mark={type:'tick',orient:horizontal()?'vertical':'horizontal',color:'#243344',size:26,thickness:2};if(p.axes[v].type==='log')for(const l of spec.layer)l.encoding[v].scale={type:'log'};}const holder=document.createElement('div');const result=await window.vegaEmbed(holder,spec,{actions:false,renderer:'svg'});result.view.finalize();if(version!==renderVersion)return;$('preview').replaceChildren(holder);globalThis.VegaLiteTableExport.exportTables(gt);lastSpec=gt;renderOk=true;$('renderState').textContent='Vega-Lite v6 · 语义渲染成功';}catch(e){if(version!==renderVersion)return;lastSpec=null;$('jsonPreview').textContent='请先修正数据结构。';$('preview').replaceChildren();$('renderState').textContent=p.rows.length?'无法渲染：'+e.message:'添加记录后显示语义重绘';}}
+try{const gt=makeSpec(p);$('jsonPreview').textContent=JSON.stringify(gt,null,2);if(!window.vegaEmbed)throw Error('本地 Vega 渲染组件未加载');const radar=radarGT(gt),spec=radar?renderSpec(gt,p):{...renderSpec(gt,p),width:230,height:210};for(const a of ['x','y']){if(!radar&&!isSmoothLine(p)&&!isHeatmap(p)&&!isStat(p)&&!isArea(p)&&!isHistogram(p)&&spec.encoding[a])spec.encoding[a].title=isPercentStack(p)?spec.encoding[a].title??null:p[a+'Title']||null;}if(!radar&&!isHeatmap(p)&&!isStat(p)&&!isArea(p)&&!isHistogram(p)&&spec.encoding.color){spec.encoding.color.legend=p.legend?{...(spec.encoding.color.legend||{}),title:null}:null;const keys=unique((isComposite(p)?['bar','line'].flatMap(role=>orderedRows(compositePart(p,role))):orderedRows(p)).map(identity));spec.encoding.color.scale={domain:unique(allTableRows(gt).map(r=>r.series_id??r.series)),range:keys.map(k=>p.series.find(s=>s.key===k)?.color||'#008b7e')};}if(isHistogram(p))styleHistogramPreview(spec);if(isPie(p)&&p.donut)spec.mark={type:'arc',innerRadius:55};if(isBox(p)){const v=valueAxis(p);spec.layer[1].mark={type:'bar',size:26};spec.layer[2].mark={type:'tick',orient:horizontal()?'vertical':'horizontal',color:'#243344',size:26,thickness:2};if(p.axes[v].type==='log')for(const l of spec.layer)l.encoding[v].scale={type:'log'};}const holder=document.createElement('div');const vertical=smoothGT(gt)&&verticalSmooth(gt);
+const native=vertical?compileStudioVega(spec,window.vegaLite):spec;
+const result=await window.vegaEmbed(holder,native,{actions:false,renderer:'svg',...(radar||vertical?{mode:'vega'}:{})});result.view.finalize();if(version!==renderVersion)return;$('preview').replaceChildren(holder);globalThis.VegaLiteTableExport.exportTables(gt);lastSpec=gt;renderOk=true;$('renderState').textContent=radar?'Vega · 极坐标渲染成功':'Vega-Lite v6 · 语义渲染成功';}catch(e){if(version!==renderVersion)return;lastSpec=null;$('jsonPreview').textContent='请先修正数据结构。';$('preview').replaceChildren();$('renderState').textContent=p.rows.length?'无法渲染：'+e.message:'添加记录后显示语义重绘';}}
 function assist(){
   ensureIdentities(p);p.assist??={};const a=p.assist;
   a.sequence??=bar()||isNominalArea(p)?'category':'series';if(isPercentStack(p)||isStack(p)&&a.sequence!=='manual')a.sequence='category';a.errorOrder??='per-bar';a.projections??=true;a.magnify??=true;a.dragAxis??='free';a.categoryPixels??={};if(isBox(p)){a.boxField??='lower';a.outlierTarget??='new';}
+  if(isRadar(p))a.sequence=isRadarStack(p)?'category':'series';
+  if(discreteSmooth(p))a.sequence='series';
   if(lineCategoryAxis(p))a.lockCategory??=true;
   if(!p.series.some(s=>s.key===a.series))a.series=p.series.find(s=>s.name===a.series)?.key??p.series[0]?.key??'';
   if(!p.categoryObjects.some(c=>c.key===a.category))a.category=p.categoryObjects.find(c=>c.name===a.category)?.key??p.categoryObjects[0]?.key??'';
   return a;
 }
-function targetPairs(){const a=assist(),cats=p.categoryObjects.map(c=>c.key),series=p.series.map(s=>s.key);if(isBox(p))return cats.map(category=>({category,series:a.series}));return a.sequence==='series'?series.flatMap(series=>cats.map(category=>({series,category}))):cats.flatMap(category=>series.map(series=>({series,category})));}
+function targetPairs(){const a=assist(),cats=p.categoryObjects.map(c=>c.key),series=p.series.map(s=>s.key);if(isRadarStack(p))return cats.flatMap(category=>radarSeriesOrder(p,category).map(series=>({category,series})));if(isBox(p))return cats.map(category=>({category,series:a.series}));return a.sequence==='series'?series.flatMap(series=>cats.map(category=>({series,category}))):cats.flatMap(category=>series.map(series=>({series,category})));}
 function targetIndex(t){if(isBox(p))return p.rows.findIndex(r=>categoryIdentity(r)===t.category);return p.rows.findIndex(r=>identity(r)===t.series&&categoryIdentity(r)===t.category);}
 const percentTargetKey=t=>JSON.stringify([t.category,t.series]);
 const skippedPercentTarget=t=>isPercentStack(p)&&!!p.assist?.skippedPercentSegments?.[percentTargetKey(t)];
@@ -2922,9 +3343,8 @@ function syncPercentStackHeightPanel(){
     const editable=source===key;
     check.checked=source!==null;
     input.disabled=!editable;
-    const calibration=p.axes[valueAxis(p)];
     const value=height===null?'':positiveHeight(record?.value)?String(height):
-      String(measuredNumber(height,2*axisUncertainty(height,calibration)));
+      String(quantizeMeasurement(height,{percent:percentLabels(p,valueAxis(p)),computed:true}));
     if(input.value!==value)input.value=value;
     button.disabled=!editable||!image;
     note.textContent=source&&source!==key?`沿用「${categoryName(p,source)}」`:record?.startPixel&&height!==null?'原图取点':'';
@@ -2957,13 +3377,15 @@ function syncPercentStackAssist(target){
 }
 function areaComplete(row){return finite(row?.y)&&finite(row?.baseline);}
 function targetComplete(t){
+  if(discreteSmooth(p))return smoothFixedDone(p,t);
+  if(isRadar(p))return radarTargetDone(t);
   const row=p.rows[targetIndex(t)];
   if(isPercentStack(p))return row?validPercent(row.value)||usesPercentStackRatio(p,t.category)&&finite(row.difference):skippedPercentTarget(t);
   if(isNominalArea(p))return areaComplete(row);
   if(isBox(p))return !!row&&BOX_FIELDS.every(k=>finite(row[k]));
   return hasErrors(p)&&(!isComposite(p)||compositeRole(p,t.series)==='bar')?errorComplete(t):!!row;
 }
-function nextTarget(){const a=assist(),pairs=targetPairs(),at=pairs.findIndex(t=>t.series===a.series&&t.category===a.category);for(let offset=1;offset<=pairs.length;offset++){const t=pairs[(Math.max(at,0)+offset)%pairs.length];if(isPercentStack(p)?!targetComplete(t):targetIndex(t)<0||(isBox(p)||isNominalArea(p))&&!targetComplete(t)){if(isBox(p))a.boxField='lower';if(isPercentStack(p))delete a.percentStackEndpoint;a.series=t.series;a.category=t.category;syncAssist();return true;}}syncAssist();return false;}
+function nextTarget(){const a=assist(),pairs=targetPairs(),at=pairs.findIndex(t=>t.series===a.series&&t.category===a.category);for(let offset=1;offset<=pairs.length;offset++){const t=pairs[(Math.max(at,0)+offset)%pairs.length];if(discreteSmooth(p)||isRadar(p)||isPercentStack(p)?!targetComplete(t):targetIndex(t)<0||(isBox(p)||isNominalArea(p))&&!targetComplete(t)){if(isBox(p))a.boxField='lower';if(isPercentStack(p))delete a.percentStackEndpoint;a.series=t.series;a.category=t.category;syncAssist();return true;}}syncAssist();return false;}
 function errorTask(){if(!hasErrors(p)||isStack(p))return null;const a=assist(),pairs=targetPairs();
   const fields=t=>isComposite(p)&&compositeRole(p,t.series)==='line'?['value']:['value','upper','lower'];
   const missing=t=>{const i=targetIndex(t);return i<0||!finite(p.rows[i][t.field]);};
@@ -2974,7 +3396,7 @@ function errorTask(){if(!hasErrors(p)||isStack(p))return null;const a=assist(),p
 }
 function syncErrorTarget(){const t=errorTask();if(t){assist().series=t.series;assist().category=t.category;}return t;}
 function errorComplete(t){const i=targetIndex(t);return i>=0&&['value','lower','upper'].every(k=>finite(p.rows[i][k]));}
-function measureError(raw){const t=syncErrorTarget();if(!t){toast('误差棒全部标注完成；选择 / 拖动可复查');return;}calibrated();if(!t.category)throw Error('请先填写类别');const i=targetIndex(t),axis=horizontal()?'x':'y';const pt=t.field==='value'?constrainAdd(raw):{...raw,...(p.evidence?.[i]?.pixel?{[horizontal()?'y':'x']:p.evidence[i].pixel[horizontal()?'y':'x']}:{})};const value=measuredAxisValue(pt[axis],p.axes[measurementAxis(p,t.series)]);change(()=>{let index=i;if(t.field==='value'&&i<0){p.rows.push({category:categoryName(p,t.category),series:seriesName(p,t.series),_categoryKey:t.category,_seriesKey:t.series,value});p.evidence??=[];p.evidence.push({role:'observation',source:'pixel_measurement',createdAt:new Date().toISOString()});index=p.rows.length-1;}p.rows[index][t.field]=value;p.evidence??=[];p.evidence[index]??={role:'observation',source:'pixel_measurement'};const key=t.field==='value'?'pixel':t.field+'Pixel';p.evidence[index][key]=pt;if(t.field==='value'&&assist().lockCategory){if(horizontal())p.evidence[index].fixedY={pixel:pt.y};else p.evidence[index].fixedX={pixel:pt.x};}selected=index;selectedHandle=key;syncErrorTarget();});}
+function measureError(raw){const t=syncErrorTarget();if(!t){toast('误差棒全部标注完成；选择 / 拖动可复查');return;}calibrated();if(!t.category)throw Error('请先填写类别');const i=targetIndex(t),axis=horizontal()?'x':'y';const pt=t.field==='value'?constrainAdd(raw):{...raw,...(p.evidence?.[i]?.pixel?{[horizontal()?'y':'x']:p.evidence[i].pixel[horizontal()?'y':'x']}:{})};const value=measureProjectAxis(p,measurementAxis(p,t.series),pt[axis]);change(()=>{let index=i;if(t.field==='value'&&i<0){p.rows.push({category:categoryName(p,t.category),series:seriesName(p,t.series),_categoryKey:t.category,_seriesKey:t.series,value});p.evidence??=[];p.evidence.push({role:'observation',source:'pixel_measurement',createdAt:new Date().toISOString()});index=p.rows.length-1;}p.rows[index][t.field]=value;clearMeasuredField(p.rows[index],t.field);p.evidence??=[];p.evidence[index]??={role:'observation',source:'pixel_measurement'};const key=t.field==='value'?'pixel':t.field+'Pixel';p.evidence[index][key]=pt;if(t.field==='value'&&assist().lockCategory){if(horizontal())p.evidence[index].fixedY={pixel:pt.y};else p.evidence[index].fixedX={pixel:pt.x};}selected=index;selectedHandle=key;syncErrorTarget();});}
 function anchorKey(){if(isComposite(p)){const a=assist();return JSON.stringify([a.category,compositeRole(p,a.series)==='bar'?a.series:'line']);}const a=assist();return JSON.stringify(p.kind==='barv_n'||p.kind==='barh_n'?[a.category,a.series]:[a.category]);}
 function syncAssist(){
   if(isHeatmap(p))syncHeatmapSelection();
@@ -3004,24 +3426,32 @@ function syncAssist(){
   syncHistogramAssist();
   if(hasErrors(p)&&!isStack(p))$('targetHint').textContent=task?'下一点：'+categoryName(p,task.category)+' · '+seriesName(p,task.series)+' · '+({value:isComposite(p)&&compositeRole(p,task.series)==='line'?'折线点':'柱子数值端点',upper:'误差上界（较大值）',lower:'误差下界（较小值）'}[task.field]):'误差棒取点完成，可选择标记复查';if(isComposite(p))$('targetHint').textContent+=' · '+(compositeRole(p,a.series)==='line'?'折线':'柱')+' / '+(measurementAxis(p,a.series)==='r'?'右 Y':'左 Y');if(!isHeatmap(p))$('targetTop').textContent=$('targetHint').textContent; $('targetProgress').textContent=pairs.length?`${done} / ${pairs.length} 已标注`:'';
   syncHistogramWorkflow();
-  $('targetGrid').hidden=!categorical();$('targetGrid').innerHTML=pairs.map((t,i)=>`<button class="target-cell ${targetComplete(t)?'done':''} ${t.series===a.series&&t.category===a.category?'current':''}" data-target="${i}" title="${esc(categoryName(p,t.category)+' · '+seriesName(p,t.series))}">${skippedPercentTarget(t)?'缺 ':targetComplete(t)?'✓ ':''}${esc(categoryName(p,t.category))} <small>${isBox(p)?BOX_FIELDS.filter(k=>finite(p.rows[targetIndex(t)]?.[k])).length+'/5':esc(seriesName(p,t.series))}</small></button>`).join('');
+  $('targetGrid').hidden=!categorical();$('targetGrid').innerHTML=pairs.map((t,i)=>`<button class="target-cell ${targetComplete(t)?'done':''} ${t.series===a.series&&t.category===a.category?'current':''}" data-target="${i}" title="${esc(categoryName(p,t.category)+' · '+seriesName(p,t.series))}">${(isRadar(p)&&radarTargetPrefix(t))||((skippedPercentTarget(t)||discreteSmooth(p)&&smoothTargetSkipped(p,t))?'缺 ':targetComplete(t)?'✓ ':'')}${esc(categoryName(p,t.category))} <small>${isBox(p)?BOX_FIELDS.filter(k=>finite(p.rows[targetIndex(t)]?.[k])).length+'/5':esc(seriesName(p,t.series))}</small></button>`).join('');
   const anchor=a.categoryPixels[anchorKey()];$('anchorStatus').textContent=Number.isFinite(anchor)?`已定位 ${anchor.toFixed(1)} px`:'尚未定位';
   $('unlockPoint').disabled=selected<0||!p.evidence?.[selected]?.fixedX;
-  syncBoxTarget();syncPieAngles();$('magnifier').hidden=!image||!a.magnify||!hover;document.querySelector('.lens-dock').hidden=!a.magnify;document.querySelector('.image-stage').classList.toggle('no-lens',!a.magnify);
+  syncBoxTarget();syncPieAngles();syncRadarAssist();syncSmoothAssist();$('magnifier').hidden=hideAnnotations||!image||!a.magnify||!hover;document.querySelector('.lens-dock').hidden=!a.magnify;document.querySelector('.image-stage').classList.toggle('no-lens',!a.magnify);
 }
-function constrainAdd(pt){const a=assist(),out={...pt};if(categorical()&&a.lockCategory){const pixel=a.categoryPixels[anchorKey()];if(finite(pixel))out[categoryPixelAxis()]=pixel;else if(!lineCategoryAxis(p))throw Error('请先定位当前类别刻度（分组柱需定位当前系列的柱中心）');}
+function constrainAdd(pt){
+  const axis=discreteSmooth(p);
+  if(axis){
+    const pixel=p.categoryObjects.find(category=>category.key===assist().category)?.curvePixel;
+    return bounded(!freeSmoothPhase(p)&&finite(pixel)?{...pt,[axis]:pixel}:pt);
+  }
+  const a=assist(),out={...pt};if(categorical()&&a.lockCategory){const pixel=a.categoryPixels[anchorKey()];if(finite(pixel))out[categoryPixelAxis()]=pixel;else if(!lineCategoryAxis(p))throw Error('请先定位当前类别刻度（分组柱需定位当前系列的柱中心）');}
   if(!categorical()&&a.lockX){if(!Number.isFinite(a.fixedXValue))throw Error('请先填写固定 X 的真实数值');if(p.axes.x.type==='log'&&a.fixedXValue<=0)throw Error('对数 X 数值必须大于零');if(Number.isFinite(a.fixedXPixel))out.x=a.fixedXPixel;else{if(!p.axes.x.calibrated)throw Error('请在原图定位 X 刻度，或先校准 X 轴');out.x=valueToPixel(a.fixedXValue,p.axes.x);}}
   return bounded(out);
 }
 function bounded(pt){return{x:Math.max(0,Math.min(image.width,pt.x)),y:Math.max(0,Math.min(image.height,pt.y))};}
-function constrainDrag(pt,i,kind='pixel',shift=false){const out=bounded(pt),e=p.evidence[i],old=e[kind]||e.pixel,a=assist();if(kind==='pixel'&&e.fixedX)out.x=old.x;if(kind==='pixel'&&e.fixedY)out.y=old.y;if(isBar(p)&&(kind==='lowerPixel'||kind==='upperPixel'))out[horizontal()?'y':'x']=(e.pixel||old)[horizontal()?'y':'x'];
+function constrainDrag(pt,i,kind='pixel',shift=false){if(isRadar(p))return bounded(pt);const out=bounded(pt),e=p.evidence[i],old=e[kind]||e.pixel,a=assist();if(kind==='pixel'&&e.fixedX)out.x=old.x;if(kind==='pixel'&&e.fixedY)out.y=old.y;if(isBar(p)&&(kind==='lowerPixel'||kind==='upperPixel'))out[horizontal()?'y':'x']=(e.pixel||old)[horizontal()?'y':'x'];
   const lineCategory=lineCategoryAxis(p);
-  if(kind==='pixel'&&lineCategory)out[lineCategory]=old[lineCategory];
+  if(kind==='pixel'&&lineCategory&&!freeSmoothRow(p,p.rows[i]))out[lineCategory]=old[lineCategory];
   if(kind==='baselinePixel'||kind==='pixel'&&isNominalArea(p)||kind==='startPixel'&&e.fixedX)out.x=old.x;
   if(a.dragAxis==='y')out.x=old.x;if(a.dragAxis==='x')out.y=old.y;
   if(shift&&dragOrigin){if(Math.abs(out.x-dragOrigin.x)>=Math.abs(out.y-dragOrigin.y))out.y=dragOrigin.y;else out.x=dragOrigin.x;}return out;
 }
 function editHandle(i,kind,pt){
+  if(freeSmoothRow(p,p.rows[i])){editSmoothFreePoint(i,pt);return;}
+  if(isRadar(p)){retakeRadarEndpoint(i,pt);return;}
   if(isHistogram(p)){applyHistogramMeasurement(i,histogramMeasurementUpdate(i,kind,pt));return;}
   if(isArea(p)){editAreaHandle(i,kind,pt);return;}
   if(isBox(p)){
@@ -3042,8 +3472,8 @@ function editHandle(i,kind,pt){
   const update=(j,k)=>{
     if(isPercentStack(p)){
       p.evidence[j][k]={...pt};
-      updatePercentStackValue(p,p.rows[j],p.evidence[j]);
-    }else if(k==='pixel')applyPixel(j,pt);else if(k==='startPixel'){p.evidence[j].startPixel={...pt};p.rows[j].start=measuredAxisValue(pt[axis],p.axes[axis]);p.rows[j].value=decimalDifference(p.rows[j].end,p.rows[j].start);}else{const key=k==='lowerPixel'?'lower':'upper';p.evidence[j][k]={...pt};p.rows[j][key]=measuredAxisValue(pt[axis],p.axes[measurementAxis(p,identity(p.rows[j]))]);}p.evidence[j].modifiedAt=new Date().toISOString();};
+      updatePercentStackValue(p,p.rows[j],p.evidence[j],k);
+    }else if(k==='pixel')applyPixel(j,pt);else if(k==='startPixel'){p.evidence[j].startPixel={...pt};p.rows[j].start=measureProjectAxis(p,axis,pt[axis]);updateStackAmount(p.rows[j]);}else{const key=k==='lowerPixel'?'lower':'upper';p.evidence[j][k]={...pt};p.rows[j][key]=measureProjectAxis(p,measurementAxis(p,identity(p.rows[j])),pt[axis]);}p.evidence[j].modifiedAt=new Date().toISOString();};
   update(i,kind);for(const {j,k} of related)update(j,k);pendingStart=null;
 }
 function drawMagnifier(pt,visible){
@@ -3055,7 +3485,7 @@ function drawMagnifier(pt,visible){
   lc.strokeStyle='#f05c35';lc.lineWidth=1;lc.beginPath();lc.moveTo(58,70);lc.lineTo(82,70);lc.moveTo(70,58);lc.lineTo(70,82);lc.stroke();
 }
 function drawGuides(){
-  if(isPie(p)||isHeatmap(p))return;
+  if(isPie(p)||isHeatmap(p)||isRadar(p))return;
   const a=assist(),e=p.evidence?.[selected],selectedPt=e?.[selectedHandle]||e?.pixel;
   let pt=drag!==null||tool==='select'&&selectedPt?selectedPt:hover||selectedPt;if(!pt&&tool==='point'){try{if(a.lockX||a.lockCategory)pt=constrainAdd({x:p.axes.x.p1,y:p.axes.y.p1});}catch{}}if(!pt)return;
   if(hover&&drag===null)try{if(isArea(p)&&areaTool())pt=areaPoint(hover);else if(tool==='point'&&!isHistogram(p))pt=constrainAdd(hover);}catch{}
@@ -3073,7 +3503,12 @@ function drawGuides(){
 $('errorOrder').onchange=()=>{assist().errorOrder=$('errorOrder').value;syncErrorTarget();refresh();};$('advancedFields').onchange=table;
 $('sequence').onchange=()=>{assist().sequence=$('sequence').value;refresh();};
 for(const id of ['projections','magnify','lockX','lockCategory'])$(id).onchange=()=>{assist()[id]=$(id).checked;refresh();};
-$('fixedX').onchange=()=>{const a=assist();a.fixedXValue=$('fixedX').value===''?null:Number($('fixedX').value);a.fixedXPixel=null;a.lockX=true;refresh();};
+$('fixedX').onchange=()=>calibrateChange(()=>{
+  const a=assist(),input=$('fixedX');
+  a.fixedXValue=input.value===''?null:Number(input.value);
+  a.fixedXPixel=null;
+  a.lockX=true;
+});
 $('dragAxis').onchange=()=>{assist().dragAxis=$('dragAxis').value;refresh();};
 for(const id of ['activeSeries','activeCategory'])$(id).onchange=()=>{const a=assist();a[id==='activeSeries'?'series':'category']=$(id).value;if(isPercentStack(p))delete a.percentStackEndpoint;pendingStart=null;if(id==='activeSeries'&&isHistogram(p)&&!isHistogramStack(p))selected=-1;if(isBox(p)){selected=targetIndex(a);selectedHandle=boxHandle(a.boxField);hover=null;}refresh();};
 $('nextTarget').onclick=()=>{if(isPercentStack(p))delete assist().percentStackEndpoint;if(!nextTarget())toast('所有类别和系列均已标注，可点击进度格复查');refresh();};
@@ -3098,7 +3533,6 @@ function setPercentStackRatioCategories(keys,enabled){
   const changed=keys.filter(key=>usesPercentStackRatio(p,key)!==enabled);
   if(!changed.length)return;
   change(()=>{
-    p.precisionVersion=1;
     const categories=p.percentStackRatioCategories??={};
     for(const key of changed){
       if(enabled)categories[key]=true;
@@ -3117,7 +3551,6 @@ function setPercentStackHeightSelection(keys,enabled){
   const changed=keys.filter(key=>percentStackHeightSelected(p,key)!==enabled);
   if(!changed.length)return;
   change(()=>{
-    p.precisionVersion=1;
     const records=p.percentStackCategoryHeights??={};
     for(const key of changed)(records[key]??={}).selected=enabled;
   });
@@ -3226,25 +3659,25 @@ function measureArea(raw){
 function editAreaHandle(i,handle,pt){
   const r=p.rows[i],e=p.evidence[i];
   if(!p.axes.y.calibrated)throw Error('请先校准 Y 轴的两个刻度');
-  const y=areaValueAt(pt.y,p.axes.y);
+  const y=measureProjectAxis(p,'y',pt.y);
   if(!isNominalArea(p)&&handle==='pixel'&&e.pixel&&pt.x!==e.pixel.x){
     if(!p.axes.x.calibrated)throw Error('请先校准 X 轴的两个刻度');
-    r.x=areaValueAt(pt.x,p.axes.x);delete r._percentData?.x;
+    r.x=measureProjectAxis(p,'x',pt.x);clearMeasuredField(r,'x');
     e.xPixel=pt.x;
     if(e.baselinePixel)e.baselinePixel.x=pt.x;
   }
   const field=handle==='pixel'?'y':'baseline';
-  r[field]=y;delete r._percentData?.[field];
+  r[field]=y;clearMeasuredField(r,field);
   e[handle]=pt;e.modifiedAt=new Date().toISOString();
 }
-function recalculateArea(){
+function recalculateArea(axis){
   for(const [i,r] of p.rows.entries()){
     const e=p.evidence?.[i];
     if(!e)continue;
-    if(!isNominalArea(p)&&p.axes.x.calibrated&&finite(e.xPixel))r.x=areaValueAt(e.xPixel,p.axes.x);
-    if(p.axes.y.calibrated){
-      if(e.pixel)r.y=areaValueAt(e.pixel.y,p.axes.y);
-      if(e.baselinePixel)r.baseline=areaValueAt(e.baselinePixel.y,p.axes.y);
+    if(axis==='x'&&!isNominalArea(p)&&p.axes.x.calibrated&&finite(e.xPixel))r.x=measureProjectAxis(p,'x',e.xPixel);
+    if(axis==='y'&&p.axes.y.calibrated){
+      if(e.pixel)r.y=measureProjectAxis(p,'y',e.pixel.y);
+      if(e.baselinePixel)r.baseline=measureProjectAxis(p,'y',e.baselinePixel.y);
     }
   }
 }
@@ -3343,9 +3776,8 @@ function histogramMeasuredValue(field,evidence){
   const value=last===undefined?first:last-first;
   if(!finite(value))throw Error('测得的差值超出数值范围，请核对刻度或手动填写');
   if(field==='value'&&isHistogramStack(p)&&value<0)throw Error('堆叠段高度不能为负数，请核对起点和终点');
-  const calibration=p.axes[axis];
-  if(last===undefined)return measuredAxisValue(evidence[handles[0]][axis],calibration);
-  return measuredNumber(value,axisUncertainty(first,calibration)+axisUncertainty(last,calibration));
+  if(last===undefined)return measureProjectAxis(p,axis,evidence[handles[0]][axis]);
+  return quantizeMeasurement(decimalDifference(last,first),{percent:percentLabels(p,axis),computed:true});
 }
 
 function histogramMeasurement(row,previous,handle,pt,inherited=false){
@@ -3502,7 +3934,13 @@ function syncHistogramBoundaries(){
   const bins=new Map();
   const copyBoundary=(target,field,source,origin)=>{
     target[field]=source[origin];
-    recordTablePercent(target,field,source._percentData?.[origin]);
+    if(source._percentData?.[origin]||target._percentData?.[field])
+      recordTablePercent(target,field,source._percentData?.[origin]);
+    if(source._exactFractions?.[origin]){
+      (target._exactFractions??={})[field]=source._exactFractions[origin];
+    }else if(target._exactFractions?.[field]?.displayed!==target[field]){
+      if(target._exactFractions)delete target._exactFractions[field];
+    }
   };
   for(const [i,bin] of (p.histogramBins??[]).entries()){
     if(bin.inheritStart&&i>0)copyBoundary(bin,'bin_start',p.histogramBins[i-1],'bin_end');
@@ -3928,24 +4366,71 @@ function pieAngleAssignment(draft,count){
   const indices=Array.from({length:count},(_,i)=>byKey.get(draft.targets[i]));
   return indices.every(i=>i!==undefined)&&new Set(indices).size===count?indices:null;
 }
-function syncPieAngles(renderRows=true){
+function exactPieMeasurementRows(){
+  const exact=new Set(p.rows.flatMap((row,index)=>
+    finite(row.value)&&p.evidence?.[index]?.source!=='pie_angle_measurement'?[index]:[]));
+  // A fully transcribed pie can be explicitly replaced with a new complete measurement.
+  return exact.size<p.rows.length?exact:new Set();
+}
+const PIE_CENTER_POINTS={lines:4,circle:3};
+const pieCenterMode=draft=>draft?.centerMode??'manual';
+
+function locateCenterFromPoints(mode,points,minimumAngle=10){
+  const last=points.at(-1);
+  if(points.slice(0,-1).some(point=>Math.hypot(point.x-last.x,point.y-last.y)<1))
+    throw Error('取点重合或相距不足 1 像素，请换一个位置');
+  if(points.length<PIE_CENTER_POINTS[mode])return null;
+
+  const [a,b,c,d]=points;
+  const u={x:b.x-a.x,y:b.y-a.y},v={x:c.x-a.x,y:c.y-a.y};
+  const cross=(left,right)=>left.x*right.y-left.y*right.x;
+  const norm=point=>Math.hypot(point.x,point.y);
+  if(mode==='lines'){
+    const direction={x:d.x-c.x,y:d.y-c.y},det=cross(u,direction);
+    const sine=Math.abs(det)/(norm(u)*norm(direction));
+    if(sine<=Number.EPSILON||sine<Math.sin(minimumAngle*Math.PI/180))
+      throw Error(minimumAngle===0?'两条径向轴平行，请改选另一条轴':'两条直线平行或夹角小于 10°，请改选夹角更大的分界线');
+    const distance=cross(v,direction)/det;
+    return {x:a.x+distance*u.x,y:a.y+distance*u.y};
+  }
+
+  const det=cross(u,v),longest=Math.max(norm(u),norm(v),Math.hypot(b.x-c.x,b.y-c.y));
+  // Compare triangle height to its longest side in original image pixels.
+  if(Math.abs(det)/longest**2<.04)
+    throw Error('三个圆周点共线或接近共线，请在同一圆周上均匀选点');
+  const uu=u.x*u.x+u.y*u.y,vv=v.x*v.x+v.y*v.y;
+  return {x:a.x+(uu*v.y-vv*u.y)/(2*det),y:a.y+(u.x*vv-v.x*uu)/(2*det)};
+}
+
+function pieCenterPrompt(draft){
+  const mode=pieCenterMode(draft),count=draft?.centerPoints?.length??0;
+  if(mode==='lines')return `已取 ${count}/4 点。请在第 ${count<2?1:2} 条扇区分界线上点击第 ${count%2+1} 个点。`;
+  if(mode==='circle')return `已取 ${count}/3 点。请点击同一圆周上的第 ${count+1} 个点，尽量让三点均匀分布。`;
+  return '在原图点击圆心。';
+}
+
+function syncPieAngles(renderRows=true,centerError=''){
   const active=isPie(p)&&tool==='pie-angle';
   $('pieAnglePanel').hidden=!active;
   if(!active)return;
   const draft=p.pieMeasurement;
+  const exact=exactPieMeasurementRows();
   let sectors=[],error='';
-  if(draft){
-    try{sectors=measurePieSectors(draft.center,draft.boundaries);}catch(e){error=e.message;}
+  if(draft?.center){
+    try{sectors=measurePieSectors(draft.center,draft.boundaries,!exact.size);}catch(e){error=e.message;}
   }
   const assignment=sectors.length&&pieAngleAssignment(draft,sectors.length);
-  $('undoPieAngle').disabled=$('resetPieAngle').disabled=!draft?.center;
+  $('pieCenterMode').value=pieCenterMode(draft);
+  $('undoPieAngle').disabled=$('resetPieAngle').disabled=!(draft?.center||draft?.centerPoints?.length);
+  $('hint').textContent=draft?.center?'圆心已定位。请从任意分界线开始沿顺时针取点。':pieCenterPrompt(draft);
   $('pieAngleResults').hidden=!sectors.length;
   $('applyPieAngle').disabled=!assignment;
-  $('pieAngleTotal').textContent=sectors.length?`合计 ${measuredNumber(sectors.reduce((sum,s)=>sum+s.value,0))}%`:'';
-  $('pieAngleStatus').textContent=error||(!draft?.center?'在原图点击圆心。':
+  $('pieAngleTotal').textContent=sectors.length&&!exact.size?`合计 ${quantizeMeasurement(sectors.reduce((sum,s)=>sum+s.value,0),{percent:true})}%`:'';
+  $('pieAngleStatus').textContent=error||(!draft?.center?[centerError,pieCenterPrompt(draft)].filter(Boolean).join(' '):
     !sectors.length?'从任意一条分界线开始，沿顺时针逐条点击。':
     `已取 ${sectors.length} 条分界线，最后一段自动闭合。现有 ${p.rows.length} 个类别。`+
-      (sectors.length===p.rows.length?'请为每个扇区选择一个名称不同的类别。':'请将分界线数量调整为与数据表中的类别数一致。'));
+      (sectors.length===p.rows.length?'请为每个扇区选择一个名称不同的类别。':'请将分界线数量调整为与数据表中的类别数一致。')+
+      (exact.size?' 应用时保留原有手填或导入值，质量检查会显示合计偏差。':''));
   if(renderRows)$('pieAngleRows').innerHTML=sectors.map(({degrees,value},i)=>`<tr>
     <td>${i+1} → ${(i+1)%sectors.length+1}</td><td>${degrees.toFixed(2)}°</td><td>${value}%</td>
     <td><select data-pie-sector="${i}" aria-label="第 ${i+1} 个扇区的类别"><option value="">选择类别</option>${
@@ -3958,52 +4443,75 @@ function pieAngleChanged(){
 function recordPieAngle(point){
   const draft=p.pieMeasurement;
   if(!draft){
-    p.pieMeasurement={center:point,boundaries:[],targets:[]};
+    calibrateChange(()=>{p.pieMeasurement={center:point,boundaries:[],targets:[]};});
+  }else if(!draft.center){
+    const points=[...draft.centerPoints,point];
+    let center;
+    try{center=locateCenterFromPoints(draft.centerMode,points);}
+    catch(error){syncPieAngles(true,error.message);return;}
+    calibrateChange(()=>{draft.center=center;draft.centerPoints=points;});
   }else{
     const boundaries=[...draft.boundaries,point];
-    measurePieSectors(draft.center,boundaries);
-    draft.boundaries=boundaries;
-    draft.targets=[];
+    measurePieSectors(draft.center,boundaries,!exactPieMeasurementRows().size);
+    change(()=>{draft.boundaries=boundaries;draft.targets=[];});
   }
-  pieAngleChanged();
+}
+function resetPieCenter(mode){
+  calibrateChange(()=>{
+    if(mode==='manual')delete p.pieMeasurement;
+    else p.pieMeasurement={center:null,boundaries:[],targets:[],centerMode:mode,centerPoints:[]};
+  });
 }
 function cancelPieAngles(){
-  delete p.pieMeasurement;
-  setTool('select');scheduleDraftSave();
+  calibrateChange(()=>{delete p.pieMeasurement;setTool('select');});
 }
 $('undoPieAngle').onclick=()=>{
   const draft=p.pieMeasurement;
   if(!draft)return;
-  if(draft.boundaries.length){draft.boundaries.pop();draft.targets=[];}
-  else delete p.pieMeasurement;
-  pieAngleChanged();
+  const scope=draft.boundaries.length?'data':'calibration';
+  const isPoint=({path:[root,field]})=>root==='pieMeasurement'&&
+    (field===undefined||(scope==='data'?field==='boundaries':['center','centerPoints'].includes(field)));
+  if(annotationHistory[scope].past.at(-1)?.delta.some(isPoint)){
+    navigateHistory(scope);
+    return;
+  }
+  // Imported drafts have no session history. Preserve the existing point-by-point correction.
+  change(()=>{
+    if(draft.boundaries.length){draft.boundaries.pop();draft.targets=[];}
+    else if(draft.centerPoints?.length){draft.centerPoints.pop();draft.center=null;}
+    else delete p.pieMeasurement;
+  },{scope});
 };
-$('resetPieAngle').onclick=()=>{delete p.pieMeasurement;pieAngleChanged();};
+$('resetPieAngle').onclick=()=>resetPieCenter(pieCenterMode(p.pieMeasurement));
+$('pieCenterMode').onchange=event=>resetPieCenter(event.target.value);
 $('cancelPieAngle').onclick=cancelPieAngles;
 $('pieAngleRows').onchange=e=>{
   const i=e.target.dataset.pieSector;
   if(i===undefined||!p.pieMeasurement)return;
-  p.pieMeasurement.targets[+i]=e.target.value;
-  syncPieAngles(false);scheduleDraftSave();
+  change(()=>{p.pieMeasurement.targets[+i]=e.target.value;});
 };
 $('applyPieAngle').onclick=()=>{
   const draft=p.pieMeasurement;
   if(!draft||!isPie(p)||p.valueMode!=='percent')return;
-  const sectors=measurePieSectors(draft.center,draft.boundaries);
+  const exact=exactPieMeasurementRows();
+  const sectors=measurePieSectors(draft.center,draft.boundaries,!exact.size);
   const indices=pieAngleAssignment(draft,sectors.length);
   if(!indices)return;
-  if(p.rows.some(r=>finite(r.value))&&!confirm('将用测量结果更新现有类别的数值。继续？'))return;
+  if(indices.some(index=>!exact.has(index)&&finite(p.rows[index].value))&&
+      !confirm(exact.size?'将重新测量已有的自动估值，并保留手填或导入值。继续？':'将用整图测量替换现有类别的数值。继续？'))return;
   change(()=>{
     p.evidence??=[];
     indices.forEach((rowIndex,i)=>{
+      if(exact.has(rowIndex))return;
       p.rows[rowIndex].value=sectors[i].value;
       delete p.rows[rowIndex]._pieFraction;
       p.evidence[rowIndex]={role:'observation',source:'pie_angle_measurement',
         pieAngle:{center:draft.center,from:draft.boundaries[i],to:draft.boundaries[(i+1)%sectors.length]}};
     });
     delete p.pieMeasurement;
+    setTool('select');
   });
-  setTool('select');toast('角度测量结果已应用，可撤销');
+  toast('角度测量结果已应用，可撤销');
 };
 
 // Statistical charts share the canvas, calibration, history, evidence and project lifecycle.
@@ -4021,7 +4529,7 @@ function syncStatForm(){
   document.querySelector('.assist-panel').hidden=pie;
   document.querySelectorAll('[data-tool]').forEach(b=>b.hidden=b.dataset.tool==='pie-angle'?!pie:
     pie&&b.dataset.tool!=='select'||stat&&['lower','upper'].includes(b.dataset.tool));
-  if(stat)$('tableNote').textContent=pie?'数值按原图录入，不自动归一化。使用 ↑ / ↓ 调整类别顺序；GT 不保存像素与环形外观。' : 'lower ≤ q1 ≤ median ≤ q3 ≤ upper；只校准数值轴。自动测量依图像分辨率保留有效数字，人工录入及 GT 导入保留原精度。不按 1.5×IQR 重算。异常值可逐个编辑、添加或删除。';
+  if(stat)$('tableNote').textContent=pie?'数值按原图录入，不自动归一化。使用 ↑ / ↓ 调整类别顺序；GT 不保存像素与环形外观。' : 'lower ≤ q1 ≤ median ≤ q3 ≤ upper；只校准数值轴。自动测量采用 Precision V2，人工录入及 GT 导入保留原精度。不按 1.5×IQR 重算。异常值可逐个编辑、添加或删除。';
 }
 function boxHandle(field){const a=assist();return field==='outliers'?`outlier${a.outlierTarget}Pixel`:field+'Pixel';}
 function boxHandleField(key){return key.startsWith('outlier')?'outliers':key.replace(/Pixel$/,'');}
@@ -4041,8 +4549,8 @@ function measureBox(pt){
   const r=p.rows[i],e=p.evidence[i]??={},f=a.boxField,v=boxValueAt(pt,p);
   let key;
   if(f==='outliers'){
-    const n=a.outlierTarget==='new'?r.outliers.length:+a.outlierTarget;r.outliers[n]=v;delete r._percentData?.['outliers:'+n];key=`outlier${n}Pixel`;
-  }else{r[f]=v;delete r._percentData?.[f];key=f+'Pixel';}
+    const n=a.outlierTarget==='new'?r.outliers.length:+a.outlierTarget;r.outliers[n]=v;clearMeasuredField(r,'outliers:'+n);key=`outlier${n}Pixel`;
+  }else{r[f]=v;clearMeasuredField(r,f);key=f+'Pixel';}
   e[key]=pt;e.role=$('role').value;e.source='pixel_measurement';e.modifiedAt=new Date().toISOString();selected=i;selectedHandle=key;
   if(f!=='outliers'){
     const at=BOX_FIELDS.indexOf(f);if(at<4)a.boxField=BOX_FIELDS[at+1];else {a.boxField='lower';nextTarget();}
@@ -4081,14 +4589,47 @@ $('tableBody').addEventListener('click',event=>{
   if(b.dataset.addOutlier!==undefined)change(()=>{p.rows[i].outliers.push(null);selected=i;assist().category=p.rows[i]._categoryKey;assist().boxField='outliers';assist().outlierTarget=String(p.rows[i].outliers.length-1);},{form:true});
   if(b.dataset.deleteOutlier!==undefined)change(()=>{
     const n=+b.dataset.deleteOutlier,r=p.rows[i],e=p.evidence?.[i];r.outliers.splice(n,1);
+    if(r._exactFractions){
+      for(let j=n;j<=r.outliers.length;j++){
+        const next=r._exactFractions['outlier:'+(j+1)];
+        if(next)r._exactFractions['outlier:'+j]=next;
+        else delete r._exactFractions['outlier:'+j];
+      }
+    }
     if(e){for(let j=n;j<=r.outliers.length;j++){delete e[`outlier${j}Pixel`];if(e[`outlier${j+1}Pixel`])e[`outlier${j}Pixel`]=e[`outlier${j+1}Pixel`];}}
     assist().category=r._categoryKey;assist().outlierTarget='new';selected=i;selectedHandle=boxHandle('outliers');
   });
 });
 
+function drawPieCenterGuides(draft,mark){
+  const points=draft.centerPoints;
+  if(!points?.length)return;
+  const color='#6750a4';
+  ctx.save();
+  ctx.strokeStyle=color;
+  ctx.lineWidth=1.5/zoom;
+  ctx.setLineDash([6/zoom,4/zoom]);
+  if(draft.centerMode==='lines'){
+    const extent=Math.hypot(image.width,image.height);
+    for(let i=0;i+1<points.length;i+=2){
+      const a=points[i],b=points[i+1],length=Math.hypot(b.x-a.x,b.y-a.y);
+      const x=(b.x-a.x)/length*extent,y=(b.y-a.y)/length*extent;
+      ctx.beginPath();ctx.moveTo(a.x-x,a.y-y);ctx.lineTo(a.x+x,a.y+y);ctx.stroke();
+    }
+  }else if(draft.center){
+    const {x,y}=draft.center,radius=Math.hypot(points[0].x-x,points[0].y-y);
+    ctx.beginPath();ctx.arc(x,y,radius,0,2*Math.PI);ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  points.forEach((point,index)=>mark(point,color,'校准 '+(index+1)));
+  ctx.restore();
+}
+
 function drawPieAngles(mark){
   const draft=p.pieMeasurement;
-  if(!draft?.center)return;
+  if(!draft)return;
+  drawPieCenterGuides(draft,mark);
+  if(!draft.center)return;
   const {center,boundaries}=draft;
   const ray=point=>{ctx.beginPath();ctx.moveTo(center.x,center.y);ctx.lineTo(point.x,point.y);ctx.stroke();};
   ctx.save();
@@ -4103,28 +4644,33 @@ function drawPieAngles(mark){
   ctx.restore();
 }
 function pointPixel(r,e){if(e?.pixel)return e.pixel;return null;}
-function draw(){projectionInfo=null;if(!image){canvas.width=0;canvas.height=0;return;}const dpr=window.devicePixelRatio||1;canvas.width=Math.round(image.width*zoom*dpr);canvas.height=Math.round(image.height*zoom*dpr);canvas.style.width=image.width*zoom+'px';canvas.style.height=image.height*zoom+'px';ctx.setTransform(zoom*dpr,0,0,zoom*dpr,0,0);ctx.drawImage(image,0,0);$('zoomText').textContent=Math.round(zoom*100)+'%';if(isHeatmap(p))drawMagnifier(hover,!!hover&&assist().magnify);if(!$('overlay').checked){drawGuides();return;}
+function draw(){projectionInfo=null;if(!image){canvas.width=0;canvas.height=0;return;}const dpr=window.devicePixelRatio||1;canvas.width=Math.round(image.width*zoom*dpr);canvas.height=Math.round(image.height*zoom*dpr);canvas.style.width=image.width*zoom+'px';canvas.style.height=image.height*zoom+'px';ctx.setTransform(zoom*dpr,0,0,zoom*dpr,0,0);ctx.drawImage(image,0,0);$('zoomText').textContent=Math.round(zoom*100)+'%';if(hideAnnotations)return;if(isHeatmap(p)||isRadar(p))drawMagnifier(hover,!!hover&&assist().magnify);if(!$('overlay').checked){drawGuides();return;}
 const mark=(pt,color,text,ring=false)=>{if(!pt||!Number.isFinite(pt.x)||!Number.isFinite(pt.y))return;ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=1.5/zoom;ctx.beginPath();ctx.arc(pt.x,pt.y,(ring?7:4)/zoom,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(pt.x-8/zoom,pt.y);ctx.lineTo(pt.x+8/zoom,pt.y);ctx.moveTo(pt.x,pt.y-8/zoom);ctx.lineTo(pt.x,pt.y+8/zoom);ctx.stroke();ctx.font=`${11/zoom}px monospace`;ctx.fillText(text,pt.x+9/zoom,pt.y-7/zoom);};
 if(isHeatmap(p)){drawHeatmap(mark);return;}
 if(tool==='pie-angle'&&isPie(p)){drawPieAngles(mark);return;}
+if(isRadar(p)){drawRadarGuides(mark);return;}
 if(isHistogramStack(p))drawHistogramRun(mark);
 if(isPercentStack(p))drawPercentStackHeights(mark);
-if($('connect').checked&&(p.kind.startsWith('line')||isComposite(p)))for(const s of p.series.filter(s=>!isComposite(p)||s.role==='line')){const pts=p.rows.map((r,i)=>({r,e:p.evidence?.[i]})).filter(v=>identity(v.r)===s.key&&v.e?.pixel).sort((a,b)=>(a.r.path_order??0)-(b.r.path_order??0));ctx.beginPath();pts.forEach((v,i)=>{const q=v.e.pixel;ctx[i?'lineTo':'moveTo'](q.x,q.y)});ctx.strokeStyle=s.color||'#06a77d';ctx.lineWidth=1.5/zoom;ctx.stroke();}
+if($('connect').checked&&(p.kind.startsWith('line')||isComposite(p)))for(const s of p.series.filter(s=>!isComposite(p)||s.role==='line')){const pts=p.rows.map((r,i)=>({r,e:p.evidence?.[i]})).filter(v=>identity(v.r)===s.key&&v.e?.pixel).sort((a,b)=>discreteSmooth(p)?smoothRowPosition(p,a.r)-smoothRowPosition(p,b.r):(a.r.path_order??0)-(b.r.path_order??0));ctx.beginPath();pts.forEach((v,i)=>{const q=v.e.pixel;ctx[i?'lineTo':'moveTo'](q.x,q.y)});ctx.strokeStyle=s.color||'#06a77d';ctx.lineWidth=1.5/zoom;ctx.stroke();}
 p.rows.forEach((r,i)=>{const e=p.evidence?.[i];if(isBox(p)){for(const k of handleKeys(i))mark(e[k],i===selected&&k===selectedHandle?'#007bea':'#e85b35',`${i+1}:${boxHandleField(k)==='outliers'?'o'+(+k.match(/\d+/)[0]+1):boxHandleField(k)}`,i===selected&&k===selectedHandle);return;}const color=p.series.find(s=>s.key===identity(r))?.color||'#e85b35';if(isHistogram(p)){
   for(const k of handleKeys(i))mark(e?.[k],color,`${i+1}: ${histogramHandleLabels[k]}`,i===selected&&k===selectedHandle);
   return;
 }mark(pointPixel(r,e),color,isArea(p)?`${i+1}:上界`:String(i+1),i===selected&&(!isArea(p)||selectedHandle==='pixel'));if(isArea(p)&&e?.baselinePixel)mark(e.baselinePixel,color,`${i+1}:下界`,i===selected&&selectedHandle==='baselinePixel');
 if(e?.startPixel){mark(e.startPixel,color,'s');if(e.pixel){ctx.beginPath();ctx.moveTo(e.startPixel.x,e.startPixel.y);ctx.lineTo(e.pixel.x,e.pixel.y);ctx.stroke();}}for(const k of ['lower','upper'])if(e?.[k+'Pixel'])mark(e[k+'Pixel'],color,k==='lower'?'−':'+');});
-drawGuides();if(pendingStart)mark(pendingStart,'#ffae00','起点');for(const a of isComposite(p)||isLine(p)?requiredAxes(p):isNominalArea(p)?['y']:['x','y'])for(const n of [1,2]){const pt=p.axes[a]['point'+n];if(pt)mark(pt,'#007bea',a.toUpperCase()+n);} }
+drawGuides();if(pendingStart&&tool==='point')mark(pendingStart,'#ffae00','起点');for(const a of isComposite(p)||isLine(p)?requiredAxes(p):isNominalArea(p)?['y']:['x','y'])for(const n of [1,2]){const pt=p.axes[a]['point'+n];if(pt)mark(pt,'#007bea',a.toUpperCase()+n);} }
 function setTool(t){
+  activeShortcutScope='canvas';
   if(!['heatmap-corners','heatmap-boundary','heatmap-color'].includes(t))heatmapCapture=null;
   if(t!=='percent-stack-height')percentStackHeightCapture=null;
   if(isHeatmap(p)){
+    if(t==='point')t='heatmap-measure';
     if(t==='select')$('heatmapMeasurementStatus').textContent='';
     const required=requiredAxes(p);
     if(!required.includes(calTarget[0]))calTarget=(required[0]??'x')+'1';
     if(t==='calibrate'&&!required.length)t='select';
   }
+  if(t==='curve-insert'&&!isSmoothLine(p))t='select';
+  if(t.startsWith('radar-')&&!isRadar(p)||isRadar(p)&&!['select','point'].includes(t)&&!t.startsWith('radar-'))t='select';
   if(t==='pie-angle'){
     if(!isPie(p))t='select';
     else if(p.valueMode!=='percent'||!image){
@@ -4132,7 +4678,7 @@ function setTool(t){
       return;
     }
   }
-  if((isBox(p)||isNominalArea(p)||isPercentStack(p))&&!requiredAxes(p).includes(calTarget[0]))calTarget=valueAxis(p)+'1';if(isPie(p)&&t!=='select'&&t!=='pie-angle'||t.startsWith('area-')&&!isArea(p))t='select';tool=t;pendingStart=null;hover=null;document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===t));$('calibrationPanel').open=t==='calibrate'||$('calibrationPanel').open;const hints={'area-upper':'选中数据行后，在同一 X 处点击新的上界。','area-baseline':'选中数据行后，在同一 X 处点击新的下界。',select:'点击已有标记或选择表格字段后拖动、方向键微调。重合点优先编辑已选字段；Shift 拖动限制方向。',point:isHistogram(p)?(activeHistogramRun()?'按当前测量项点击原图，也可在表格直接输入。':'添加或选中记录，选择测量项后点击原图。'):isArea(p)?(p.kind==='area_stack'?'选择当前层，在同一 X 依次点该层的累计上界和实际下界。':'在同一 X 依次取上界和下界。下界也可在表格中输入。'):isStack(p)?(horizontal()?'横向堆叠：从左到右依次点击起点、各交界点、终点。':'纵向堆叠：从下到上依次点击起点、各交界点、终点。')+'同一堆叠自动复用交界点；系列按此方向排列。':'点击原图取点，近已有标记可直接拖动；Alt 点击强制新增。类别和系列自动推进，进度格可随时跳转。',calibrate:'选择下方 X1 / X2 / Y1 / Y2，点击原图刻度，再填写真实数值。',lower:'先选中记录，然后点击误差区间下限。',upper:'先选中记录，然后点击误差区间上限。'};$('hint').textContent=isPie(p)?(t==='pie-angle'?'先点击圆心，再沿顺时针点击每条分界线。':'可在表格人工录入原始数值，或使用角度测量。'):isBox(p)&&t==='point'?'点击只测量当前项，五数统计量自动推进；近邻和重合点均可连续标注。选择任意项可重测，outliers 可连续新增；编辑请切换「选择 / 拖动」。':hints[t]|| (t==='lock-x'?'先填写已知 X 数值，再点击原图对应 X 刻度；然后沿竖直线寻找 Y。':'点击当前类别在原图中的刻度或柱中心位置，之后只测数值。');if(isHeatmap(p)){
+  if((isBox(p)||isNominalArea(p)||isPercentStack(p))&&!requiredAxes(p).includes(calTarget[0]))calTarget=valueAxis(p)+'1';if(isPie(p)&&t!=='select'&&t!=='pie-angle'||t.startsWith('area-')&&!isArea(p))t='select';tool=t;hover=null;document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===t));$('calibrationPanel').open=t==='calibrate'||$('calibrationPanel').open;const hints={'area-upper':'选中数据行后，在同一 X 处点击新的上界。','area-baseline':'选中数据行后，在同一 X 处点击新的下界。',select:'点击已有标记或选择表格字段后拖动、Ctrl＋方向键微调。重合点优先编辑已选字段；Shift 拖动限制方向。',point:isHistogram(p)?(activeHistogramRun()?'按当前测量项点击原图，也可在表格直接输入。':'添加或选中记录，选择测量项后点击原图。'):isArea(p)?(p.kind==='area_stack'?'选择当前层，在同一 X 依次点该层的累计上界和实际下界。':'在同一 X 依次取上界和下界。下界也可在表格中输入。'):isStack(p)?(horizontal()?'横向堆叠：从左到右依次点击起点、各交界点、终点。':'纵向堆叠：从下到上依次点击起点、各交界点、终点。')+'同一堆叠自动复用交界点；系列按此方向排列。':'点击原图取点，近已有标记可直接拖动；Alt 点击强制新增。类别和系列自动推进，进度格可随时跳转。',calibrate:'选择下方 X1 / X2 / Y1 / Y2，点击原图刻度，再填写真实数值。',lower:'先选中记录，然后点击误差区间下限。',upper:'先选中记录，然后点击误差区间上限。'};$('hint').textContent=isPie(p)?(t==='pie-angle'?'先点击圆心，再沿顺时针点击每条分界线。':'可在表格人工录入原始数值，或使用角度测量。'):isBox(p)&&t==='point'?'点击只测量当前项，五数统计量自动推进；近邻和重合点均可连续标注。选择任意项可重测，outliers 可连续新增；编辑请切换「选择 / 拖动」。':hints[t]|| (t==='lock-x'?'先填写已知 X 数值，再点击原图对应 X 刻度；然后沿竖直线寻找 Y。':'点击当前类别在原图中的刻度或柱中心位置，之后只测数值。');if(isHeatmap(p)){
     const hints={select:'有网格时可点击原图选格，也可在矩阵中选格。',
       'heatmap-corners':'点击网格的第一个角。','heatmap-boundary':'点击所选的共享边界。',
       'heatmap-color':'点击色带内部的校准位置。','heatmap-measure':'点击原图中要测量的格子。'};
@@ -4150,30 +4696,31 @@ function resumeTool(){
 function coords(event){const rect=canvas.getBoundingClientRect();return{x:(event.clientX-rect.left)*image.width/rect.width,y:(event.clientY-rect.top)*image.height/rect.height};}
 function calibrated(skipX=false,key=null){const axes=isComposite(p)?[measurementAxis(p,key??assist().series)]:requiredAxes(p);for(const a of axes){if(a==='x'&&skipX)continue;if(!p.axes[a].calibrated)throw Error('请先校准 '+a.toUpperCase()+' 轴的两个刻度');pixelToValue(p.axes[a].p1,p.axes[a]);}}
 function measureAt(pt,i=null){
-  if(isHistogram(p))return Object.fromEntries(['x','y'].map(axis=>[axis,measuredAxisValue(pt[axis],p.axes[axis])]));
+  if(i===null?freeSmoothPhase(p):freeSmoothRow(p,p.rows[i]))return smoothPointData(pt);
+  if(isHistogram(p))return Object.fromEntries(['x','y'].map(axis=>[axis,measureProjectAxis(p,axis,pt[axis])]));
   if(isPercentStack(p)){
     const category=i===null?assist().category:categoryIdentity(p.rows[i]),axis=valueAxis(p);
-    return {category:categoryName(p,category),value:measuredAxisValue(pt[axis],requirePercentStackCalibration(p))};
+    return {category:categoryName(p,category),value:measuredAxisValue(pt[axis],requirePercentStackCalibration(p),true)};
   }
-  if(isComposite(p)){const key=i===null?assist().series:identity(p.rows[i]);calibrated(false,key);return {category:i===null?categoryName(p,assist().category):p.rows[i].category,value:measuredAxisValue(pt.y,p.axes[measurementAxis(p,key)])};}
+  if(isComposite(p)){const key=i===null?assist().series:identity(p.rows[i]);calibrated(false,key);return {category:i===null?categoryName(p,assist().category):p.rows[i].category,value:measureProjectAxis(p,measurementAxis(p,key),pt.y)};}
   if(isNominalArea(p)){
     calibrated();
-    return {category:i===null?categoryName(p,assist().category):p.rows[i].category,y:areaValueAt(pt.y,p.axes.y)};
+    return {category:i===null?categoryName(p,assist().category):p.rows[i].category,y:measureProjectAxis(p,'y',pt.y)};
   }
   if(isArea(p)){
     const a=assist(),fixed=a.lockX&&finite(a.fixedXValue);
     calibrated(i!==null||fixed);
-    const x=i!==null?p.rows[i].x:fixed?a.fixedXValue:areaValueAt(pt.x,p.axes.x);
-    return {x,y:areaValueAt(pt.y,p.axes.y)};
+    const x=i!==null?p.rows[i].x:fixed?a.fixedXValue:measureProjectAxis(p,'x',pt.x);
+    return {x,y:measureProjectAxis(p,'y',pt.y)};
   }
   const discrete=lineCategoryAxis(p);
   if(discrete){
     calibrated();
     const numeric=discrete==='x'?'y':'x';
     return {[discrete]:i===null?categoryName(p,assist().category):p.rows[i][discrete],
-      [numeric]:measuredAxisValue(pt[numeric],p.axes[numeric])};
+      [numeric]:measureProjectAxis(p,numeric,pt[numeric])};
   }
-  const a=assist(),e=i===null?null:p.evidence?.[i],fixed=i===null?(!categorical()&&a.lockX?{value:a.fixedXValue}:null):e?.fixedX;calibrated(!!fixed&&Number.isFinite(fixed.value));if(isBox(p))return{category:i===null?categoryName(p,a.category):p.rows[i].category,value:boxValueAt(pt,p)};if(bar())return{category:i===null?categoryName(p,a.category):p.rows[i].category,value:measuredAxisValue(horizontal()?pt.x:pt.y,p.axes[horizontal()?'x':'y'])};return{x:p.xType==='ordinal'?(i===null?categoryName(p,a.category):p.rows[i].x):fixed&&Number.isFinite(fixed.value)?fixed.value:measuredAxisValue(pt.x,p.axes.x),y:measuredAxisValue(pt.y,p.axes.y)};}
+  const a=assist(),e=i===null?null:p.evidence?.[i],fixed=i===null?(!categorical()&&a.lockX?{value:a.fixedXValue}:null):e?.fixedX;calibrated(!!fixed&&Number.isFinite(fixed.value));if(isBox(p))return{category:i===null?categoryName(p,a.category):p.rows[i].category,value:boxValueAt(pt,p)};if(bar())return{category:i===null?categoryName(p,a.category):p.rows[i].category,value:measureProjectAxis(p,valueAxis(p),pt[valueAxis(p)])};return{x:p.xType==='ordinal'?(i===null?categoryName(p,a.category):p.rows[i].x):fixed&&Number.isFinite(fixed.value)?fixed.value:measureProjectAxis(p,'x',pt.x),y:measureProjectAxis(p,'y',pt.y)};}
 function requirePercentStackCalibration(project){
   const calibration=project.axes[valueAxis(project)];
   if(!calibration.calibrated)throw Error('请先按原图校准数值轴的两个刻度');
@@ -4199,26 +4746,28 @@ function measurePercentStackHeight(raw){
   requirePercentStackCalibration(p);
   const capture=percentStackHeightCapture,point=bounded(raw),axis=valueAxis(p);
   if(!capture.start){
-    capture.start=point;
-    syncPercentStackHeightPrompt();
-    draw();
+    change(()=>{capture.start=point;});
     return;
   }
   const endPixel={...capture.start,[axis]:point[axis]};
   if(percentStackHeightFromPoints(p,capture.start,endPixel)===null)throw Error('请选取与起点不同的整柱终点');
   change(()=>{
     p.percentStackCategoryHeights[capture.category]={selected:true,startPixel:capture.start,endPixel};
+    setTool('select');
   });
-  setTool('select');
 }
-function updatePercentStackValue(project,row,evidence){
-  project.precisionVersion=1;
-  const {start,end}=percentStackMeasurement(project,row,evidence);
+function updatePercentStackValue(project,row,evidence,handle){
+  const {start,end,difference}=percentStackMeasurement(project,row,evidence);
   const axis=valueAxis(project),calibration=percentStackCalibration(project,categoryIdentity(row));
-  if(evidence?.startPixel)row.start=finite(start)?measuredAxisValue(evidence.startPixel[axis],calibration):null;
-  if(evidence?.pixel)row.end=finite(end)?measuredAxisValue(evidence.pixel[axis],calibration):null;
+  const ratio=usesPercentStackRatio(project,categoryIdentity(row));
+  const percent=!ratio||percentLabels(project,axis)||usesPercentBarLength(project,categoryIdentity(row));
+  if(evidence?.startPixel&&(!handle||handle==='startPixel'))
+    row.start=finite(start)?measuredAxisValue(evidence.startPixel[axis],calibration,percent):null;
+  if(evidence?.pixel&&(!handle||handle==='pixel'))
+    row.end=finite(end)?measuredAxisValue(evidence.pixel[axis],calibration,percent):null;
   row.difference=finite(row.start)&&finite(row.end)?Math.abs(decimalDifference(row.end,row.start)):null;
-  if(!usesPercentStackRatio(project,categoryIdentity(row))&&!evidence?.valueOverride)row.value=row.difference;
+  if(!ratio&&!evidence?.valueOverride)
+    row.value=difference===null?null:quantizeMeasurement(difference,{percent:true});
 }
 function recalculatePercentStack(categories,includeAllRows=false){
   for(const [i,row] of p.rows.entries()){
@@ -4274,47 +4823,90 @@ function updatePercentStackCalibration(axis){
   catch{calibration.calibrated=false;}
   recalculatePercentStack();
 }
-function applyPixel(i,pt){const r=p.rows[i],e=p.evidence[i],data=measureAt(pt,i);if(bar()){r.value=data.value;if(isStack(p)){r.end=data.value;r.value=decimalDifference(r.end,r.start);}}else{const discrete=lineCategoryAxis(p);if(discrete!=='x'&&p.xType!=='ordinal')r.x=data.x;if(discrete!=='y')r.y=data.y;}e.pixel=pt;if(bar())for(const key of ['lowerPixel','upperPixel'])if(e[key])e[key][horizontal()?'y':'x']=pt[horizontal()?'y':'x'];e.modifiedAt=new Date().toISOString();}
-function recalculate(){
-  if(isHeatmap(p))return;
-  if(isPercentStack(p)){recalculatePercentStack();return;}
-  if(isArea(p)){recalculateArea();return;}if(isBox(p)){for(let i=0;i<p.rows.length;i++)for(const k of handleKeys(i))editHandle(i,k,p.evidence[i][k]);return;}for(let i=0;i<p.rows.length;i++){const e=p.evidence?.[i];if(isComposite(p)&&!p.axes[measurementAxis(p,identity(p.rows[i]))]?.calibrated)continue;if(!e?.pixel)continue;applyPixel(i,e.pixel);if(e.startPixel){p.rows[i].start=measuredAxisValue(e.startPixel[horizontal()?'x':'y'],p.axes[horizontal()?'x':'y']);p.rows[i].value=decimalDifference(p.rows[i].end,p.rows[i].start);}for(const k of ['lower','upper'])if(e[k+'Pixel'])p.rows[i][k]=measuredAxisValue(horizontal()?e[k+'Pixel'].x:e[k+'Pixel'].y,p.axes[measurementAxis(p,identity(p.rows[i]))]);}}
+function updateStackAmount(row){
+  row.value=quantizeMeasurement(decimalDifference(row.end,row.start),{percent:percentLabels(p,valueAxis(p)),computed:true});
+}
+function applyPixel(i,pt){const r=p.rows[i],e=p.evidence[i],data=measureAt(pt,i);if(bar()){r.value=data.value;if(isStack(p)){r.end=data.value;updateStackAmount(r);}}else{const discrete=lineCategoryAxis(p);if(discrete!=='x'&&p.xType!=='ordinal')r.x=data.x;if(discrete!=='y')r.y=data.y;}e.pixel=pt;if(bar())for(const key of ['lowerPixel','upperPixel'])if(e[key])e[key][horizontal()?'y':'x']=pt[horizontal()?'y':'x'];e.modifiedAt=new Date().toISOString();}
+function recalculate(axis){
+  if(!p.axes[axis]?.calibrated)return;
+  if(isArea(p)){recalculateArea(axis);return;}
+  if(isBox(p)){
+    for(let i=0;i<p.rows.length;i++)
+      for(const handle of handleKeys(i))editHandle(i,handle,p.evidence[i][handle]);
+    return;
+  }
+  for(const [i,row] of p.rows.entries()){
+    const evidence=p.evidence?.[i];
+    if(!evidence)continue;
+    if(bar()){
+      if(measurementAxis(p,identity(row))!==axis)continue;
+      const coordinate=valueAxis(p);
+      if(isStack(p)){
+        if(evidence.startPixel)row.start=measureProjectAxis(p,axis,evidence.startPixel[coordinate]);
+        if(evidence.pixel)row.end=measureProjectAxis(p,axis,evidence.pixel[coordinate]);
+        if(evidence.startPixel||evidence.pixel)updateStackAmount(row);
+      }else if(evidence.pixel)row.value=measureProjectAxis(p,axis,evidence.pixel[coordinate]);
+      for(const field of ['lower','upper']){
+        const handle=evidence[field+'Pixel'];
+        if(handle)row[field]=measureProjectAxis(p,axis,handle[coordinate]);
+      }
+    }else if(evidence.pixel&&axis!==lineCategoryAxis(p)&&
+        !(axis==='x'&&(p.xType==='ordinal'||finite(evidence.fixedX?.value)))){
+      row[axis]=measureProjectAxis(p,axis,evidence.pixel[axis]);
+    }
+  }
+}
 canvas.addEventListener('pointerdown',e=>{if(!image)return;canvas.focus({preventScroll:true});const raw=coords(e);try{
 if(isHeatmap(p)&&tool!=='calibrate'){if(e.button===0)handleHeatmapPointer(raw);return;}
 if(tool==='pie-angle'){if(e.button===0)recordPieAngle(raw);return;}
+if(isRadar(p)&&tool!=='select'){if(e.button===0)recordRadarPoint(raw);return;}
 if(tool==='percent-stack-height'){if(e.button===0)measurePercentStackHeight(raw);return;}
 if(tool==='lock-x'){
   const a=assist();
   if(!finite(a.fixedXValue)||isArea(p)&&finite(a.fixedXPixel)){
     if(!p.axes.x.calibrated)throw Error('请先在固定 X 输入框填写标签的真实数值');
-    a.fixedXValue=measuredAxisValue(raw.x,p.axes.x);
   }
-  a.fixedXPixel=raw.x;a.lockX=true;setTool('point');hover=raw;refresh();toast('X 已固定，沿竖直参考线寻找 Y');return;
+  calibrateChange(()=>{if(!finite(a.fixedXValue)||isArea(p)&&finite(a.fixedXPixel))
+    a.fixedXValue=measureProjectAxis(p,'x',raw.x);a.fixedXPixel=raw.x;a.lockX=true;setTool('point');});hover=raw;draw();
+  toast('X 已固定，沿竖直参考线寻找 Y');return;
 }
 if(tool==='anchor'){
   const a=assist(),anchor=anchorKey(),axis=categoryPixelAxis();
   if(!a.category)throw Error('请先填写并选择当前类别');
-  const locate=()=>{a.categoryPixels[anchor]=raw[axis];a.lockCategory=true;};
-  if(lineCategoryAxis(p))change(locate);else locate();
-  setTool('point');hover=raw;refresh();toast('当前位置已固定，可直接测数值');return;
+  const locate=()=>{
+    a.categoryPixels[anchor]=raw[axis];a.lockCategory=true;
+    if(discreteSmooth(p)){
+      const category=p.categoryObjects.find(item=>item.key===a.category),newAnchor=!finite(category.curvePixel);
+      category.curvePixel=raw[axis];
+      refreshSmoothPositions(p);
+      if(newAnchor&&p.categoryObjects.every(item=>finite(item.curvePixel))){
+        const first=targetPairs().find(target=>!smoothFixedDone(p,target));
+        if(first){a.category=first.category;a.series=first.series;}
+      }
+    }
+  };
+  if(calibrateChange(()=>{locate();setTool('point');},{form:isSmoothLine(p)})){
+    hover=raw;draw();toast('当前位置已固定，可直接测数值');
+  }return;
 }
-if(tool==='calibrate'){const a=calTarget[0],n=calTarget[1];change(()=>{p.axes[a]['p'+n]=a==='x'?raw.x:raw.y;p.axes[a]['point'+n]=raw;if(isHistogram(p))updateHistogramCalibration(a);else if(isHeatmap(p))updateHeatmapCalibration(a);else if(isPercentStack(p))updatePercentStackCalibration(a);else{p.axes[a].calibrated=!!(p.axes[a].point1&&p.axes[a].point2);if(p.axes[a].calibrated)recalculate();}},{form:true});toast(`已取 ${calTarget.toUpperCase()}，请填写真实刻度值`);return;}
+if(tool==='calibrate'){const a=calTarget[0],n=calTarget[1];calibrateChange(()=>{p.axes[a]['p'+n]=a==='x'?raw.x:raw.y;p.axes[a]['point'+n]=raw;if(isHistogram(p))updateHistogramCalibration(a);else if(isHeatmap(p))updateHeatmapCalibration(a);else if(isPercentStack(p))updatePercentStackCalibration(a);else{p.axes[a].calibrated=!!(p.axes[a].point1&&p.axes[a].point2);if(p.axes[a].calibrated)recalculate(a);}},{form:true});toast(`已取 ${calTarget.toUpperCase()}，请填写真实刻度值`);return;}
 if(isHistogram(p)&&tool==='point'){if(e.button===0)measureHistogram(raw);return;}
 if(isPercentStack(p)&&tool==='point'){if(e.button===0)measurePercentStackEndpoint(raw);return;}
 if(isArea(p)&&areaTool()){measureArea(raw);return;}
+if(isSmoothLine(p)&&['point','curve-insert'].includes(tool)){if(e.button===0)recordSmoothPoint(raw,tool==='curve-insert');return;}
 if(tool==='point'&&hasErrors(p)&&!isStack(p)){measureError(raw);return;}
-if((tool==='select'||tool==='point'&&!isBox(p)&&!(isStack(p)&&targetIndex(assist())<0))&&(!e.altKey||isArea(p))){let best=null,d=10/zoom;const chosen=p.evidence?.[selected]?.[selectedHandle];if(tool==='select'&&chosen&&Math.hypot(raw.x-chosen.x,raw.y-chosen.y)<d)best={i:selected,kind:selectedHandle};if(!best)p.evidence?.forEach((v,i)=>{for(const kind of handleKeys(i)){if(!v?.[kind])continue;const dist=Math.hypot(raw.x-v[kind].x,raw.y-v[kind].y);if(dist<d){best={i,kind};d=dist;}}});if(best){selected=best.i;selectedHandle=best.kind;if(isBox(p)){assist().category=p.rows[selected]._categoryKey;assist().boxField=boxHandleField(best.kind);assist().outlierTarget=assist().boxField==='outliers'?best.kind.match(/\d+/)[0]:'new';}drag={...best,checkpointed:false};dragOrigin={...p.evidence[selected][selectedHandle]};try{canvas.setPointerCapture(e.pointerId);}catch{}table();syncAssist();draw();return;}if(tool==='select'){selected=-1;selectedHandle='pixel';table();syncAssist();draw();return;}}
-if(tool==='lower'||tool==='upper'){if(isComposite(p)&&selected>=0&&compositeRole(p,identity(p.rows[selected]))!=='bar')throw Error('误差区间仅适用于柱系列');calibrated(false,selected>=0?identity(p.rows[selected]):null);if(selected<0)throw Error('请先选中一条数据记录');if(!bar())throw Error('当前规范只在柱图中导出误差区间');change(()=>{const axis=horizontal()?'x':'y';p.rows[selected][tool]=measuredAxisValue(raw[axis],p.axes[measurementAxis(p,identity(p.rows[selected]))]);p.evidence[selected]??={role:'transcribed'};p.evidence[selected][tool+'Pixel']=raw;selectedHandle=tool+'Pixel';});return;}
+if((tool==='select'||tool==='point'&&!isBox(p)&&!(isStack(p)&&targetIndex(assist())<0))&&(!e.altKey||isArea(p))){let best=null,d=10/zoom;const chosen=p.evidence?.[selected]?.[selectedHandle];if(tool==='select'&&chosen&&Math.hypot(raw.x-chosen.x,raw.y-chosen.y)<d)best={i:selected,kind:selectedHandle};if(!best)p.evidence?.forEach((v,i)=>{for(const kind of handleKeys(i)){if(!v?.[kind])continue;const dist=Math.hypot(raw.x-v[kind].x,raw.y-v[kind].y);if(dist<d){best={i,kind};d=dist;}}});if(best){const before=checkpoint();selected=best.i;selectedHandle=best.kind;if(isBox(p)){assist().category=p.rows[selected]._categoryKey;assist().boxField=boxHandleField(best.kind);assist().outlierTarget=assist().boxField==='outliers'?best.kind.match(/\d+/)[0]:'new';}drag={...best,before,edited:false};dragOrigin={...p.evidence[selected][selectedHandle]};try{canvas.setPointerCapture(e.pointerId);}catch{}table();syncAssist();draw();return;}if(tool==='select'){selected=-1;selectedHandle='pixel';table();syncAssist();draw();return;}}
+if(tool==='lower'||tool==='upper'){if(isComposite(p)&&selected>=0&&compositeRole(p,identity(p.rows[selected]))!=='bar')throw Error('误差区间仅适用于柱系列');calibrated(false,selected>=0?identity(p.rows[selected]):null);if(selected<0)throw Error('请先选中一条数据记录');if(!bar())throw Error('当前规范只在柱图中导出误差区间');change(()=>{const axis=horizontal()?'x':'y';p.rows[selected][tool]=measureProjectAxis(p,measurementAxis(p,identity(p.rows[selected])),raw[axis]);clearMeasuredField(p.rows[selected],tool);p.evidence[selected]??={role:'transcribed'};p.evidence[selected][tool+'Pixel']=raw;selectedHandle=tool+'Pixel';});return;}
 if(tool==='point'&&isBox(p)){const pt=constrainAdd(raw);calibrated();change(()=>measureBox(pt));return;}
-if(tool==='point'){const a=assist();if(categorical()&&a.sequence!=='manual'&&targetIndex(a)>=0){selected=targetIndex(a);selectedHandle='pixel';hover=null;refresh();throw Error('当前目标已经标注；可拖动修改，或选择下一个待标目标');}const pt=constrainAdd(raw),data=measureAt(pt);if(categorical()&&!a.category)throw Error('请先填写类别并选择当前类别');if(isStack(p)&&!pendingStart){const previous=p.rows.findIndex(r=>categoryIdentity(r)===a.category&&identity(r)===p.series[p.series.findIndex(s=>s.key===a.series)-1]?.key);if(previous>=0&&p.evidence?.[previous]?.pixel)pendingStart={...p.evidence[previous].pixel};}if(isStack(p)&&!pendingStart){pendingStart=pt;draw();toast('起点已取，请依次点击各段交界点和最终终点');return;}change(()=>{const row={...data,series:seriesName(p,a.series),_seriesKey:a.series,...(categorical()?{_categoryKey:a.category}:{})};if(isLine(p)){appendLinePathRank(p,row);const axis=lineCategoryAxis(p);if(axis)a.categoryPixels[anchorKey()]??=pt[axis];}const ev={pixel:pt,role:$('role').value,source:'pixel_measurement',createdAt:new Date().toISOString()};if(a.lockX&&!categorical())ev.fixedX={value:a.fixedXValue,pixel:pt.x};else if(a.lockCategory&&categorical()){if(categoryPixelAxis()==='y')ev.fixedY={pixel:pt.y};else ev.fixedX={pixel:pt.x};}if(pendingStart){row.start=measuredAxisValue(pendingStart[horizontal()?'x':'y'],p.axes[horizontal()?'x':'y']);row.end=data.value;row.value=decimalDifference(row.end,row.start);ev.startPixel={...pendingStart};pendingStart=null;}p.rows.push(row);p.evidence??=[];p.evidence.push(ev);selected=p.rows.length-1;selectedHandle='pixel';if(categorical()&&a.sequence!=='manual'){const previousCategory=a.category;const advanced=nextTarget();if(isStack(p)&&advanced&&a.category===previousCategory)pendingStart={...pt};}});}}
+if(tool==='point'){const a=assist();if(categorical()&&a.sequence!=='manual'&&targetIndex(a)>=0){selected=targetIndex(a);selectedHandle='pixel';hover=null;refresh();throw Error('当前目标已经标注；可拖动修改，或选择下一个待标目标');}const pt=constrainAdd(raw),data=measureAt(pt);if(categorical()&&!a.category)throw Error('请先填写类别并选择当前类别');let start=isStack(p)?pendingStart:null;if(isStack(p)&&!start){const previous=p.rows.findIndex(r=>categoryIdentity(r)===a.category&&identity(r)===p.series[p.series.findIndex(s=>s.key===a.series)-1]?.key);if(previous>=0&&p.evidence?.[previous]?.pixel)start={...p.evidence[previous].pixel};}if(isStack(p)&&!start){change(()=>{pendingStart=pt;});toast('起点已取，请依次点击各段交界点和最终终点');return;}change(()=>{const row={...data,series:seriesName(p,a.series),_seriesKey:a.series,...(categorical()?{_categoryKey:a.category}:{})};if(isLine(p)){appendLinePathRank(p,row);const axis=lineCategoryAxis(p);if(axis)a.categoryPixels[anchorKey()]??=pt[axis];}const ev={pixel:pt,role:$('role').value,source:'pixel_measurement',createdAt:new Date().toISOString()};if(a.lockX&&!categorical())ev.fixedX={value:a.fixedXValue,pixel:pt.x};else if(a.lockCategory&&categorical()){if(categoryPixelAxis()==='y')ev.fixedY={pixel:pt.y};else ev.fixedX={pixel:pt.x};}if(start){row.start=measureProjectAxis(p,valueAxis(p),start[valueAxis(p)]);row.end=data.value;updateStackAmount(row);ev.startPixel={...start};pendingStart=null;}p.rows.push(row);p.evidence??=[];p.evidence.push(ev);selected=p.rows.length-1;selectedHandle='pixel';if(categorical()&&a.sequence!=='manual'){const previousCategory=a.category;const advanced=nextTarget();if(isStack(p)&&advanced&&a.category===previousCategory)pendingStart={...pt};}});}}
 catch(err){toast(err.message);}});
-canvas.addEventListener('pointermove',e=>{if(!image)return;const pt=coords(e);hover=pt;let val='';if(!isHeatmap(p))try{const area=isArea(p)&&areaTool(),i=area?areaTargetIndex():-1;const v=measureAt(area?areaPoint(pt):tool==='point'&&!isHistogram(p)?constrainAdd(pt):pt,i>=0?i:null);val=isHistogram(p)?` · X ${v.x} / Y ${v.y}`:isBox(p)?` · ${v.category} / ${assist().boxField}: ${v.value}`:bar()?` · ${v.category}: ${v.value.toPrecision(6)}`:` · X ${typeof v.x==='number'?Number(v.x.toPrecision(6)):v.x??v.category} / Y ${Number(v.y.toPrecision(6))}`;}catch{}$('cursorInfo').textContent=`原图 px: ${pt.x.toFixed(1)}, ${pt.y.toFixed(1)}${val}`;if(drag!==null){try{const next=constrainDrag(pt,drag.i,drag.kind,e.shiftKey),old=p.evidence[drag.i][drag.kind];if(next.x!==old.x||next.y!==old.y){if(!drag.checkpointed){checkpoint();drag.checkpointed=true;}editHandle(drag.i,drag.kind,next);if(isPercentStack(p))syncPercentStackRatios(p);dirty();table();}}catch(err){toast(err.message);}}draw();});
-function endDrag(){if(drag!==null){drag=null;dragOrigin=null;refresh();}}
+canvas.addEventListener('pointermove',e=>{if(!image)return;const pt=coords(e);hover=pt;let val='';if(isRadar(p)){try{val=' · 径向值 '+quantizeMeasurement(pixelToValue(radarDistance(pt,p.radar.center),radarCalibration(p)),{percent:percentLabels(p,'y'),computed:true});}catch{}}else if(!isHeatmap(p))try{const area=isArea(p)&&areaTool(),i=area?areaTargetIndex():-1;const v=measureAt(area?areaPoint(pt):tool==='point'&&!isHistogram(p)?constrainAdd(pt):pt,i>=0?i:null);val=isHistogram(p)?` · X ${v.x} / Y ${v.y}`:isBox(p)?` · ${v.category} / ${assist().boxField}: ${v.value}`:bar()?` · ${v.category}: ${v.value}`:` · X ${v.x??v.category} / Y ${v.y}`;}catch{}$('cursorInfo').textContent=`原图 px: ${pt.x.toFixed(1)}, ${pt.y.toFixed(1)}${val}`;if(drag!==null){try{const next=constrainDrag(pt,drag.i,drag.kind,e.shiftKey),old=p.evidence[drag.i][drag.kind];if(next.x!==old.x||next.y!==old.y){const before=isPercentStack(p)?clone(p):null;editHandle(drag.i,drag.kind,next);if(before)syncPercentStackRatios(p,before);drag.edited=true;dirty();table();}}catch(err){toast(err.message);}}draw();});
+function endDrag(){if(drag!==null){if(drag.edited)finishHistory(drag.before,'data');drag=null;dragOrigin=null;refresh();}}
 canvas.addEventListener('pointerup',endDrag);canvas.addEventListener('pointercancel',endDrag);canvas.addEventListener('lostpointercapture',endDrag);
 canvas.addEventListener('pointerleave',()=>{if(drag===null){hover=null;$('magnifier').hidden=true;draw();}});
 
 $('tableBody').addEventListener('click',e=>{if(isStat(p)&&e.target.closest('button'))return;const row=e.target.closest('[data-row]');if(row){selected=+row.dataset.row;
-if(isNominalArea(p)||isPercentStack(p)){
+if(isRadar(p)||isNominalArea(p)||isPercentStack(p)){
   const a=assist(),category=categoryIdentity(p.rows[selected]),series=identity(p.rows[selected]);
   if(isPercentStack(p)&&(category!==a.category||series!==a.series))delete a.percentStackEndpoint;
   a.category=category;a.series=series;
@@ -4342,7 +4934,7 @@ function editPercentStackCell(index,field,input){
     }else{
       delete evidence[field==='start'?'startPixel':'pixel'];
     }
-    updatePercentStackValue(p,row,evidence);
+    updatePercentStackValue(p,row,evidence,'manual');
     if(!evidence.valueOverride){
       evidence.role='observation';
       evidence.source=evidence.pixel&&evidence.startPixel?'pixel_measurement':'endpoint_calculation';
@@ -4355,6 +4947,8 @@ function editPercentStackCell(index,field,input){
   });
 }
 $('tableBody').addEventListener('change',e=>{const {i,key,object}=e.target.dataset;if(i===undefined)return;
+if(isSmoothLine(p)&&key==='_curvePosition'){editSmoothPositionCell(+i,e.target);return;}
+if(discreteSmooth(p)&&object){editSmoothTarget(+i,object,e.target.value);return;}
 let scale;
 if(key&&!['category','series','path_order','stack_order'].includes(key)&&!(key===categoryField(p)&&categorical())){
   const display=printedPercent(e.target.value);
@@ -4369,6 +4963,8 @@ if(isHistogramStack(p)){
     e.target.value=identity(p.rows[i]);toast('该分箱和系列已有记录');return;
   }
 }
+if(discreteSmooth(p)&&key===otherAxis(discreteSmooth(p))){editSmoothValue(+i,key,e.target.value,scale);return;}
+if(isRadar(p)&&(object||key==='value')){editRadarCell(+i,key,object,e.target,scale);return;}
 if(isPercentStack(p)&&['value','start','end'].includes(key)){editPercentStackCell(+i,key,e.target);return;}
 if(isHistogram(p)&&key){editHistogramCell(+i,key,e.target.value,scale);return;}if(isStat(p)&&key){editStatCell(e.target,scale);return;}if(isArea(p)&&key){editAreaCell(+i,key,e.target.value,scale);return;}change(()=>{if(key)recordTablePercent(p.rows[i],key,scale);if(object){
 const row=p.rows[i],ref=object==='series'?'_seriesKey':'_categoryKey',field=object==='series'?'series':categoryField(p);
@@ -4410,7 +5006,7 @@ function selectLineMode(axis,type){
 }
 $('yType').onchange=()=>selectLineMode('y',$('yType').value);
 $('legend').onchange=()=>change(()=>p.legend=$('legend').checked,{form:true});$('reviewed').onchange=()=>{p.reviewed=$('reviewed').checked;p.reviewedAt=p.reviewed?new Date().toISOString():null;refresh();};
-$('kind').onchange=()=>{const kind=$('kind').value;if(hasRows(p)&&!confirm('切换类型会清空当前数据记录。建议先保存工程。继续？')){syncTypes();return;}change(()=>{const old=p;p=fresh(kind,isArea(old)?old.xType:undefined);for(const k of ['title','xTitle','yTitle','notes'])p[k]=old[k];selected=-1;},{form:true});setTool('select');};
+$('kind').onchange=()=>{const kind=$('kind').value;if(hasRows(p)&&!confirm('切换类型会清空当前数据记录。建议先保存工程。继续？')){syncTypes();return;}change(()=>{const old=p;p=fresh(kind,isArea(old)?old.xType:undefined);for(const k of ['title','xTitle','yTitle','notes'])p[k]=old[k];selected=-1;},{form:true,resetHistory:true});setTool('select');};
 $('family').onchange=()=>{const kind=Object.keys(labels).find(k=>familyOf(k)===$('family').value);options($('kind'),Object.entries(labels).filter(([k])=>familyOf(k)===familyOf(kind)),kind);$('kind').onchange();};
 function applyBulkNames(kind,inputId){
   const text=$(inputId).value,names=parseObjectNames(text),label=kind==='series'?'系列':'类别位置';
@@ -4434,8 +5030,13 @@ $('addSeries').onclick=()=>{if(p.kind.endsWith('_1')){toast('单系列类型只�
   if(isArea(p)||isHistogram(p))while(p.series.some(s=>s.name==='Series '+n))n++;
   addObject(p,'series','Series '+n);
 },{form:true});};
-$('axisFields').onclick=e=>{if(e.target.dataset.tick){calTarget=e.target.dataset.tick;setTool('calibrate');}};
-$('axisFields').onchange=e=>{const {axis,field,percentScale}=e.target.dataset;if(percentScale){change(()=>{p.percentLabels??={};p.percentLabels[percentScale]=e.target.checked;},{form:true});return;}if(!axis)return;
+$('axisFields').onclick=e=>{
+  if(!e.target.dataset.tick)return;
+  calTarget=e.target.dataset.tick;
+  setTool('calibrate');
+  if(image)canvas.focus({preventScroll:true});
+};
+$('axisFields').onchange=e=>{const {axis,field,percentScale}=e.target.dataset;if(percentScale){calibrateChange(()=>{p.percentLabels??={};p.percentLabels[percentScale]=e.target.checked;},{form:true});return;}if(!axis)return;
 let scale;
 if(['v1','v2'].includes(field)){
   const display=printedPercent(e.target.value);
@@ -4444,7 +5045,7 @@ if(['v1','v2'].includes(field)){
 }
 if(isHistogram(p)||isHeatmap(p)||isPercentStack(p)){
   const raw=e.target.value;
-  change(()=>{
+  calibrateChange(()=>{
     recordPercentScale(scale,Number(raw));
     const calibration=p.axes[axis];
     calibration[field]=field==='type'?raw:raw===''?null:Number(raw);
@@ -4459,9 +5060,12 @@ if(isHistogram(p)||isHeatmap(p)||isPercentStack(p)){
   },{form:isHeatmap(p)||isPercentStack(p)});
   syncCalibrationStatus();
   return;
-}try{change(()=>{recordPercentScale(scale,Number(e.target.value));if(field!=='type'&&e.target.value==='')throw Error('刻度值不能为空');p.axes[axis][field]=field==='type'?e.target.value:Number(e.target.value);if(field==='p1'||field==='p2'){const n=field.slice(1);p.axes[axis]['point'+n]=axis==='x'?{x:p.axes[axis][field],y:p.axes.y.p1}:{x:p.axes.x.p1,y:p.axes[axis][field]};}p.axes[axis].calibrated=!!(p.axes[axis].point1&&p.axes[axis].point2)&&p.axes[axis].p1!==p.axes[axis].p2&&p.axes[axis].v1!==p.axes[axis].v2;recalculate();},{form:true});}catch(err){toast(err.message);syncForm();}};
-document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
-$('addRow').onclick=()=>{if(isHistogram(p)){addHistogramRow();return;}if(isArea(p)){
+}try{calibrateChange(()=>{recordPercentScale(scale,Number(e.target.value));if(field!=='type'&&e.target.value==='')throw Error('刻度值不能为空');p.axes[axis][field]=field==='type'?e.target.value:Number(e.target.value);if(field==='p1'||field==='p2'){const n=field.slice(1);p.axes[axis]['point'+n]=axis==='x'?{x:p.axes[axis][field],y:p.axes.y.p1}:{x:p.axes.x.p1,y:p.axes[axis][field]};}p.axes[axis].calibrated=!!(p.axes[axis].point1&&p.axes[axis].point2)&&p.axes[axis].p1!==p.axes[axis].p2&&p.axes[axis].v1!==p.axes[axis].v2;recalculate(axis);},{form:true});}catch(err){toast(err.message);syncForm();}};
+document.querySelectorAll('[data-tool]').forEach(button=>button.onclick=()=>{
+  setTool(button.dataset.tool);
+  if(image)canvas.focus({preventScroll:true});
+});
+$('addRow').onclick=()=>{if(isSmoothLine(p)){addManualSmoothRow();return;}if(isRadar(p)){addRadarRow();return;}if(isHistogram(p)){addHistogramRow();return;}if(isArea(p)){
   const nominal=isNominalArea(p);
   if(nominal&&(targetIndex(assist())>=0||!assist().category)){
     toast(assist().category?'该类别和系列已有记录，请选择其他目标':'请先填写类别并选择当前类别');
@@ -4471,21 +5075,248 @@ $('addRow').onclick=()=>{if(isHistogram(p)){addHistogramRow();return;}if(isArea(
   document.querySelector(`[data-i="${selected}"][data-key="${nominal?'y':'x'}"]`)?.focus();
   return;
 }if(isStat(p)){change(()=>{const a=assist(),c=isBox(p)&&a.category&&targetIndex(a)<0?p.categoryObjects.find(c=>c.key===a.category):addObject(p,'category',nextCategory());p.rows.push({...isPie(p)?{category:c.name,value:null}:emptyBox(c.name),_categoryKey:c.key,_seriesKey:a.series,series:seriesName(p,a.series)});p.evidence??=[];p.evidence.push({role:'transcribed',source:'manual_entry'});selected=p.rows.length-1;a.category=c.key;selectedHandle=isBox(p)?boxHandle('lower'):'pixel';},{form:true});return;}if(lineCategoryAxis(p)&&!assist().category){toast('请先填写并选择当前类别');return;}if(categorical()&&(assist().sequence!=='manual'||isPercentStack(p))&&targetIndex(assist())>=0){toast(isPercentStack(p)?'当前目标已有记录，可直接编辑该行':'当前目标已标注，请选择其他目标或切换手动模式');return;}change(()=>{const row=bar()?{category:categoryName(p,assist().category)||'A',value:0,series:seriesName(p,assist().series),_categoryKey:assist().category,_seriesKey:assist().series}:{x:categorical()&&categoryField(p)==='x'?categoryName(p,assist().category):0,y:lineCategoryAxis(p)==='y'?categoryName(p,assist().category):0,series:seriesName(p,assist().series),_seriesKey:assist().series,...(categorical()?{_categoryKey:assist().category}:{})};if(isPercentStack(p)){row.value=null;clearPercentSkip(assist());pendingStart=null;}else if(isStack(p)){row.start=0;row.end=0;}if(isLine(p))appendLinePathRank(p,row);p.rows.push(row);p.evidence??=[];p.evidence.push({role:$('role').value,source:'manual_entry'});selected=p.rows.length-1;selectedHandle='pixel';if(categorical()&&assist().sequence!=='manual'&&!isPercentStack(p))nextTarget();});const field=document.querySelector('[data-i="'+selected+'"][data-key="'+(bar()?'value':lineCategoryAxis(p)==='y'?'x':'y')+'"]');field?.focus();field?.select();};
-$('deleteRow').onclick=()=>{if(selected<0)return;change(()=>{p.rows.splice(selected,1);p.evidence?.splice(selected,1);if(isPercentStack(p))pendingStart=null;selected=-1;},{form:isPie(p)});};
-$('undo').onclick=()=>{if(!history.length)return;future.push(clone(p));p=history.pop();selected=-1;pendingStart=null;selectHistogramRunTarget();refresh(true);};$('redo').onclick=()=>{if(!future.length)return;history.push(clone(p));p=future.pop();selected=-1;pendingStart=null;selectHistogramRunTarget();refresh(true);};
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&focusMode){e.preventDefault();exitFocus();return;}if(e.target.matches?.('input,textarea,select,[contenteditable=true]'))return;if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();$(e.shiftKey?'redo':'undo').click();}if(e.key==='Escape'){if(focusMode){exitFocus();return;}if(tool==='pie-angle'){cancelPieAngles();return;}pendingStart=null;setTool('select');}if(!isHeatmap(p)&&(!isBox(p)&&!isArea(p)&&!isHistogram(p)||tool==='select')&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)&&selected>=0&&p.evidence?.[selected]?.[selectedHandle]){e.preventDefault();const step=e.altKey?.1:e.shiftKey?10:1;const pt={...p.evidence[selected][selectedHandle]||p.evidence[selected].pixel};pt.x+=(e.key==='ArrowRight'?step:e.key==='ArrowLeft'?-step:0);pt.y+=(e.key==='ArrowDown'?step:e.key==='ArrowUp'?-step:0);change(()=>editHandle(selected,selectedHandle,constrainDrag(pt,selected,selectedHandle)));}});
+$('deleteRow').onclick=()=>{if(selected<0)return;change(()=>{const row=p.rows[selected];p.rows.splice(selected,1);p.evidence?.splice(selected,1);if(isRadar(p))recalculateRadar(p,categoryIdentity(row));if(isPercentStack(p))pendingStart=null;selected=-1;},{form:isPie(p)});};
+for(const button of document.querySelectorAll('[data-history-scope]')){
+  button.onclick=()=>{
+    const scope=button.dataset.historyScope;
+    navigateHistory(scope,button.dataset.historyAction==='redo');
+    activeShortcutScope=scope;
+  };
+}
+const canvasWrap=$('canvasWrap');
+const arrowOffsets={ArrowUp:[-1,0],ArrowDown:[1,0],ArrowLeft:[0,-1],ArrowRight:[0,1]};
+const calibrationTools=new Set(['calibrate','anchor','lock-x','radar-center','radar-anchor','radar-tick1',
+  'radar-tick2','heatmap-corners','heatmap-boundary','heatmap-color']);
+function canvasHistoryScope(){
+  return calibrationTools.has(tool)||tool==='pie-angle'&&!p.pieMeasurement?.center?'calibration':'data';
+}
+function shortcutScope(target){
+  if(!target.closest?.('.workspace'))return null;
+  if(target.closest('#axisFields,#calibrationPanel,#smoothAnchorList,[data-history-scope="calibration"],'+
+    '#radarControls button:not(#radarRetake):not(#radarStackControls button),#radarControls input,#radarCenterMode,'+
+    '#heatmapCorners,#heatmapBoundary,#heatmapClearGrid,#heatmapColorPoint,#heatmapColorPoints,#pickX,#pickCategory'))
+    return 'calibration';
+  if(target.closest('[data-history-scope="data"]'))return 'data';
+  if(target.closest('#canvasWrap,.canvas-toolbar'))return 'canvas';
+  return 'data';
+}
+for(const event of ['pointerdown','focusin'])document.addEventListener(event,e=>{
+  activeShortcutScope=shortcutScope(e.target);
+},true);
+
+function stopViewDrag(){
+  const pointer=viewDrag?.pointer;
+  viewDrag=null;
+  if(pointer!==undefined&&canvasWrap.hasPointerCapture(pointer))canvasWrap.releasePointerCapture(pointer);
+  canvasWrap.classList.remove('panning');
+}
+function resetTemporaryView(){
+  spaceHeld=false;
+  canvasWrap.classList.remove('pan-ready');
+  stopViewDrag();
+  if(hideAnnotations)setAnnotationsHidden(false);
+}
+function setAnnotationsHidden(hidden){
+  hideAnnotations=hidden;
+  $('cursorInfo').hidden=hidden;
+  if(hidden)$('magnifier').hidden=true;
+  draw();
+}
+canvasWrap.addEventListener('pointerdown',e=>{
+  if(!spaceHeld||!image||e.button!==0||drag)return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  canvas.focus({preventScroll:true});
+  viewDrag={pointer:e.pointerId,x:e.clientX,y:e.clientY,left:canvasWrap.scrollLeft,top:canvasWrap.scrollTop};
+  canvasWrap.classList.add('panning');
+  try{canvasWrap.setPointerCapture(e.pointerId);}catch{}
+},true);
+canvasWrap.addEventListener('pointermove',e=>{
+  if(viewDrag?.pointer!==e.pointerId)return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  canvasWrap.scrollLeft=viewDrag.left+viewDrag.x-e.clientX;
+  canvasWrap.scrollTop=viewDrag.top+viewDrag.y-e.clientY;
+},true);
+for(const event of ['pointerup','pointercancel','lostpointercapture'])canvasWrap.addEventListener(event,e=>{
+  if(viewDrag?.pointer!==e.pointerId)return;
+  e.stopImmediatePropagation();
+  stopViewDrag();
+},true);
+canvasWrap.addEventListener('wheel',e=>{
+  if(!image||!e.shiftKey||e.ctrlKey||e.metaKey||e.altKey||!e.deltaY)return;
+  e.preventDefault();
+  const rect=canvas.getBoundingClientRect(),old=zoom;
+  setZoom(zoom*(e.deltaY<0?1.3:1/1.3));
+  if(zoom!==old){
+    canvasWrap.scrollLeft+=(e.clientX-rect.left)*(zoom/old-1);
+    canvasWrap.scrollTop+=(e.clientY-rect.top)*(zoom/old-1);
+  }
+},{passive:false});
+
+function cycleMeasurementControl(id,step){
+  const select=$(id);
+  if(select.disabled||select.closest('[hidden]')||select.options.length<2)return false;
+  const next=(select.selectedIndex+step+select.options.length)%select.options.length;
+  select.selectedIndex=next;
+  select.onchange();
+  return true;
+}
+function cycleMeasurementItem(step){
+  if(tool==='calibrate'){
+    const ticks=requiredAxes(p).flatMap(axis=>[axis+'1',axis+'2']);
+    if(ticks.length<2)return false;
+    calTarget=ticks[(ticks.indexOf(calTarget)+step+ticks.length)%ticks.length];
+    setTool('calibrate');
+    return true;
+  }
+  if(isHistogram(p))return cycleMeasurementControl('histogramField',step);
+  if(isBox(p))return cycleMeasurementControl('boxField',step);
+  if(isPercentStack(p)){
+    const button=$('percentStackEndpoints').querySelector('[data-percent-endpoint="'+(percentStackEndpoint(assist())==='start'?'end':'start')+'"]');
+    if(button.disabled)return false;
+    button.click();
+    return true;
+  }
+  if(isArea(p)&&selected>=0){
+    setTool(tool==='area-upper'?'area-baseline':tool==='area-baseline'?'area-upper':step>0?'area-upper':'area-baseline');
+    return true;
+  }
+  if(hasErrors(p)&&!isStack(p)&&selected>=0&&(!isComposite(p)||compositeRole(p,identity(p.rows[selected]))==='bar')){
+    const modes=['select','lower','upper'],i=modes.indexOf(tool);
+    const next=modes[((i<0?0:i)+step+modes.length)%modes.length];
+    selectedHandle=next==='select'?'pixel':next+'Pixel';
+    setTool(next);
+    return true;
+  }
+  return false;
+}
+function selectAdjacentRecord(step){
+  if(isHeatmap(p)){
+    const index=selected<0?(step>0?0:p.heatmap.x.length*p.heatmap.y.length-1):selected+step;
+    if(heatmapCell(index))selectHeatmapCell(index);
+    return true;
+  }
+  if(!p.rows.length)return false;
+  const index=selected<0?(step>0?0:p.rows.length-1):selected+step;
+  $('tableBody').querySelector('[data-row="'+index+'"] td')?.click();
+  return true;
+}
+function nudgeSelectedPoint(key,step){
+  const point=p.evidence?.[selected]?.[selectedHandle];
+  if(!image||!point||isHeatmap(p)||((isBox(p)||isArea(p)||isHistogram(p))&&tool!=='select'))return false;
+  const [dy,dx]=arrowOffsets[key],next={x:point.x+dx*step,y:point.y+dy*step};
+  change(()=>editHandle(selected,selectedHandle,constrainDrag(next,selected,selectedHandle)));
+  return true;
+}
+function cancelMeasurement(){
+  if(drag){
+    const {before,edited}=drag;
+    drag=null;dragOrigin=null;
+    if(edited){p=before.project;restoreInteraction(before.interaction,'data');refresh(true);}
+    return true;
+  }
+  if(tool==='pie-angle'){
+    const draft=p.pieMeasurement;
+    if(draft?.boundaries.length){
+      change(()=>{draft.boundaries=[];draft.targets=[];setTool('select');});
+      return true;
+    }
+    if(!draft?.center&&draft?.centerPoints?.length){
+      calibrateChange(()=>{draft.centerPoints=[];setTool('select');});
+      return true;
+    }
+  }
+  if(tool==='radar-center'&&p.radar.centerPoints.length){
+    calibrateChange(()=>{p.radar.centerPoints=[];setTool('select');});
+    return true;
+  }
+  if(heatmapCapture&&(heatmapCapture.first||tool==='heatmap-boundary')){
+    calibrateChange(()=>setTool('select'));
+    return true;
+  }
+  const run=activeHistogramRun();
+  if(canvasHistoryScope()==='data'&&(pendingStart||percentStackHeightCapture||run?.pending?.[run.step])){
+    change(()=>{
+      pendingStart=null;
+      if(run?.pending?.[run.step])delete run.pending[run.step];
+      setTool('select');
+    });
+    return true;
+  }
+  if(focusMode){exitFocus();return true;}
+  if(tool!=='select'){setTool('select');return true;}
+  return false;
+}
+function confirmMeasurement(){
+  const button=tool==='pie-angle'?$('applyPieAngle'):isHeatmap(p)?$('heatmapAcceptEstimate'):null;
+  if(!button||button.disabled||button.closest('[hidden]'))return false;
+  button.click();
+  return true;
+}
+const nativeShortcutTarget=target=>target.closest?.('input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="textbox"]');
+document.addEventListener('keydown',e=>{
+  if(e.defaultPrevented||e.isComposing||nativeShortcutTarget(e.target)||
+      document.querySelector('dialog[open]'))return;
+  const scope=shortcutScope(e.target)??(e.target===document||e.target===document.body?activeShortcutScope:null);
+  if(!scope)return;
+  const key=e.key.toLowerCase(),arrow=Object.hasOwn(arrowOffsets,e.key);
+  const inCanvas=e.target===canvas||e.target===canvasWrap||e.target===document||e.target===document.body;
+  const inRecords=!!e.target.closest?.('.table-section,.measure-bar,.assist-panel');
+  let handled=false;
+  if((e.ctrlKey||e.metaKey)&&!e.altKey&&key==='z'){
+    const current=scope==='canvas'?canvasHistoryScope():scope;
+    navigateHistory(current,e.shiftKey);
+    handled=true;
+  }else if(arrow&&inCanvas&&(e.ctrlKey||e.altKey||e.shiftKey)&&!e.metaKey){
+    handled=nudgeSelectedPoint(e.key,e.altKey?0.1:e.shiftKey?10:1);
+  }else if(!e.altKey&&!e.ctrlKey&&!e.metaKey){
+    if(arrow&&(inCanvas||inRecords)){
+      if(e.key==='ArrowLeft'||e.key==='ArrowRight')handled=selectAdjacentRecord(e.key==='ArrowLeft'?-1:1);
+      else handled=cycleMeasurementControl('activeSeries',e.key==='ArrowUp'?-1:1);
+    }else if(key==='tab'&&inCanvas)handled=cycleMeasurementItem(e.shiftKey?-1:1);
+    else if(key==='escape')handled=cancelMeasurement();
+    else if(key==='delete'&&(inCanvas||inRecords)){
+      if(isHeatmap(p)&&heatmapCell(selected)){
+        $('heatmapClearCell').click();handled=true;
+      }else if(p.rows[selected]){
+        $('deleteRow').click();handled=true;
+      }
+    }
+    else if(key==='enter'&&inCanvas)handled=confirmMeasurement();
+    else if(key==='f'&&image){fit();handled=true;}
+    else if(key==='1'&&image){setZoom(1);handled=true;}
+    else if((key==='v'||key==='p')&&image){
+      const next=key==='v'?'select':isPie(p)?'pie-angle':'point';
+      setTool(next);
+      canvas.focus({preventScroll:true});
+      handled=true;
+    }else if(e.code==='Space'&&image&&inCanvas&&!drag){
+      spaceHeld=true;
+      canvasWrap.classList.add('pan-ready');
+      handled=true;
+    }else if(key==='h'&&image){if(!hideAnnotations)setAnnotationsHidden(true);handled=true;}
+  }
+  if(handled)e.preventDefault();
+});
+document.addEventListener('keyup',e=>{
+  if(e.code==='Space'&&spaceHeld){spaceHeld=false;canvasWrap.classList.remove('pan-ready');stopViewDrag();}
+  if(e.key.toLowerCase()==='h'&&hideAnnotations)setAnnotationsHidden(false);
+});
+window.addEventListener('blur',resetTemporaryView);
+$('shortcutHelp').onclick=()=>$('shortcutDialog').showModal();
 function setZoom(z){zoom=Math.max(.08,Math.min(8,z));draw();}function fit(){if(image)setZoom(Math.min(($('canvasWrap').clientWidth-20)/image.width,($('canvasWrap').clientHeight-20)/image.height,1));}
-$('zoomIn').onclick=()=>setZoom(zoom*1.3);$('zoomOut').onclick=()=>setZoom(zoom/1.3);$('fit').onclick=fit;$('overlay').onchange=draw;$('connect').onchange=draw;
+$('zoomActual').onclick=()=>setZoom(1);$('zoomIn').onclick=()=>setZoom(zoom*1.3);$('zoomOut').onclick=()=>setZoom(zoom/1.3);$('fit').onclick=fit;$('overlay').onchange=draw;$('connect').onchange=draw;
 function readFile(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file);});}
 async function loadImage(data){const version=++imageLoadVersion;return new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>{if(version!==imageLoadVersion){resolve();return;}image=img;imageData=data;$('empty').style.display='none';fit();resolve();};img.onerror=()=>reject(Error('无法读取图像'));img.src=data;});}
 function visibleQueue(){return queue.filter(q=>(q.projectId??null)===currentProjectId);}
 function projectName(){return projects.find(q=>q.id===currentProjectId)?.name||'无项目';}
 function queueUI(){const items=visibleQueue().map(q=>q.id===activeId?{...q,project:p}:q);$('queue').innerHTML=items.map(q=>`<button class="${q.id===activeId?'active':''}" data-queue="${esc(q.id)}" title="${esc(q.name)}">${q.project.reviewed?'✓ ':hasRows(q.project)?'◐ ':'○ '}${esc(q.name)}</button>`).join('');options($('projectSelect'),[["",'无项目'],...projects.map(q=>[q.id,q.name])],currentProjectId||'');options($('moveProject'),[["",'无项目'],...projects.map(q=>[q.id,q.name])],currentProjectId||'');$('moveProjectLabel').hidden=!activeId;$('queueSummary').textContent=projectName()+' · '+items.length+' 张图 / '+items.filter(q=>q.project.reviewed).length+' 张已核对';$('renameProject').disabled=!currentProjectId;$('deleteProject').disabled=!currentProjectId;$('removeImage').disabled=!activeId;}
 function stash(){let q=queue.find(q=>q.id===activeId);if(!q&&(imageData||hasRows(p))){activeId=crypto.randomUUID();q={id:activeId,projectId:currentProjectId,name:fileName||'未命名图表',image:imageData,project:clone(p)};queue.push(q);}if(q){q.project=clone(p);q.image=imageData;}}
-function resetCurrent(){imageLoadVersion++;activationVersion++;p=fresh(p.kind+(hasErrors(p)&&!isStack(p)&&!isComposite(p)?'_error':''),p.xType,p.yType);image=null;imageData=null;fileName='';activeId=null;selected=-1;hover=null;pendingStart=null;drag=null;history=[];future=[];$('empty').style.display='flex';$('fileName').textContent='从一张图开始';$('magnifier').hidden=true;$('cursorInfo').textContent='原始像素坐标';setTool('select');refresh(true);queueUI();}
+function resetCurrent(){imageLoadVersion++;activationVersion++;p=fresh(p.kind+(hasErrors(p)&&!isStack(p)&&!isComposite(p)?'_error':''),p.xType,p.yType);image=null;imageData=null;fileName='';activeId=null;selected=-1;hover=null;pendingStart=null;drag=null;clearAnnotationHistory();resetTemporaryView();$('empty').style.display='flex';$('fileName').textContent='从一张图开始';$('magnifier').hidden=true;$('cursorInfo').textContent='原始像素坐标';setTool('select');refresh(true);queueUI();}
 function decodeImage(data){return new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=()=>reject(Error('无法读取图像'));img.src=data;});}
 // Decode before replacing live state; failed or superseded selections must not damage annotations.
-async function activate(id){const version=++activationVersion;stash();const q=queue.find(q=>q.id===id);if(!q)throw Error('图像不存在');const nextImage=q.image?await decodeImage(q.image):null;if(version!==activationVersion||!queue.includes(q))return;stash();imageLoadVersion++;activeId=id;currentProjectId=q.projectId??null;p=restoreHistogramBins(ensureIdentities(clone(q.project)));fileName=q.name;image=nextImage;imageData=q.image||null;hover=null;pendingStart=null;drag=null;$('fileName').textContent=fileName;history=[];future=[];selected=-1;$('empty').style.display=image?'none':'flex';if(image)fit();refresh(true);queueUI();resumeTool();}
+async function activate(id){const version=++activationVersion;stash();const q=queue.find(q=>q.id===id);if(!q)throw Error('图像不存在');const nextImage=q.image?await decodeImage(q.image):null;if(version!==activationVersion||!queue.includes(q))return;stash();imageLoadVersion++;activeId=id;currentProjectId=q.projectId??null;p=restoreHistogramBins(ensureIdentities(clone(q.project)));fileName=q.name;image=nextImage;imageData=q.image||null;hover=null;pendingStart=null;drag=null;$('fileName').textContent=fileName;clearAnnotationHistory();resetTemporaryView();selected=-1;$('empty').style.display=image?'none':'flex';if(image)fit();refresh(true);queueUI();resumeTool();}
 async function selectProject(id){stash();const destination=id||null,first=queue.find(q=>(q.projectId??null)===destination);if(first)await activate(first.id);else{currentProjectId=destination;resetCurrent();}}
 async function importImages(files){stash();const supported=[...files].filter(f=>/^image\/(png|jpeg|webp)$/.test(f.type)||/\.(png|jpe?g|webp)$/i.test(f.name)),ordered=supported.sort((a,b)=>(a.webkitRelativePath||a.relativePath||a.name).localeCompare(b.webkitRelativePath||b.relativePath||b.name,'zh-CN',{numeric:true}));let first=null,failed=0;const destination=currentProjectId,kind=p.kind+(hasErrors(p)&&!isStack(p)&&!isComposite(p)?'_error':''),xType=p.xType,yType=p.yType;for(const f of ordered){try{const data=await readFile(f);await new Promise((resolve,reject)=>{const im=new Image();im.onload=resolve;im.onerror=reject;im.src=data;});const id=crypto.randomUUID();queue.push({id,projectId:destination,name:f.webkitRelativePath||f.relativePath||f.name,image:data,project:fresh(kind,xType,yType)});first??=id;}catch{failed++;}}if(first&&destination===currentProjectId)await activate(first);queueUI();toast('已导入 '+(ordered.length-failed)+' 张图'+(failed?'；'+failed+' 张无法读取':'')+'；跳过 '+(files.length-supported.length)+' 个非支持文件');}
 for(const id of ['imageInput','folderInput'])$(id).onchange=async e=>{try{await importImages([...e.target.files]);}catch(err){toast(err.message);}finally{e.target.value='';}};
@@ -4513,12 +5344,12 @@ $('exportTables').onclick=async()=>{
     downloadBlob(stem+'.tables.zip',new Blob([zipBytes(tableFiles(lastSpec,stem))],{type:'application/zip'}));
   }catch(error){toast(error.message);}
 };
-$('batchExport').onclick=async()=>{stash();const items=visibleQueue();if(!items.length){toast('当前项目还没有图像');return;}const report=[],entries=[],names=new Set();for(const q of items){let reason='',spec,tables;try{if(!q.project.reviewed)throw Error('尚未核对');spec=makeSpec(q.project);window.vega.parse(window.vegaLite.compile(spec).spec);tables=tableFiles(spec,'tables');}catch(e){reason=e.message;}let name=safeExportName(q.name);for(let n=2;names.has(name);n++)name=safeExportName(q.name).replace(/\.gt\.json$/,'-'+n+'.gt.json');if(!reason){names.add(name);if($('withSchema').checked)spec.$schema='https://vega.github.io/schema/vega-lite/v6.json';entries.push({name:'gt/'+name,text:JSON.stringify(spec,null,2)},...tables.map(t=>({...t,name:'tables/'+name.slice(0,-8)+'/'+t.name.slice(7)})));}report.push({image:q.name,id:q.id,status:reason?'skipped':'exported',file:reason?null:'gt/'+name,reason:reason||null});}entries.push({name:'export-report.json',text:JSON.stringify({project:projectName(),exported:names.size,skipped:report.filter(q=>q.status==='skipped').length,images:report},null,2)});downloadBlob(projectName().replace(/[<>:"/\\|?*]/g,'_')+'.gt.zip',new Blob([zipBytes(entries)],{type:'application/zip'}));toast('批量导出 '+names.size+' 张；跳过 '+report.filter(q=>q.status==='skipped').length+' 张（原因见 ZIP 内清单）');queueUI();};
+$('batchExport').onclick=async()=>{stash();const items=visibleQueue();if(!items.length){toast('当前项目还没有图像');return;}const report=[],entries=[],names=new Set();for(const q of items){let reason='',spec,tables;try{if(!q.project.reviewed)throw Error('尚未核对');spec=makeSpec(q.project);window.vega.parse(radarGT(spec)?radarPreview(spec,q.project):(smoothGT(spec)?compileStudioVega(renderSpec(spec,q.project),window.vegaLite):window.vegaLite.compile(spec).spec));tables=tableFiles(spec,'tables');}catch(e){reason=e.message;}let name=safeExportName(q.name);for(let n=2;names.has(name);n++)name=safeExportName(q.name).replace(/\.gt\.json$/,'-'+n+'.gt.json');if(!reason){names.add(name);if($('withSchema').checked)spec.$schema='https://vega.github.io/schema/vega-lite/v6.json';entries.push({name:'gt/'+name,text:JSON.stringify(spec,null,2)},...tables.map(t=>({...t,name:'tables/'+name.slice(0,-8)+'/'+t.name.slice(7)})));}report.push({image:q.name,id:q.id,status:reason?'skipped':'exported',file:reason?null:'gt/'+name,reason:reason||null});}entries.push({name:'export-report.json',text:JSON.stringify({project:projectName(),exported:names.size,skipped:report.filter(q=>q.status==='skipped').length,images:report},null,2)});downloadBlob(projectName().replace(/[<>:"/\\|?*]/g,'_')+'.gt.zip',new Blob([zipBytes(entries)],{type:'application/zip'}));toast('批量导出 '+names.size+' 张；跳过 '+report.filter(q=>q.status==='skipped').length+' 张（原因见 ZIP 内清单）');queueUI();};
 $('copyGT').onclick=async()=>{if(!lastSpec){toast('暂无有效 GT');return;}try{await navigator.clipboard.writeText(JSON.stringify(lastSpec,null,2));toast('JSON 已复制');}catch{toast('无法访问剪贴板，请使用导出 GT');}};
 $('openProject').onclick=()=>$('projectInput').click();$('importSpec').onclick=()=>$('specInput').click();
-async function restore(data){if(data.format!=='chart-studio-project'||![1,2].includes(data.version)||!data.current?.project||!Array.isArray(data.queue))throw Error('不是受支持的 Chart Studio 工程');const all=[data.current.project,...data.queue.map(q=>q.project)];for(const item of all){if(!labels[item.kind]||!Array.isArray(item.rows)||!item.axes?.x||!item.axes?.y||!Array.isArray(item.series))throw Error('工程结构不完整');if(isHeatmap(item))checkHeatmapProject(item);}const nextProjects=data.version===2?data.projects||[]:[];if(!Array.isArray(nextProjects)||nextProjects.some(q=>!q.id||typeof q.name!=='string')||new Set(nextProjects.map(q=>q.id)).size!==nextProjects.length)throw Error('项目列表无效');if(new Set(data.queue.map(q=>q.id)).size!==data.queue.length||data.queue.some(q=>typeof q.id!=='string'))throw Error('图像列表 ID 无效');const projectIds=new Set(nextProjects.map(q=>q.id));const active=data.queue.find(q=>q.id===data.activeId);if(data.activeId&&!active)throw Error('当前图像 ID 不存在');if(data.version===2&&active&&(active.projectId??null)!==(data.currentProjectId||null))throw Error('当前图像与所选项目不一致');if(data.version===2&&(data.currentProjectId&&!projectIds.has(data.currentProjectId)||data.queue.some(q=>q.projectId&&!projectIds.has(q.projectId))))throw Error('图像所属项目不存在');if(data.current.image)await new Promise((resolve,reject)=>{const im=new Image();im.onload=resolve;im.onerror=()=>reject(Error('工程原图无法读取'));im.src=data.current.image;});activationVersion++;queue=clone(data.queue);for(const q of queue){restoreHistogramBins(ensureIdentities(q.project));}projects=clone(nextProjects);currentProjectId=data.version===2?data.currentProjectId||null:null;activeId=data.activeId;p=restoreHistogramBins(ensureIdentities(clone(data.current.project)));p.errorBars=hasErrors(p);imageData=data.current.image;fileName=data.current.name||'';image=null;hover=null;pendingStart=null;drag=null;history=[];future=[];selected=-1;if(imageData)await loadImage(imageData);else{$('empty').style.display='flex';$('magnifier').hidden=true;draw();}$('fileName').textContent=fileName||'未命名工程';queueUI();refresh(true);resumeTool();}
+async function restore(data){if(data.format!=='chart-studio-project'||![1,2].includes(data.version)||!data.current?.project||!Array.isArray(data.queue))throw Error('不是受支持的 Chart Studio 工程');const all=[data.current.project,...data.queue.map(q=>q.project)];for(const item of all){if(item?.kind==='radar_stack')migrateRadarProject(item);if(!labels[item.kind]||!Array.isArray(item.rows)||!item.axes?.x||!item.axes?.y||!Array.isArray(item.series))throw Error('工程结构不完整');if(isHeatmap(item))checkHeatmapProject(item);if(isRadar(item))checkRadarProject(item);}const nextProjects=data.version===2?data.projects||[]:[];if(!Array.isArray(nextProjects)||nextProjects.some(q=>!q.id||typeof q.name!=='string')||new Set(nextProjects.map(q=>q.id)).size!==nextProjects.length)throw Error('项目列表无效');if(new Set(data.queue.map(q=>q.id)).size!==data.queue.length||data.queue.some(q=>typeof q.id!=='string'))throw Error('图像列表 ID 无效');const projectIds=new Set(nextProjects.map(q=>q.id));const active=data.queue.find(q=>q.id===data.activeId);if(data.activeId&&!active)throw Error('当前图像 ID 不存在');if(data.version===2&&active&&(active.projectId??null)!==(data.currentProjectId||null))throw Error('当前图像与所选项目不一致');if(data.version===2&&(data.currentProjectId&&!projectIds.has(data.currentProjectId)||data.queue.some(q=>q.projectId&&!projectIds.has(q.projectId))))throw Error('图像所属项目不存在');if(data.current.image)await new Promise((resolve,reject)=>{const im=new Image();im.onload=resolve;im.onerror=()=>reject(Error('工程原图无法读取'));im.src=data.current.image;});activationVersion++;queue=clone(data.queue);for(const q of queue){preserveLegacyHeatmapIntervals(q.project);restoreHistogramBins(ensureIdentities(q.project));}projects=clone(nextProjects);currentProjectId=data.version===2?data.currentProjectId||null:null;activeId=data.activeId;p=restoreHistogramBins(ensureIdentities(clone(data.current.project)));preserveLegacyHeatmapIntervals(p);p.errorBars=hasErrors(p);imageData=data.current.image;fileName=data.current.name||'';image=null;hover=null;pendingStart=null;drag=null;clearAnnotationHistory();resetTemporaryView();selected=-1;if(imageData)await loadImage(imageData);else{$('empty').style.display='flex';$('magnifier').hidden=true;draw();}$('fileName').textContent=fileName||'未命名工程';queueUI();refresh(true);resumeTool();}
 $('projectInput').onchange=async e=>{try{await restore(JSON.parse(await e.target.files[0].text()));toast('工程已恢复');}catch(err){toast('打开失败：'+err.message);}e.target.value='';};
-$('specInput').onchange=async e=>{try{const next=importSpec(JSON.parse(await e.target.files[0].text()),p.kind);next.errorBars=hasErrors(next);change(()=>{keepOtherAreaMode(p,next);keepOtherLineModes(p,next);p={...next,evidence:next.rows.map(()=>({role:'transcribed',source:'imported_gt',...(isPercentStack(next)?{valueOverride:true}:{})})),reviewed:false};for(const a of Object.values(p.axes))a.calibrated=false;selected=-1;},{form:true});setTool('select');toast('GT 已导入；像素证据需重新标注');}catch(err){toast('导入失败：'+err.message);}e.target.value='';};
+$('specInput').onchange=async e=>{try{const next=importSpec(JSON.parse(await e.target.files[0].text()),p.kind);next.errorBars=hasErrors(next);change(()=>{keepOtherAreaMode(p,next);keepOtherLineModes(p,next);p={...next,evidence:next.rows.map(()=>({role:'transcribed',source:'imported_gt',...(isPercentStack(next)?{valueOverride:true}:{})})),reviewed:false};for(const a of Object.values(p.axes))a.calibrated=false;selected=-1;},{form:true,resetHistory:true});setTool('select');toast('GT 已导入；像素证据需重新标注');}catch(err){toast('导入失败：'+err.message);}e.target.value='';};
 function db(){return new Promise((resolve,reject)=>{const r=indexedDB.open('chart-studio',1);r.onupgradeneeded=()=>r.result.createObjectStore('drafts');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});}
 async function saveDraft(){try{const database=await db();const tx=database.transaction('drafts','readwrite');tx.objectStore('drafts').put(bundle(),'workspace');tx.oncomplete=()=>{$('saveState').textContent='已保存到当前浏览器 · '+new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});database.close();};tx.onerror=()=>{$('saveState').textContent='草稿保存失败，请导出工程';database.close();};}catch{$('saveState').textContent='本地存储不可用，请导出工程';}}
 async function restoreDraft(){try{const database=await db();const req=database.transaction('drafts').objectStore('drafts').get('workspace');req.onsuccess=async()=>{database.close();if(req.result)try{await restore(req.result);toast('已恢复本浏览器上次草稿');}catch(err){toast('旧草稿无法恢复：'+err.message);}};}catch{}}
@@ -4528,6 +5359,7 @@ const c=document.createElement('canvas');c.width=640;c.height=460;const g=c.getC
 async function enterFocus(){if(focusMode)return;focusZoom=zoom;focusMode=true;document.body.classList.add('focus-mode');$('focusToggle').textContent='退出全屏 · Esc';try{if(document.querySelector('.workspace').requestFullscreen)await document.querySelector('.workspace').requestFullscreen();}catch{/* CSS focus view works if native fullscreen is unavailable. */}requestAnimationFrame(fit);}
 function exitFocus(){if(!focusMode)return;focusMode=false;document.body.classList.remove('focus-mode');$('focusToggle').textContent='全屏标注 ⛶';if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});requestAnimationFrame(()=>setZoom(focusZoom));}
 $('focusReview').onclick=()=>{exitFocus();requestAnimationFrame(()=>document.querySelector('.review').scrollIntoView({behavior:'smooth'}));};$('focusToggle').onclick=()=>focusMode?exitFocus():enterFocus();document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&focusMode)exitFocus();});window.addEventListener('resize',()=>{if(focusMode)fit();});
+bindRadarTools();bindSmoothTools();
 window.addEventListener('error',e=>toast(e.message));syncForm();table();render();restoreDraft();
 // Read-only diagnostic snapshot for reproducible browser checks.
-window.chartStudio={snapshot:()=>clone({projects,currentProjectId,queue,focusMode,project:p,selected,tool,selectedHandle,projectionInfo,renderOk,lastSpec,imageSize:image?{width:image.width,height:image.height}:null}),get bundle(){return bundle();}};
+window.chartStudio={snapshot:()=>clone({projects,currentProjectId,queue,focusMode,project:p,selected,tool,selectedHandle,pendingStart,heatmapCapture,percentStackHeightCapture,projectionInfo,renderOk,lastSpec,imageSize:image?{width:image.width,height:image.height}:null}),get bundle(){return bundle();}};

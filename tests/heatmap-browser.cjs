@@ -227,7 +227,7 @@ async function run(){
     const source=await sourceImage(page,examples.discrete,{override:{0:[20,235,55]}});
     await load('#imageInput',source.buffer,'manual.png');
     assert.deepEqual(await page.locator('#family option').allTextContents(),
-      ['柱线复合图','柱状图','折线图','散点图','热力图','直方图','面积图','饼图','箱线图']);
+      ['柱线复合图','柱状图','折线图','散点图','热力图','直方图','面积图','饼图','雷达图','箱线图']);
     await page.selectOption('#kind','heatmap_cc');
     assert.equal(await page.locator('#kind option').count(),4);
     await page.selectOption('#kind','heatmap_dd');
@@ -346,7 +346,7 @@ async function run(){
     await page.waitForFunction(()=>chartStudio.snapshot().lastSpec?.data.values[0].x2>0&&chartStudio.snapshot().lastSpec.data.values[0].x2<.004);
     const small=(await snapshot()).lastSpec.data.values;assert(small[0].x2>small[0].x&&small[1].x2>small[1].x);
     await edit('[data-axis="x"][data-field="v1"]',10000);await edit(xEnd,10000.004);
-    await waitIssue('当前图像精度下起止值相同');
+    await waitIssue('Precision V2 舍入后起止值相同');
     await edit('[data-axis="x"][data-field="v1"]',v1);await edit(xEnd,24.123456);
     const manualStart='[data-hm-axis="x"][data-hm-index="0"][data-hm-field="start"]';
     await edit(manualStart,-.123456789);
@@ -368,17 +368,18 @@ async function run(){
       await clickPixel(plot.x[1]-10,plot.y[1]-10);
       assert.equal((await snapshot()).selected,3);
       await page.locator('#canvas').press('ArrowUp');
-      assert.equal((await snapshot()).selected,1);
+      assert.equal((await snapshot()).selected,3,'heatmaps have no series to switch');
+      await page.locator('#canvas').press('ArrowLeft');
+      assert.equal((await snapshot()).selected,2);
+      await page.locator('#canvas').press('ArrowRight');
+      assert.equal((await snapshot()).selected,3);
       await page.locator(cell(0)).fill('0.123456789012');
-      await page.locator(cell(0)).press('ArrowDown');await cellFocus(2);
+      await page.locator(cell(0)).press('ArrowDown');await cellFocus(0);
+      await page.locator(cell(0)).press('Home');
+      await page.locator(cell(0)).press('ArrowRight');await cellFocus(0);
+      assert.equal(await page.locator(cell(0)).evaluate(input=>input.selectionStart),1);
+      await page.locator(cell(0)).press('Enter');await cellFocus(1);
       assert.equal((await record(0)).row.value,.123456789012);
-      await page.locator(cell(2)).press('ArrowLeft');await cellFocus(2);
-      await page.locator(cell(2)).press('ArrowRight');await cellFocus(3);
-      await page.locator(cell(3)).press('ArrowDown');await cellFocus(3);
-      await page.locator(cell(3)).press('ArrowUp');await cellFocus(1);
-      await page.locator(cell(1)).press('ArrowRight');await cellFocus(1);
-      await page.locator(cell(1)).press('ArrowLeft');await cellFocus(0);
-      await page.locator(cell(0)).press('ArrowUp');await cellFocus(0);
 
       const axes=await page.locator('#axisFields [data-field="v1"]').evaluateAll(inputs=>inputs.map(input=>input.dataset.axis));
       for(const axis of ['x','y']){
@@ -393,6 +394,8 @@ async function run(){
           for(let i=0;i<2;i++)await edit('[data-hm-axis="'+axis+'"][data-hm-index="'+i+'"][data-hm-field="label"]',axis+i);
         }
       }
+      await page.locator('#canvas').press('ArrowLeft');
+      assert.equal((await snapshot()).selected,0,'matrix paste starts at the selected origin cell');
       await page.fill('#heatmapPaste','0,1\n2,3');await page.click('#heatmapApplyPaste');
       await page.waitForFunction(()=>window.chartStudio.snapshot().renderOk&&window.chartStudio.snapshot().lastSpec.data.values.length===4);
       for(const axis of axes){

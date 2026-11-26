@@ -7,7 +7,7 @@ const vm=require('node:vm');
 const root=path.resolve(__dirname,'..');
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const scripts=[...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].map(m=>m[1]);
-const app=scripts.find(s=>s.includes('function makeAreaSpec(p)'));
+const app=html.match(/<script type="module">([\s\S]*?)<\/script>/)[1];
 const ctx=vm.createContext({console,setTimeout,clearTimeout,performance,structuredClone});
 for(const script of scripts.filter(s=>s.includes('.vega={}')||s.includes('.vegaLite={}'))){
   vm.runInContext(script,ctx);

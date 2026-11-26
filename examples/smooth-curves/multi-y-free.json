@@ -1,0 +1,107 @@
+{
+  "data": {
+    "values": [
+      {
+        "y": "A",
+        "y_id": 0,
+        "x": 20,
+        "series": "S1"
+      },
+      {
+        "y": null,
+        "y_id": 0.25,
+        "x": 55,
+        "series": "S1"
+      },
+      {
+        "y": null,
+        "y_id": 0.5,
+        "x": 80,
+        "series": "S1"
+      },
+      {
+        "y": null,
+        "y_id": 0.75,
+        "x": 55,
+        "series": "S1"
+      },
+      {
+        "y": "B",
+        "y_id": 1,
+        "x": 30,
+        "series": "S1"
+      },
+      {
+        "y": null,
+        "y_id": 1.5,
+        "x": 10,
+        "series": "S1"
+      },
+      {
+        "y": null,
+        "y_id": 1.75,
+        "x": 40,
+        "series": "S1"
+      },
+      {
+        "y": "C",
+        "y_id": 2.5,
+        "x": 65,
+        "series": "S1"
+      },
+      {
+        "y": "A",
+        "y_id": 0,
+        "x": 30,
+        "series": "S2"
+      },
+      {
+        "y": null,
+        "y_id": 0.4,
+        "x": 50,
+        "series": "S2"
+      },
+      {
+        "y": null,
+        "y_id": 1.2,
+        "x": 18,
+        "series": "S2"
+      },
+      {
+        "y": "C",
+        "y_id": 2.5,
+        "x": 60,
+        "series": "S2"
+      }
+    ]
+  },
+  "mark": {
+    "type": "line",
+    "interpolate": "monotone"
+  },
+  "encoding": {
+    "x": {
+      "field": "x",
+      "type": "quantitative"
+    },
+    "y": {
+      "field": "y_id",
+      "type": "quantitative"
+    },
+    "color": {
+      "field": "series",
+      "type": "nominal",
+      "sort": null
+    }
+  },
+  "usermeta": {
+    "table_export": {
+      "tables": [
+        {
+          "id": "data",
+          "path": "/data/values"
+        }
+      ]
+    }
+  }
+}

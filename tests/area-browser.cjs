@@ -109,7 +109,7 @@ async function run(){
     assertMeasurementPrecision(measuredBeforeEdit);
     await page.click('[data-tool="select"]');
     await page.locator('#tableBody tr[data-row="0"] td').first().click();
-    await page.locator('#canvas').press('ArrowUp');
+    await page.locator('#canvas').press('Control+ArrowUp');
     assert.equal((await snapshot()).project.evidence[0].pixel.y,measuredBeforeEdit.evidence[0].pixel.y-1);
     assertMeasurementPrecision((await snapshot()).project);
     await page.click('[data-tool="area-baseline"]');
@@ -249,7 +249,7 @@ async function run(){
     assert.equal(captured.evidence[2].pixel.x,locked.fixedXPixel);
     assertMeasurementPrecision(captured);
     assert.deepEqual(errors,[]);
-    console.log('Quantitative browser capture: Precision V1 measurements and consecutive X anchors');
+    console.log('Quantitative browser capture: Precision V2 measurements and consecutive X anchors');
   }finally{await browser.close();}
 }
 

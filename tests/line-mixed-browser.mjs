@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {runInPage} from './browser-runner.mjs';
-import fixtures from './precision-v1-fixtures.cjs';
+import fixtures from './precision-v2-fixtures.cjs';
 import reference from './precision-reference.cjs';
 const {app,plain,mixedLine}=fixtures;
 const cases=[];
@@ -32,8 +32,8 @@ const task=async(cases,fresh)=>{
   edit('sequence','manual');edit('activeCategory',categories[0].key);edit('activeSeries',p.series[0].key);document.querySelector('[data-tool="point"]').click();point(200,200);
   edit('activeSeries',p.series[1].key);document.querySelector('[data-tool="point"]').click();point(220,220);await wait(()=>state().renderOk);
   const measured=state().project;ok(measured.rows.length===2,'two actual mixed-axis measurements');ok(measured.evidence[0].pixel[axis]===measured.evidence[1].pixel[axis],'series share the original-pixel category anchor');
-  for(let i=0;i<2;i++)ok(measured.rows[i][numeric]===measurement(measured.evidence[i].pixel[numeric],measured.axes[numeric]),'pixel measurement follows Precision V1');
-  document.querySelector('[data-tool="select"]').click();$('canvas').dispatchEvent(new KeyboardEvent('keydown',{key:axis==='x'?'ArrowUp':'ArrowRight',bubbles:true}));const nudged=state().project;ok(nudged.rows[1][numeric]!==measured.rows[1][numeric]&&nudged.evidence[1].pixel[axis]===measured.evidence[1].pixel[axis],'keyboard nudge changes only continuous coordinate');$('undo').click();ok(JSON.stringify(state().project.rows)===JSON.stringify(measured.rows),'undo restores exact measurements');
+  for(let i=0;i<2;i++)ok(measured.rows[i][numeric]===measurement(measured.evidence[i].pixel[numeric],measured.axes[numeric]),'pixel measurement follows Precision V2');
+  document.querySelector('[data-tool="select"]').click();$('canvas').dispatchEvent(new KeyboardEvent('keydown',{key:axis==='x'?'ArrowUp':'ArrowRight',ctrlKey:true,bubbles:true}));const nudged=state().project;ok(nudged.rows[1][numeric]!==measured.rows[1][numeric]&&nudged.evidence[1].pixel[axis]===measured.evidence[1].pixel[axis],'keyboard nudge changes only continuous coordinate');$('undo').click();ok(JSON.stringify(state().project.rows)===JSON.stringify(measured.rows),'undo restores exact measurements');
   const saved=state().project;edit(axis+'Type','quantitative');ok(JSON.stringify(state().project.rows)===JSON.stringify(original.rows)&&JSON.stringify(state().project.axes)===JSON.stringify(original.axes),'continuous mode restores typed values and calibration');edit(axis+'Type','nominal');ok(JSON.stringify(state().project.rows)===JSON.stringify(saved.rows)&&JSON.stringify(state().project.assist.categoryPixels)===JSON.stringify(saved.assist.categoryPixels),'discrete mode restores data and anchors');
   const backup=chartStudio.bundle;await load('projectInput',backup);ok(JSON.stringify(state().project.rows)===JSON.stringify(saved.rows)&&JSON.stringify(state().project.lineModes)===JSON.stringify(saved.lineModes),'project backup restores inactive modes');
  }

@@ -265,7 +265,7 @@ async function run(){
 
       await tool('select');
       await page.locator(cell(0,'value')).click();
-      await page.locator('#canvas').press(horizontal?'ArrowRight':'ArrowUp');
+      await page.locator('#canvas').press(horizontal?'Control+ArrowRight':'Control+ArrowUp');
       assert.notEqual((await project()).rows[0].value,row.value);
       await page.click('#undo');
       assert.equal((await project()).rows[0].value,row.value);

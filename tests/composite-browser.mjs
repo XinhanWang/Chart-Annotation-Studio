@@ -32,14 +32,17 @@ const task=async()=>{
  axisValue('r','v2',2000);await wait();state=snap();
  ok(state.project.rows[0].value===50&&state.project.rows[1].value===1000,'right-axis recalibration leaves left-axis values unchanged');
  ok(Math.abs(state.project.evidence[1].pixel.y-225)<1e-8,'recalibration preserves original pixel evidence');
- $('undo').click();await wait();ok(snap().project.rows[1].value===500,'calibration change is undoable');$('redo').click();await wait();
+ $('undoCalibration').click();await wait();
+ ok(snap().project.rows[1].value===500&&snap().project.rows[0].value===50&&snap().project.axes.r.v2===1000,'right-axis calibration is undone independently');
+ $('redoCalibration').click();await wait();
+ ok(snap().project.rows[1].value===1000&&snap().project.rows[0].value===50,'calibration redo changes only its measured series');
  // Table edit clears only edited row evidence under existing rules.
  const edit=document.querySelector('[data-i="1"][data-key="value"]');edit.value='123.4567890123';edit.dispatchEvent(new Event('change',{bubbles:true}));await wait();
  ok(snap().project.rows[1].value===123.4567890123&&!snap().project.evidence[1].pixel,'manual line edits preserve precision and detach pixel evidence');
  $('undo').click();await wait();
  // Existing selector/drag/keyboard edits use the row axis, not the current series.
  document.querySelector('[data-tool="select"]').click();document.querySelector('[data-i="1"][data-key="value"]').click();
- $('canvas').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowUp',bubbles:true}));await wait();
+ $('canvas').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowUp',ctrlKey:true,bubbles:true}));await wait();
  ok(snap().project.rows[1].value>1000&&snap().project.rows[0].value===50,'line keyboard nudge uses the right Y calibration');
  const backup=chartStudio.bundle,upload=async data=>{const dt=new DataTransfer();dt.items.add(new File([JSON.stringify(data)],'composite.project.json',{type:'application/json'}));$('projectInput').files=dt.files;await $('projectInput').onchange({target:$('projectInput')});await wait();};
  await upload(backup);ok(snap().project.dualYAxis&&snap().project.series[1].role==='line'&&snap().project.axes.r.calibrated,'workspace backup/restore retains roles, right-axis calibration and pixels');
