@@ -37,7 +37,7 @@ const task = async () => {
     let p=chartStudio.snapshot().project;
     ok(p.evidence[0].pixel.x===170&&p.evidence[0].lowerPixel.x===170&&p.evidence[0].upperPixel.x===170,'vertical value drag keeps both error endpoints centered');
     ok(Math.abs(p.rows[0].lower-10)<1e-7&&Math.abs(p.rows[0].upper-30)<1e-7,'cross-axis drag preserves numeric uncertainty bounds');
-    document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));
+    document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',ctrlKey:true,bubbles:true}));
     p=chartStudio.snapshot().project;
     ok(p.evidence[0].pixel.x===171&&p.evidence[0].upperPixel.x===171,'keyboard nudge also centers error endpoints');
     $('undo').click(); p=chartStudio.snapshot().project;
@@ -70,7 +70,9 @@ const task = async () => {
       ok(chartStudio.snapshot().focusMode,'focus remains usable when native fullscreen is unavailable');
       const input=document.querySelector('[data-axis]');
       input.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); await wait();
-      ok(!chartStudio.snapshot().focusMode,'Escape exits CSS focus mode even when a numeric input has focus');
+      ok(chartStudio.snapshot().focusMode,'editing a numeric input does not activate shared shortcuts');
+      $('canvas').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await wait();
+      ok(!chartStudio.snapshot().focusMode,'Escape exits CSS focus mode from the canvas');
     } finally { workspace.requestFullscreen=nativeFullscreen; }
     // A real iframe supplies distinct CSS viewports without changing the user's browser window.
     frame=document.createElement('iframe');
@@ -91,7 +93,7 @@ const task = async () => {
       const source=d.getElementById('canvasWrap').getBoundingClientRect(),dock=d.querySelector('.lens-dock').getBoundingClientRect();
       ok(source.right<=dock.left+1||source.bottom<=dock.top+1||dock.bottom<=source.top+1,width+'px: focus magnifier never overlaps the source canvas');
       ok(d.documentElement.scrollWidth<=w.innerWidth+1,width+'px: focus layout has no horizontal page overflow');
-      d.querySelector('[data-axis]').dispatchEvent(new w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await wait();
+      canvas.dispatchEvent(new w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await wait();
     }
     return {checks};
   } finally { window.prompt=originalPrompt;window.confirm=originalConfirm;frame?.remove(); }

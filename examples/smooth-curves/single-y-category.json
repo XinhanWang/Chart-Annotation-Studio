@@ -1,0 +1,43 @@
+{
+  "data": {
+    "values": [
+      {
+        "y": "A",
+        "x": 20
+      },
+      {
+        "y": "B",
+        "x": 80
+      },
+      {
+        "y": "C",
+        "x": 40
+      }
+    ]
+  },
+  "mark": {
+    "type": "line",
+    "interpolate": "monotone"
+  },
+  "encoding": {
+    "x": {
+      "field": "x",
+      "type": "quantitative"
+    },
+    "y": {
+      "field": "y",
+      "type": "nominal",
+      "sort": null
+    }
+  },
+  "usermeta": {
+    "table_export": {
+      "tables": [
+        {
+          "id": "data",
+          "path": "/data/values"
+        }
+      ]
+    }
+  }
+}

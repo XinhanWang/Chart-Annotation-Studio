@@ -9,7 +9,7 @@ const {createHash}=await import('node:crypto');
 const pin=JSON.parse(await read('vendor/vega-lite-table-export.lock.json'));
 if(createHash('sha256').update(exporter).digest('hex')!==pin.sha256)throw Error('Table exporter checksum differs from the pinned build');
 html=html.replace('<script src="./vendor/vega-lite-table-export.js"></script>',()=>'<script>'+exporter.replace(/<\/script/gi,'<\\/script')+'</script>');
-const app=(await read('studio.js')).replaceAll('\r\n','\n');
+const app=(await Promise.all(['radar.js','radar-tools.js','smooth.js','studio.js'].map(read))).join('\n').replaceAll('\r\n','\n');
 html=html.replace('<script type="module" src="./studio.js"></script>',()=>'<script type="module">'+app.replace(/<\/script/gi,'<\\/script')+'</script>');
 await writeFile(new URL('index.html',import.meta.url),html);
 console.log(`Built offline index.html (${Buffer.byteLength(html)} bytes)`);

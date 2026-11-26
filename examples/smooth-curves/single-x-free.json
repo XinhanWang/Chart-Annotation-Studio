@@ -1,0 +1,70 @@
+{
+  "data": {
+    "values": [
+      {
+        "x": "A",
+        "x_id": 0,
+        "y": 20
+      },
+      {
+        "x": null,
+        "x_id": 0.25,
+        "y": 55
+      },
+      {
+        "x": null,
+        "x_id": 0.5,
+        "y": 80
+      },
+      {
+        "x": null,
+        "x_id": 0.75,
+        "y": 55
+      },
+      {
+        "x": "B",
+        "x_id": 1,
+        "y": 30
+      },
+      {
+        "x": null,
+        "x_id": 1.5,
+        "y": 10
+      },
+      {
+        "x": null,
+        "x_id": 1.75,
+        "y": 40
+      },
+      {
+        "x": "C",
+        "x_id": 2.5,
+        "y": 65
+      }
+    ]
+  },
+  "mark": {
+    "type": "line",
+    "interpolate": "monotone"
+  },
+  "encoding": {
+    "x": {
+      "field": "x_id",
+      "type": "quantitative"
+    },
+    "y": {
+      "field": "y",
+      "type": "quantitative"
+    }
+  },
+  "usermeta": {
+    "table_export": {
+      "tables": [
+        {
+          "id": "data",
+          "path": "/data/values"
+        }
+      ]
+    }
+  }
+}

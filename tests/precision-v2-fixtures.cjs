@@ -1,6 +1,6 @@
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const source=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8').split('<script type="module">')[1].split('const $=id=>')[0];
-const context=vm.createContext({});vm.runInContext(source+';globalThis.api={defaultProject,makeSpec,importSpec,renderSpec,ensureIdentities,switchLineMode,requiredAxes,measuredAxisValue,measurePieSectors,confirmPieFractions,applyPieCategoryNames};',context);
+const context=vm.createContext({});vm.runInContext(source+';globalThis.api={defaultProject,makeSpec,importSpec,renderSpec,ensureIdentities,switchLineMode,requiredAxes,validate,quantizeMeasurement,percentageParts,measureProjectAxis,heatmapIntervals,preserveLegacyHeatmapIntervals,updateHeatmapIntervals,measureHeatmapColor,measuredAxisValue,measurePieSectors,syncPercentStackRatios,confirmPieFractions,applyPieCategoryNames};',context);
 const app=context.api,plain=x=>JSON.parse(JSON.stringify(x));
 function mixedLine(axis,repeated=false,retreat=false){
  const p=app.defaultProject('line_n');p.rows=[];p.categoryObjects=[];app.switchLineMode(p,axis);

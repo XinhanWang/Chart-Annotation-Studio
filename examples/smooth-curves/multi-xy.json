@@ -1,0 +1,80 @@
+{
+  "data": {
+    "values": [
+      {
+        "x": 0,
+        "y": 2,
+        "series": "S1"
+      },
+      {
+        "x": 0.5,
+        "y": 4,
+        "series": "S1"
+      },
+      {
+        "x": 1.5,
+        "y": 7,
+        "series": "S1"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "series": "S1"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "series": "S1"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "series": "S2"
+      },
+      {
+        "x": 1,
+        "y": 6,
+        "series": "S2"
+      },
+      {
+        "x": 2.25,
+        "y": 4,
+        "series": "S2"
+      },
+      {
+        "x": 4,
+        "y": 1,
+        "series": "S2"
+      }
+    ]
+  },
+  "mark": {
+    "type": "line",
+    "interpolate": "monotone"
+  },
+  "encoding": {
+    "x": {
+      "field": "x",
+      "type": "quantitative"
+    },
+    "y": {
+      "field": "y",
+      "type": "quantitative"
+    },
+    "color": {
+      "field": "series",
+      "type": "nominal",
+      "sort": null
+    }
+  },
+  "usermeta": {
+    "table_export": {
+      "tables": [
+        {
+          "id": "data",
+          "path": "/data/values"
+        }
+      ]
+    }
+  }
+}

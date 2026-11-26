@@ -118,26 +118,26 @@ let browser;
   assert.equal((await snapshot()).project.axes[v].calibrated,true);assert.equal((await snapshot()).project.axes[horizontal?'y':'x'].calibrated,false);
   await page.click('[data-tool="point"]');const point=value=>horizontal?[100+4*value,150]:[250,400-3*value];
   for(const value of [10+1/3,25+1/3,40,65+1/3,90+1/3])await canvasPoint(...point(value));await settle();
-  let state=await snapshot();for(const [k,val]of Object.entries({lower:10.3,q1:25.3,median:40,q3:65.3,upper:90.3}))assert.equal(state.project.rows[0][k],val,k);assert.equal(Object.keys(state.project.evidence[0]).filter(k=>k.endsWith('Pixel')).length,5);
+  let state=await snapshot();for(const [k,val]of Object.entries({lower:10.33,q1:25.33,median:40,q3:65.33,upper:90.33}))assert.equal(state.project.rows[0][k],val,k);assert.equal(Object.keys(state.project.evidence[0]).filter(k=>k.endsWith('Pixel')).length,5);
   // Each statistic can be independently selected and nudged in edit mode.
   await page.click('[data-tool="select"]');
   for(const key of ['lower','q1','median','q3','upper']){
-   const before=await snapshot();await page.selectOption('#boxField',key);await page.locator('#canvas').focus();await page.locator('#canvas').press(horizontal?'ArrowRight':'ArrowUp');
+   const before=await snapshot();await page.selectOption('#boxField',key);await page.locator('#canvas').focus();await page.locator('#canvas').press(horizontal?'Control+ArrowRight':'Control+ArrowUp');
    const after=await snapshot();assert.equal(after.selectedHandle,key+'Pixel');assert(after.project.rows[0][key]>before.project.rows[0][key]);for(const other of ['lower','q1','median','q3','upper'].filter(k=>k!==key))assert.equal(after.project.rows[0][other],before.project.rows[0][other]);await page.click('#undo');
   }
   // Select/drag median, then fine-tune it by one original pixel.
   await page.click('[data-tool="select"]');await canvasPoint(...point(40));const rect=await page.locator('#canvas').boundingBox(),scale=rect.width/640,from=point(40),to=point(42);
   await page.mouse.move(rect.x+from[0]*scale,rect.y+from[1]*scale);await page.mouse.down();await page.mouse.move(rect.x+to[0]*scale,rect.y+to[1]*scale,{steps:4});await page.mouse.up();
-  await page.locator('#canvas').press(horizontal?'ArrowRight':'ArrowUp');state=await snapshot();assert.equal(state.project.rows[0].median,42.3);assert.equal(state.selectedHandle,'medianPixel');
+  await page.locator('#canvas').press(horizontal?'Control+ArrowRight':'Control+ArrowUp');state=await snapshot();assert.equal(state.project.rows[0].median,horizontal?42.25:42.33);assert.equal(state.selectedHandle,'medianPixel');
   // Manual change detaches only the edited statistic; the other four handles stay valid.
   await field('[data-i="0"][data-key="q1"]','26.1234567890123');state=await snapshot();assert(!state.project.evidence[0].q1Pixel);assert(state.project.evidence[0].medianPixel&&state.project.evidence[0].lowerPixel&&state.project.evidence[0].upperPixel);
-  await field(`[data-axis="${v}"][data-field="v2"]`,200);state=await snapshot();assert.equal(state.project.rows[0].q1,26.1234567890123);assert.equal(state.project.rows[0].median,horizontal?84.5:84.7);await page.click('#undo');
-  await page.selectOption('#boxField','q1');await page.click('[data-tool="point"]');await canvasPoint(...point(25+1/3));assert.equal((await snapshot()).project.rows[0].q1,25.3);
+  await field(`[data-axis="${v}"][data-field="v2"]`,200);state=await snapshot();assert.equal(state.project.rows[0].q1,26.1234567890123);assert.equal(state.project.rows[0].median,horizontal?84.5:84.67);await page.click('#undoCalibration');state=await snapshot();assert.equal(state.project.rows[0].median,horizontal?42.25:42.33);assert.equal(state.project.rows[0].q1,26.1234567890123);
+  await page.selectOption('#boxField','q1');await page.click('[data-tool="point"]');await canvasPoint(...point(25+1/3));assert.equal((await snapshot()).project.rows[0].q1,25.33);
   // Continuous outliers, independent remeasurement, manual add/delete and index/geometry alignment.
   await page.selectOption('#boxField','outliers');await page.selectOption('#outlierTarget','new');for(const value of [105+1/3,110+1/3])await canvasPoint(...point(value));
-  assert.deepEqual((await snapshot()).project.rows[0].outliers,[105.3,110.3]);
-  await page.selectOption('#outlierTarget','0');await canvasPoint(...point(106+1/3));assert.equal((await snapshot()).project.rows[0].outliers[0],106.3);
-  await page.click('[data-add-outlier="0"]');await field('[data-i="0"][data-outlier="2"]','120.1234567890123');await page.click('[data-index="0"][data-delete-outlier="0"]');state=await snapshot();assert.equal(state.project.rows[0].outliers.length,2);assert.deepEqual(state.project.rows[0].outliers,[110.3,120.1234567890123]);assert(state.project.evidence[0].outlier0Pixel);assert(!state.project.evidence[0].outlier1Pixel);
+  assert.deepEqual((await snapshot()).project.rows[0].outliers,[105.33,110.33]);
+  await page.selectOption('#outlierTarget','0');await canvasPoint(...point(106+1/3));assert.equal((await snapshot()).project.rows[0].outliers[0],106.33);
+  await page.click('[data-add-outlier="0"]');await field('[data-i="0"][data-outlier="2"]','120.1234567890123');await page.click('[data-index="0"][data-delete-outlier="0"]');state=await snapshot();assert.equal(state.project.rows[0].outliers.length,2);assert.deepEqual(state.project.rows[0].outliers,[110.33,120.1234567890123]);assert(state.project.evidence[0].outlier0Pixel);assert(!state.project.evidence[0].outlier1Pixel);
   // Ordering errors are shown without repairing observations.
   await field('[data-i="0"][data-key="median"]','99');await page.waitForTimeout(250);assert.match(await page.locator('#issues').innerText(),/lower ≤ q1/);assert.equal((await snapshot()).project.rows[0].median,99);await page.click('#undo');await settle();
   // Guides, magnification and zoom retain original pixels.
@@ -153,7 +153,7 @@ let browser;
   // Remove all outliers via UI; empty array must survive GT export/import.
   while((await snapshot()).project.rows[0].outliers.length)await page.click('[data-index="0"][data-delete-outlier="0"]');await settle();assert.deepEqual((await snapshot()).lastSpec.layer.at(-1).data.values.filter(r=>r.category===(gt.data.values[0].category)),[]);assert.equal((await snapshot()).lastSpec.layer.length,4);
   await inputJSON('#specInput',(await snapshot()).lastSpec);await settle();assert.deepEqual((await snapshot()).project.rows[0].outliers,[]);
-  checks.push(fixture.name+': axis calibration, five ordered clicks, individual selection/drag/nudge/remeasure, Precision V1 pixel values and preserved manual/import precision, outlier clicks/edit/add/delete, validation, guides/zoom, pixels/draft/project restore, image queue, empty-outlier GT');
+  checks.push(fixture.name+': axis calibration, five ordered clicks, individual selection/drag/nudge/remeasure, Precision V2 pixel values and preserved manual/import precision, outlier clicks/edit/add/delete, validation, guides/zoom, pixels/draft/project restore, image queue, empty-outlier GT');
  }
  // Nearby and coincident points must never intercept the current annotation target.
  const calibratedProject=kind=>{
@@ -175,21 +175,21 @@ let browser;
    for(let prior=0;prior<j;prior++)assert.deepEqual(after.project.evidence[i][fields[prior]+'Pixel'],before.project.evidence[i][fields[prior]+'Pixel']);
    assert.equal(after.project.assist.boxField,j<4?fields[j+1]:'lower');assert.equal(currentCategory(after.project),category==='A'&&j===4?'B':category);
   }
-  await settle();let state=await snapshot();assert.deepEqual(state.project.rows.map(r=>fields.map(f=>r[f])),[[40,40.3,40.3,40.7,41],[40,40.3,40.3,40.7,41]]);
+  await settle();let state=await snapshot();assert.deepEqual(state.project.rows.map(r=>fields.map(f=>r[f])),[[40,40.33,40.33,40.67,41],[40,40.33,40.33,40.67,41]]);
   assert.deepEqual(state.project.evidence[0].q1Pixel,state.project.evidence[0].medianPixel);assert.deepEqual(state.project.evidence[0].medianPixel,state.project.evidence[1].medianPixel);
-  const beforeKeys=state.project.rows;await page.locator('#canvas').press(horizontal?'ArrowRight':'ArrowUp');assert.deepEqual((await snapshot()).project.rows,beforeKeys);
+  const beforeKeys=state.project.rows;await page.locator('#canvas').press(horizontal?'Control+ArrowRight':'Control+ArrowUp');assert.deepEqual((await snapshot()).project.rows,beforeKeys);
   await chooseCategory('A');await page.selectOption('#boxField','outliers');await page.selectOption('#outlierTarget','new');
-  for(const value of [42,42,42+1/3])await canvasPoint(...point(value));assert.deepEqual((await snapshot()).project.rows[0].outliers,[42,42,42.3]);
+  for(const value of [42,42,42+1/3])await canvasPoint(...point(value));assert.deepEqual((await snapshot()).project.rows[0].outliers,[42,42,42.33]);
   // Field selection disambiguates overlapping statistics and rows, even while dragging near another point.
   await page.click('[data-tool="select"]');await page.locator('[data-i="0"][data-key="median"]').click();
-  const beforeMedian=await snapshot();await dragPoint(point(40+1/3),point(40+2/3));state=await snapshot();assert.equal(state.selected,0);assert.equal(state.selectedHandle,'medianPixel');assert.equal(state.project.rows[0].median,40.7);assert.equal(state.project.rows[0].q1,40.3);assert.deepEqual(state.project.rows[1],beforeMedian.project.rows[1]);
-  await page.selectOption('#boxField','outliers');await page.selectOption('#outlierTarget','1');await dragPoint(point(42),point(43));state=await snapshot();assert.equal(state.selectedHandle,'outlier1Pixel');assert.deepEqual(state.project.rows[0].outliers,[42,43,42.3]);
-  await page.locator('#canvas').press(horizontal?'ArrowRight':'ArrowUp');assert.deepEqual((await snapshot()).project.rows[0].outliers,[42,43.3,42.3]);
+  const beforeMedian=await snapshot();await dragPoint(point(40+1/3),point(40+2/3));state=await snapshot();assert.equal(state.selected,0);assert.equal(state.selectedHandle,'medianPixel');assert.equal(state.project.rows[0].median,40.67);assert.equal(state.project.rows[0].q1,40.33);assert.deepEqual(state.project.rows[1],beforeMedian.project.rows[1]);
+  await page.selectOption('#boxField','outliers');await page.selectOption('#outlierTarget','1');await dragPoint(point(42),point(43));state=await snapshot();assert.equal(state.selectedHandle,'outlier1Pixel');assert.deepEqual(state.project.rows[0].outliers,[42,43,42.33]);
+  await page.locator('#canvas').press(horizontal?'Control+ArrowRight':'Control+ArrowUp');assert.deepEqual((await snapshot()).project.rows[0].outliers,[42,horizontal?43.25:43.33,42.33]);
   // Remeasure a selected field in add mode without dragging any overlapping handle.
-  await page.selectOption('#boxField','q1');await page.click('[data-tool="point"]');await canvasPoint(...point(40+1/3));assert.equal((await snapshot()).project.rows[0].q1,40.3);assert.equal((await snapshot()).project.assist.boxField,'median');
+  await page.selectOption('#boxField','q1');await page.click('[data-tool="point"]');await canvasPoint(...point(40+1/3));assert.equal((await snapshot()).project.rows[0].q1,40.33);assert.equal((await snapshot()).project.assist.boxField,'median');
   await field('[data-i="0"][data-key="q1"]','40.1234567890123');await settle();assert.equal((await snapshot()).lastSpec.data.values[0].q1,40.1234567890123);assert(!(await snapshot()).project.evidence[0].q1Pixel);
   const gt=(await snapshot()).lastSpec;await inputJSON('#specInput',gt);await settle();assert.deepEqual((await snapshot()).lastSpec,gt);
-  checks.push(kind+': close/coincident statistics across categories, next-field progression, duplicate outliers, selected-field drag/nudge, add-mode key isolation, Precision V1 measurements and manual/GT precision');
+  checks.push(kind+': close/coincident statistics across categories, next-field progression, duplicate outliers, selected-field drag/nudge, add-mode key isolation, Precision V2 measurements and manual/GT precision');
  }
  // Check the existing Alt-click workflow for nearby points. Stacks have a separate browser suite.
  for(const kind of ['barh_1','barh_n','barv_1','barv_n','line_1','line_n','scatter_1','scatter_n']){
@@ -211,7 +211,7 @@ let browser;
    const archived=(await snapshot()).project;archived.errorBars=true;await openProject(archived,fixtures[3].image,'error-'+kind+'.png');await page.locator('[data-i="1"][data-key="value"]').click();
    const center=horizontal?[253,299]:[250,296];
    for(const limit of ['lower','upper']){await page.click(`[data-tool="${limit}"]`);await canvasPoint(...center);}
-   await page.click('[data-tool="select"]');await page.locator('[data-i="1"][data-key="lower"]').click();const limits=(await snapshot()).project.rows[1];await page.locator('#canvas').focus();await page.locator('#canvas').press(horizontal?'ArrowLeft':'ArrowDown');const nudged=await snapshot();assert.equal(nudged.selectedHandle,'lowerPixel');assert(nudged.project.rows[1].lower<limits.lower);assert.equal(nudged.project.rows[1].upper,limits.upper);assert.equal(nudged.project.rows[1].value,limits.value);
+   await page.click('[data-tool="select"]');await page.locator('[data-i="1"][data-key="lower"]').click();const limits=(await snapshot()).project.rows[1];await page.locator('#canvas').focus();await page.locator('#canvas').press(horizontal?'Control+ArrowLeft':'Control+ArrowDown');const nudged=await snapshot();assert.equal(nudged.selectedHandle,'lowerPixel');assert(nudged.project.rows[1].lower<limits.lower);assert.equal(nudged.project.rows[1].upper,limits.upper);assert.equal(nudged.project.rows[1].value,limits.value);
    // The original GT contract requires both error endpoints on every row.
    for(let i=0;i<nudged.project.rows.length;i++)if(i!==1){
     await page.locator(`[data-i="${i}"][data-key="value"]`).click();const pixel=nudged.project.evidence[i].pixel;

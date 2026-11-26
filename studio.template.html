@@ -122,20 +122,62 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 <header><a class="brand" href="./"><span class="brand-icon">▧</span> Chart Studio <small>科学图表标注 · v1.7.0</small></a><span id="saveState" class="muted">浏览器本地工作区</span><div class="header-actions"><button id="help">使用指南</button><button id="openProject">打开工程</button><button id="saveProject">备份工作区</button><button id="batchExport">批量导出 ZIP</button><button id="exportTables">导出表格 ZIP</button><button id="exportGT" class="primary">导出 GT ↗</button></div></header>
 <main>
 <aside class="sidebar"><div class="eyebrow">WORKSPACE / 标注工作区</div><h2>图像与结构</h2><section class="project-box"><label>标注项目<select id="projectSelect"><option value="">无项目</option></select></label><div class="project-actions"><button id="newProject">＋ 新建</button><button id="renameProject">改名</button><button id="deleteProject" title="移到无项目，保留所有图像">移除项目</button></div><p id="queueSummary" class="muted"></p></section><label class="upload" for="imageInput"><b>＋ 添加图像</b><span>PNG / JPG / WebP · 可多选</span></label><input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden><div class="import-actions"><label class="button" for="folderInput">导入文件夹</label><button id="removeImage">移除当前图</button></div><input id="folderInput" type="file" accept="image/png,image/jpeg,image/webp" webkitdirectory multiple hidden><div id="queue"></div><label id="moveProjectLabel">当前图像所属项目<select id="moveProject"></select></label>
-<div class="two"><label>图表大类<select id="family"><option value="composite">柱线复合图</option><option value="bar">柱状图</option><option value="line">折线图</option><option value="scatter">散点图</option><option value="heatmap">热力图</option><option value="histogram">直方图</option><option value="area">面积图</option><option value="pie">饼图</option><option value="boxplot">箱线图</option></select></label><label>图表子类<select id="kind"></select></label></div><p id="orderGuide" class="muted" role="note"></p><label>图表标题<input id="title" placeholder="没有标题则留空"></label><div class="two"><label>X 轴标题<input id="xTitle"></label><label>Y 轴标题<input id="yTitle"></label></div><label id="heatmapTitleLabel" hidden>色标指标名称及单位<input id="heatmapTitle" placeholder="如 Temperature (°C)"></label><div id="pieFields" hidden><label>数值模式<select id="valueMode"><option value="percent">百分比（按 0–100 录入）</option><option value="absolute">绝对数值</option></select></label>
+<div class="two"><label>图表大类<select id="family"><option value="composite">柱线复合图</option><option value="bar">柱状图</option><option value="line">折线图</option><option value="scatter">散点图</option><option value="heatmap">热力图</option><option value="histogram">直方图</option><option value="area">面积图</option><option value="pie">饼图</option><option value="radar">雷达图</option><option value="boxplot">箱线图</option></select></label><label>图表子类<select id="kind"></select></label></div><p id="orderGuide" class="muted" role="note"></p><label>图表标题<input id="title" placeholder="没有标题则留空"></label><div class="two" id="axisTitles"><label>X 轴标题<input id="xTitle"></label><label>Y 轴标题<input id="yTitle"></label></div><label id="heatmapTitleLabel" hidden>色标指标名称及单位<input id="heatmapTitle" placeholder="如 Temperature (°C)"></label><div id="pieFields" hidden><label>数值模式<select id="valueMode"><option value="percent">百分比（按 0–100 录入）</option><option value="absolute">绝对数值</option></select></label>
 <p id="pieScaleReview" class="muted" hidden>旧 GT 缺少明确的百分比格式，已保留原值。请核对原图后再确认比例或切换数值模式。</p>
 <button type="button" id="confirmPieFractions" hidden>确认导入值是 0–1 比例</button>
 <label>指标名称及单位（可选）<input id="valueTitle" placeholder="如 营业收入（万元）"></label><label class="check"><input type="checkbox" id="donut"> 环形图预览</label><p class="muted">按原图录入，不归一化。环形外观仅保存在工程中，GT 使用科学数据与 arc 映射。</p></div><label id="valueFormatLabel" hidden>数值轴格式（可选）<input id="valueFormat" placeholder="如 .0%（仅原图数值确为比例时）"></label><section id="compositeFields" hidden><label class="check"><input type="checkbox" id="dualYAxis"> 双 Y 轴：柱用左轴，折线用右轴</label><label id="rightYTitleLabel">右 Y 轴标题 / 单位<input id="rightYTitle"></label><label class="check"><input type="checkbox" id="compositeErrors"> 柱系列包含误差棒</label><p class="muted">每个系列选择柱或线；类别位置共用。双轴时分别标定左右 Y 轴，切换当前系列后取点。原有拖动、微调、撤销和核对流程均适用。</p></section><label id="xTypeLabel">X 轴类型<select id="xType"><option value="quantitative">连续数值</option><option value="ordinal">离散类别</option></select></label><label id="yTypeLabel" hidden>Y 轴类型<select id="yType"></select></label><p id="lineModeNote" class="muted" hidden>折线图支持双连续轴或一个类别轴。各模式分别保存记录、校准和像素位置，切回可继续。</p><p id="areaModeNote" class="muted" hidden>两种 X 轴模式各自保留标注记录，切回即可继续。</p><label class="check"><input type="checkbox" id="legend"> 原图中存在可读图例</label>
 <section id="seriesSection"><div class="section-head"><h3>系列</h3><button id="addSeries" class="small">＋ 添加</button></div><p id="seriesOrderNote" class="muted" role="note"></p><details id="seriesBulk"><summary>批量输入系列名称</summary><label>一行一个系列<textarea id="seriesNames" rows="4" placeholder="Series 1&#10;Series 2&#10;Series 3"></textarea></label><p class="muted">按当前顺序改名；多出的行新增系列，减少行数会确认删除末尾系列及记录。空行忽略，同名系列保持独立。</p><button id="applySeriesNames" type="button" class="small">应用系列名称</button></details><div id="seriesList"></div></section><section id="categoryLabel"><div class="section-head"><h3>类别位置（独立对象）</h3></div><p id="categoryOrderNote" class="muted" role="note"></p><details id="categoryBulk"><summary id="categoryBulkLabel">批量输入对象名称</summary><label>一行一个类别位置<textarea id="categories" rows="4" placeholder="A&#10;B&#10;C"></textarea></label><p id="categoryBulkHint" class="muted"></p><button id="applyCategoryNames" type="button" class="small">应用对象名称</button></details><div id="categoryObjects"></div></section><details><summary>备注 / 数据来源（可选）</summary><label>标注备注 / 数据来源<textarea id="notes" rows="3" placeholder="例如：曲线采样；数值由论文表格核对"></textarea></label></details><a class="ref" href="https://aicarrier.feishu.cn/docx/S5yKdnAPoobj5Zxdi2Ych9sLnSG" target="_blank" rel="noreferrer">查看 GT 标注规范 ↗</a><p class="privacy">图像与标注保存在当前浏览器，不上传服务器。清理浏览器会删除草稿，请定期保存工程。</p></aside>
 <section class="workspace"><div class="workspace-heading"><div><div class="eyebrow">ANNOTATE / 人工交互标注</div><h1 id="fileName">从一张图开始</h1></div><div class="target-summary"><span id="targetTop" class="target-top"></span><span class="badge" id="countBadge">0 条记录</span></div></div>
-<div class="canvas-toolbar"><button id="focusToggle">全屏标注 ⛶</button><button id="focusReview" class="focus-only">返回核对 / 导出</button><div class="segmented"><button data-tool="select" class="active">选择 / 拖动</button><button data-tool="point">＋ 取点</button><button data-tool="pie-angle" hidden>角度测量</button><button data-tool="calibrate">⊹ 校准</button><button data-tool="lower">误差下限</button><button data-tool="upper">误差上限</button><button data-tool="area-upper" hidden>重取上界</button><button data-tool="area-baseline" hidden>重取下界</button></div><div><button id="undo" title="Ctrl+Z">↶</button><button id="redo" title="Ctrl+Shift+Z">↷</button><button id="zoomOut">−</button><span id="zoomText">100%</span><button id="zoomIn">＋</button><button id="fit">适应</button></div></div>
+<div class="canvas-toolbar"><button id="focusToggle">全屏标注 ⛶</button><button id="focusReview" class="focus-only">返回核对 / 导出</button><div class="segmented"><button data-tool="select" class="active" title="选择 / 编辑 (V)" aria-keyshortcuts="V">选择 / 拖动</button><button data-tool="point" title="取点 (P)" aria-keyshortcuts="P">＋ 取点</button><button data-tool="pie-angle" title="角度测量 (P)" aria-keyshortcuts="P" hidden>角度测量</button><button data-tool="calibrate">⊹ 校准</button><button data-tool="lower">误差下限</button><button data-tool="upper">误差上限</button><button data-tool="area-upper" hidden>重取上界</button><button data-tool="area-baseline" hidden>重取下界</button></div><div><span class="history-tools" role="group" aria-label="数据操作历史"><button id="undo" data-history-scope="data" data-history-action="undo" title="撤销取点 (Ctrl+Z)">撤销取点</button><button id="redo" data-history-scope="data" data-history-action="redo" title="重做取点 (Ctrl+Shift+Z)">重做取点</button></span><span class="history-tools" role="group" aria-label="校准操作历史"><button id="undoCalibration" data-history-scope="calibration" data-history-action="undo" title="撤销校准 (Ctrl+Z)">撤销校准</button><button id="redoCalibration" data-history-scope="calibration" data-history-action="redo" title="重做校准 (Ctrl+Shift+Z)">重做校准</button></span><button id="zoomOut" title="缩小 · Shift+滚轮">−</button><span id="zoomText">100%</span><button id="zoomIn" title="放大 · Shift+滚轮">＋</button><button id="fit" title="适应画布 (F)" aria-keyshortcuts="F">适应</button><button id="zoomActual" title="原始比例 (1)" aria-keyshortcuts="1">1:1</button><button id="shortcutHelp">快捷键</button></div></div>
 <div id="hint" class="hint">上传图像或加载示例。也可以直接在数据表中输入数值。</div><div class="image-stage"><div class="canvas-wrap" id="canvasWrap"><canvas id="canvas" aria-label="原图像素标注画布" tabindex="0"></canvas><div class="empty" id="empty"><span>⌖</span><h2>让每个数据点都有依据</h2><p>上传原图，校准坐标轴，然后点击数据点。<br>原生像素标记会立即叠加回原图。</p><button id="demo" class="primary">加载可操作示例</button></div></div><aside class="lens-dock"><span class="lens-title">精度辅助 · 5×</span><div id="magnifier" hidden><canvas id="lens" width="140" height="140"></canvas><span>原图局部放大 · 5×</span></div><p class="muted">移动鼠标查看局部<br>不覆盖原图</p></aside></div><div id="cursorInfo" class="cursor-info">原始像素坐标</div>
-<div class="measure-bar"><label>当前系列<select id="activeSeries"></select></label><label id="activeCategoryLabel">当前类别<select id="activeCategory"></select></label><label id="histogramFieldLabel" hidden>直方图测量项<select id="histogramField"></select></label><label id="boxFieldLabel" hidden>当前测量项<select id="boxField"><option value="lower">lower</option><option value="q1">q1</option><option value="median">median</option><option value="q3">q3</option><option value="upper">upper</option><option value="outliers">outliers（连续取点）</option></select></label><label id="outlierTargetLabel" hidden>异常值目标<select id="outlierTarget"></select></label><label id="roleLabel">点的来源<select id="role"><option value="observation">实验点 / 可见数据点</option><option value="curve_sample">曲线采样点</option><option value="transcribed">直接录入 / 外部测量</option></select></label><label class="check"><input type="checkbox" id="overlay" checked> 显示叠加</label><label class="check"><input type="checkbox" id="connect" checked> 连接轨迹</label></div>
+<div class="measure-bar"><label title="画布中用 ↑ / ↓ 切换系列">当前系列<select id="activeSeries"></select></label><label id="activeCategoryLabel">当前类别<select id="activeCategory"></select></label><label id="histogramFieldLabel" title="画布中用 Tab / Shift+Tab 切换测量项" hidden>直方图测量项<select id="histogramField"></select></label><label id="boxFieldLabel" title="画布中用 Tab / Shift+Tab 切换测量项" hidden>当前测量项<select id="boxField"><option value="lower">lower</option><option value="q1">q1</option><option value="median">median</option><option value="q3">q3</option><option value="upper">upper</option><option value="outliers">outliers（连续取点）</option></select></label><label id="outlierTargetLabel" hidden>异常值目标<select id="outlierTarget"></select></label><label id="roleLabel">点的来源<select id="role"><option value="observation">实验点 / 可见数据点</option><option value="curve_sample">曲线采样点</option><option value="transcribed">直接录入 / 外部测量</option></select></label><label class="check"><input type="checkbox" id="overlay" title="按住 H 临时隐藏标注" checked> 显示叠加</label><label class="check"><input type="checkbox" id="connect" checked> 连接轨迹</label></div>
+<section id="smoothControls" aria-label="平滑曲线取点" hidden>
+<div class="assist-controls">
+<div class="segmented" id="smoothStageButtons" role="group" aria-label="平滑曲线标注阶段" hidden>
+<button type="button" id="smoothFixedPhase" aria-pressed="true">1. 固定点标注</button>
+<button type="button" id="smoothFreePhase" aria-pressed="false">2. 自由采样</button>
+</div>
+<button type="button" id="smoothSkipTarget" hidden>跳过当前目标</button>
+<button type="button" id="smoothInsertPoint">插入采样点</button>
+<button type="button" id="smoothReviewPoint">标记断点或尖角待复核</button>
+</div>
+<div class="assist-controls" id="smoothAnchorList" hidden></div>
+</section>
+<section id="radarControls" aria-label="极坐标校准" hidden>
+<div class="section-head"><h3>极坐标校准</h3><span id="radarCalibrationStatus" class="muted" role="status"></span></div>
+<div class="assist-controls">
+<label>圆心定位方式<select id="radarCenterMode"><option value="manual">直接取圆心</option><option value="lines">两条径向轴求交点</option></select></label>
+<button type="button" id="radarCenter">定位圆心</button>
+<label>圆心 X<input id="radarCenterX" type="number" step="any"></label>
+<label>圆心 Y<input id="radarCenterY" type="number" step="any"></label>
+<button type="button" id="radarAdjustCenter">应用圆心坐标</button>
+</div><div class="assist-controls">
+<label class="check"><input type="checkbox" id="radarZero"> 圆心为零刻度</label>
+<button type="button" id="radarTick1">取刻度 1</button><label>刻度 1 数值<input id="radarTickValue1" inputmode="decimal"></label>
+<button type="button" id="radarTick2">取刻度 2</button><label>刻度 2 数值<input id="radarTickValue2" inputmode="decimal"></label>
+</div>
+<p class="muted">多边形网格请选择径向轴与网格的交点。量程填写原图完整范围，取点刻度可位于量程内任意两个已知位置。</p>
+<div class="assist-controls">
+<label>量程下限<input id="radarDomainMin" inputmode="decimal"></label><label>量程上限<input id="radarDomainMax" inputmode="decimal"></label>
+<label class="check"><input type="checkbox" id="radarPercent"> 原图刻度带 %</label>
+</div><div class="assist-controls">
+<label>类别数量<input id="radarCategoryCount" type="number" min="1" step="1"></label>
+<label>系列数量<input id="radarSeriesCount" type="number" min="1" step="1"></label>
+<button type="button" id="radarAnchor">标定首类别方向</button>
+<button type="button" id="radarRetake">重取当前目标</button>
+</div>
+<div id="radarStackControls" hidden>
+<h4 id="radarStackCategory"></h4><div id="radarOrder" aria-label="当前类别的堆叠顺序"></div>
+<div class="assist-controls"><button type="button" id="radarSkip">确认当前系列缺失</button>
+<button type="button" id="radarReview">标记当前目标待复核</button><button type="button" id="radarUnskip">恢复当前目标</button></div>
+</div>
+</section>
 <section id="pieAnglePanel" aria-label="饼图角度测量" hidden>
-<div class="section-head"><h3>角度测量</h3><div><button id="undoPieAngle" class="small">撤销上一点</button><button id="resetPieAngle" class="small">清空重测</button><button id="cancelPieAngle" class="small">取消测量</button></div></div>
+<div class="section-head"><h3>角度测量</h3><div><button id="undoPieAngle" class="small">撤销上一点</button><button id="resetPieAngle" class="small">重新定位圆心</button><button id="cancelPieAngle" class="small">取消测量</button></div></div>
+<label>圆心定位方式<select id="pieCenterMode"><option value="manual">手动定位</option><option value="lines">两条分界线定位</option><option value="circle">三点定圆定位</option></select></label>
 <p id="pieAngleStatus" class="muted" role="status"></p>
 <div id="pieAngleResults" class="table-scroll" hidden><table><thead><tr><th>扇区分界线</th><th>角度</th><th>占比</th><th>匹配类别</th></tr></thead><tbody id="pieAngleRows"></tbody></table></div>
-<div class="section-head"><span id="pieAngleTotal" class="muted"></span><button id="applyPieAngle" class="primary" disabled>应用到数据表</button></div>
+<div class="section-head"><span id="pieAngleTotal" class="muted"></span><button id="applyPieAngle" class="primary" title="应用到数据表 (Enter)" aria-keyshortcuts="Enter" disabled>应用到数据表</button></div>
 </section>
 <section class="assist-panel" aria-label="连续标注与精度辅助">
 <div class="assist-heading"><strong id="targetHint">选择取点目标</strong><span id="targetProgress" class="badge"></span></div>
@@ -164,7 +206,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 </section>
 <div id="targetGrid" class="target-grid" aria-label="类别和系列进度"></div>
 <div class="precision-controls"><div id="numericLock"><label class="check"><input type="checkbox" id="lockX"> 固定 X，只寻找 Y</label><input id="fixedX" type="number" step="any" aria-label="固定X数值" placeholder="已知 X 数值"><button id="pickX">在原图定位 X 刻度</button></div><div id="categoryLock"><label class="check"><input type="checkbox" id="lockCategory"> 固定类别位置，只测数值</label><button id="pickCategory">定位当前类别刻度</button><span id="anchorStatus" class="muted"></span></div><label>拖动方向<select id="dragAxis"><option value="free">自由移动</option><option value="y">只修改 Y（固定 X）</option><option value="x">只修改 X（固定 Y）</option></select></label><button id="unlockPoint">解除选中点的 X 约束</button></div>
-<p class="muted precision-tip">柱图、折线和散点在取点模式下也可直接拖动已有标记。箱线图请切换「选择 / 拖动」编辑。方向键微调 1 原图像素；Shift＋方向键 10 像素，Alt＋方向键 0.1 像素。按住 Shift 拖动可临时限制为水平或竖直。固定 X 后，可在数值框输入标签值，并点击该刻度位置建立竖直参考线。</p></section>
+<p class="muted precision-tip">柱图、折线和散点在取点模式下也可直接拖动已有标记。箱线图请切换「选择 / 拖动」编辑。Ctrl＋方向键微调 1 原图像素；Shift＋方向键 10 像素，Alt＋方向键 0.1 像素。按住 Shift 拖动可临时限制为水平或竖直。固定 X 后，可在数值框输入标签值，并点击该刻度位置建立竖直参考线。</p></section>
 <details id="calibrationPanel"><summary>坐标轴校准 <span id="calibrationStatus">尚未校准</span></summary><p id="categoryAxisNote" class="muted"></p><p id="heatmapCalibrationNote" class="muted" hidden>两个像素框留空时，可直接填写网格两端的真实数值。按画面顺序，X 从左到右，Y 从上到下。也可另取原图上两个已知刻度。</p><div class="calibration-grid" id="axisFields"></div><p class="muted">选择 X1 / X2 / Y1 / Y2 后点击原图对应刻度，再输入该刻度的真实值。像素坐标使用原图尺寸；对数轴必须为正数。反向轴由刻度值和像素顺序自然确定。修改校准后已有测量点会重新计算。</p></details>
 <section id="percentStackHeightControls" class="assist-panel" aria-labelledby="percentStackHeightTitle" hidden>
 <div class="section-head"><h3 id="percentStackHeightTitle">类别高度</h3><button id="cancelPercentStackHeight" type="button" class="small" hidden>取消取点</button></div>
@@ -207,14 +249,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 <div id="histogramStackBinSetup"></div>
 <div class="table-scroll"><table><thead><tr><th>分箱</th><th>分箱起始</th><th>分箱结束</th><th>操作</th></tr></thead><tbody id="histogramBinsBody"></tbody></table></div>
 </section>
-<section class="table-section"><div class="section-head"><div><h2>数据记录 <small>数值可直接编辑</small></h2></div><div><button id="importSpec">导入 GT</button><button id="addRow">＋ 添加记录</button><button id="deleteRow">删除选中</button></div></div><fieldset id="percentStackRatioControls" hidden>
+<section class="table-section"><div class="section-head"><div><h2>数据记录 <small>数值可直接编辑</small></h2></div><div><button id="importSpec">导入 GT</button><button id="addRow">＋ 添加记录</button><button id="deleteRow" title="删除选中 (Delete)" aria-keyshortcuts="Delete">删除选中</button></div></div><fieldset id="percentStackRatioControls" hidden>
 <legend>按类别自动计算比值（总量 100%）</legend>
 <div class="assist-controls"><button id="selectAllPercentRatios" type="button" class="small">全选</button><button id="clearPercentRatios" type="button" class="small">全不选</button></div>
 <div id="percentStackRatioCategories" class="target-grid"></div>
 </fieldset><label class="check" id="advancedFieldsLabel"><input type="checkbox" id="advancedFields"> 展开高级路径顺序</label><div id="heatmapCellControls" hidden>
 <div class="assist-controls">
 <button id="heatmapMissing">标记选中格缺测</button><button id="heatmapOmit">标为结构空格</button><button id="heatmapClearCell">清空选中格</button>
-<button id="heatmapAcceptEstimate" hidden>采用选中格估值</button>
+<button id="heatmapAcceptEstimate" title="采用估值 (Enter)" aria-keyshortcuts="Enter" hidden>采用选中格估值</button>
 </div>
 <p id="heatmapSelection" class="muted" role="status"></p>
 <details><summary>粘贴矩阵</summary>
@@ -224,7 +266,24 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 </div><div class="table-scroll"><table id="dataTable"><thead id="tableHead"></thead><tbody id="tableBody"></tbody></table></div><p id="tableNote" class="muted"></p></section><div id="toast" role="status"></div></section>
 <aside class="review"><div class="eyebrow">REVIEW / 即时反馈</div><h2>语义重绘</h2><p class="muted">检查数值、分组与路径。此处布局独立于原图，不用于像素对齐。</p><div id="preview"></div><div id="renderState" class="muted"></div><div class="section-head"><h3>质量检查</h3><span id="validationBadge" class="badge">等待数据</span></div><ul id="issues"></ul><label class="check review-check"><input id="reviewed" type="checkbox"> 我已核对原图和数值来源</label><p class="muted">此确认记录在工程中。工具不会把人工估测自动声明为已验证科学真值。</p><details><summary>查看精简 GT JSON</summary><pre id="jsonPreview"></pre><button id="copyGT">复制 JSON</button></details><label class="check"><input id="withSchema" type="checkbox"> 导出时附加 Vega-Lite v6 schema</label><div class="export-note">GT：只保留科学语义<br>工程：包含原图、像素、校准、来源和核对记录</div></aside>
 </main><input type="file" id="projectInput" accept=".json" hidden><input type="file" id="specInput" accept=".json" hidden>
-<dialog id="helpDialog"><h2>从图像到可检查的 GT</h2><ol><li>添加原图，选择对应图表类型（误差棒柱图单独列为子类），填写标题、图例与类别。</li><li>直接在表格录入数值；或展开坐标校准，为每个数值轴分别点击两个已知刻度并填写真实值。</li><li>柱图默认逐类别自动切换系列；也可按系列推进。类别×系列进度格可直接选择目标。使用「取点」。堆叠柱按下到上或左到右依次点击起始边界、各段交界点和终止边界，N 段只需 N+1 次点击；误差棒子类可逐柱或分轮连续取点，无需每次手动选择记录。</li><li>柱图、折线和散点在取点模式下也可直接拖动已有标记。投影线和局部放大辅助检查，方向键微调；固定 X 或先定位类别刻度后，可仅寻找 Y。使用「选择 / 拖动」修正像素点，点击表格行选中，放大后画布可滚动。所有坐标始终对应原图。</li><li>检查原图叠加、数据表与语义重绘。曲线采样和实验点的来源记录在工程中，不混入精简 GT。</li><li>保存工程以继续工作，导出 GT 进入下游流程。浏览器草稿不代替工程备份。</li></ol><p>支持线性、对数和倒置坐标；任意倾斜 / 透视坐标需先校正图像。本版本支持柱图、折线、散点、饼图（含环形预览）、横纵箱线图与四类误差棒柱图工作流。热力图用矩阵录入、共享边界和人工色标测量。饼图直接录入原始数值；箱线图按 lower → q1 → median → q3 → upper 取点，outliers 可连续新增。可建立命名项目、导入文件夹；批量 ZIP 只导出已核对且结构有效的 GT，跳过原因见清单。全屏模式保留画布、类别目标、校准和数据表，按 Esc 返回。</p><form method="dialog"><button class="primary">开始标注</button></form></dialog>
+<dialog id="helpDialog"><h2>从图像到可检查的 GT</h2><ol><li>添加原图，选择对应图表类型（误差棒柱图单独列为子类），填写标题、图例与类别。</li><li>直接在表格录入数值；或展开坐标校准，为每个数值轴分别点击两个已知刻度并填写真实值。</li><li>柱图默认逐类别自动切换系列；也可按系列推进。类别×系列进度格可直接选择目标。使用「取点」。堆叠柱按下到上或左到右依次点击起始边界、各段交界点和终止边界，N 段只需 N+1 次点击；误差棒子类可逐柱或分轮连续取点，无需每次手动选择记录。</li><li>柱图、折线和散点在取点模式下也可直接拖动已有标记。投影线和局部放大辅助检查，Ctrl＋方向键微调；固定 X 或先定位类别刻度后，可仅寻找 Y。使用「选择 / 拖动」修正像素点，点击表格行选中，放大后画布可滚动。所有坐标始终对应原图。</li><li>检查原图叠加、数据表与语义重绘。曲线采样和实验点的来源记录在工程中，不混入精简 GT。</li><li>保存工程以继续工作，导出 GT 进入下游流程。浏览器草稿不代替工程备份。</li></ol><p>支持线性、对数和倒置坐标；任意倾斜 / 透视坐标需先校正图像。本版本支持柱图、折线、散点、饼图（含环形预览）、横纵箱线图与四类误差棒柱图工作流。热力图用矩阵录入、共享边界和人工色标测量。饼图直接录入原始数值；箱线图按 lower → q1 → median → q3 → upper 取点，outliers 可连续新增。可建立命名项目、导入文件夹；批量 ZIP 只导出已核对且结构有效的 GT，跳过原因见清单。全屏模式保留画布、类别目标、校准和数据表，按 Esc 返回。</p><form method="dialog"><button class="primary">开始标注</button></form></dialog>
+<dialog id="shortcutDialog"><h2>标注快捷键</h2><p>点击原图进入标注操作区。编辑输入框时使用原生按键。</p>
+<dl class="shortcut-list">
+<dt>Space + 左键拖动</dt><dd>暂时平移画布</dd>
+<dt>Shift + 滚轮</dt><dd>在鼠标位置缩放</dd>
+<dt>Ctrl/⌘ + Z</dt><dd>撤销当前区域的操作</dd>
+<dt>Ctrl/⌘ + Shift + Z</dt><dd>重做当前区域的操作</dd>
+<dt>Esc</dt><dd>取消未完成的测量</dd>
+<dt>Delete</dt><dd>删除选中数据点</dd>
+<dt>← / →</dt><dd>切换数据记录</dd>
+<dt>↑ / ↓</dt><dd>切换系列</dd>
+<dt>Tab / Shift + Tab</dt><dd>切换测量项</dd>
+<dt>Enter</dt><dd>应用当前可确认的测量</dd>
+<dt>F / 1</dt><dd>适应画布 / 原始比例</dd>
+<dt>V / P</dt><dd>选择编辑 / 取点</dd>
+<dt>按住 H</dt><dd>临时隐藏标注、辅助线和数值提示</dd>
+<dt>Ctrl + 方向键</dt><dd>微调选中像素位置，Shift 为 10 px，Alt + 方向键为 0.1 px</dd>
+</dl><form method="dialog"><button class="primary">关闭</button></form></dialog>
 <!-- STUDIO_LIBRARIES -->
 <script src="./vendor/vega-lite-table-export.js"></script>
 <script type="module" src="./studio.js"></script></body></html>

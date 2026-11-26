@@ -10,19 +10,19 @@ test('Pie measurement follows clockwise rays across zero and closes the last sec
  const boundaries=[330,20,170].map(ray),before=plain({center,boundaries});
  const sectors=plain(app.measurePieSectors(center,boundaries));
  assert.deepEqual(sectors.map(s=>Number(s.degrees.toFixed(2))),[50,150,160]);
- assert.deepEqual(sectors.map(s=>s.value),[13.9,41.7,44.4]);
+ assert.deepEqual(sectors.map(s=>s.value),[13.89,41.67,44.44]);
  assert.deepEqual({center,boundaries},before);
  assert.throws(()=>app.measurePieSectors(center,[ray(330),ray(240),ray(20)]),/顺时针/);
  assert.throws(()=>app.measurePieSectors(center,[ray(330),ray(330)]),/只点一次/);
  assert.throws(()=>app.measurePieSectors(center,[center]),/圆心/);
 });
-test('Pie measurement apportions the pixel-resolved percentage units exactly, including many small sectors',()=>{
+test('Pie measurement apportions the hundredths of a percentage point exactly, including many small sectors',()=>{
  const values=degrees=>plain(app.measurePieSectors(center,degrees.map(ray))).map(s=>s.value);
- assert.deepEqual(values([359.99,0.02,179.99]),[0,50,50]);
- assert.deepEqual(values([10,130,250]).sort(),[33.3,33.3,33.4]);
+ assert.deepEqual(values([359.99,0.02,179.99]),[0.01,49.99,50]);
+ assert.deepEqual(values([10,130,250]).sort(),[33.33,33.33,33.34]);
  const parts=values(Array.from({length:73},(_,i)=>i*360/73));
- assert.ok(parts.every(v=>v===1.3||v===1.4));
- assert.equal(parts.reduce((sum,v)=>sum+Math.round(v*10),0),1000);
+ assert.ok(parts.every(v=>v===1.36||v===1.37));
+ assert.equal(parts.reduce((sum,v)=>sum+Math.round(v*100),0),10000);
 });
 const rows=[{category:'Late',lower:0.123456789012345,q1:10,median:20,q3:30,upper:99.9876543210987,outliers:[-25,120.1234567890123]},{category:'Early',lower:2,q1:3,median:4,q3:5,upper:6,outliers:[]}];
 function box(kind='boxplot_v'){const p=app.defaultProject(kind);p.rows=plain(rows);p.title='Five number summary';p.xTitle=kind==='boxplot_h'?'Duration (ms)':'Treatment';p.yTitle=kind==='boxplot_h'?'Treatment':'Duration (ms)';return p;}
@@ -37,10 +37,10 @@ test('Both Box Plot directions retain exact precomputed data, empty outliers and
 test('Box Plot checks ordering and finite outliers without applying IQR fences or changing data',()=>{const p=box();p.rows[0].lower=-1e9;p.rows[0].outliers=[20];assert.equal(app.validate(p).length,0);const gt=plain(app.makeSpec(p));assert.equal(gt.data.values[0].lower,-1e9);assert.equal(gt.layer[3].data.values[0].value,20);p.rows[0].q1=25;assert(app.validate(p).some(i=>i.message.includes('lower ≤ q1')));assert.throws(()=>app.makeSpec(p));p.rows[0].q1=10;p.rows[0].outliers=[null];assert.throws(()=>app.makeSpec(p));});
 test('Pie rejects invalid values while incomplete percentage totals stay exportable',()=>{const p=app.defaultProject('pie');p.rows=[{category:'A',value:35},{category:'B',value:35}];assert.doesNotThrow(()=>app.makeSpec(p));p.rows[0].value=-5;assert.throws(()=>app.makeSpec(p));p.rows[0].value=Infinity;assert.throws(()=>app.makeSpec(p));});
 test('Calibration handles vertical, horizontal, inverted and logarithmic axes without rounding',()=>{for(const axis of [{p1:400,p2:50,v1:0,v2:100,type:'linear'},{p1:80,p2:560,v1:100,v2:-20,type:'linear'},{p1:50,p2:450,v1:.01,v2:100,type:'log'}])for(const pixel of [100,123.456,350])assert(Math.abs(app.valueToPixel(app.pixelToValue(pixel,axis),axis)-pixel)<1e-9);});
-test('Box pixel measurements use pixel uncertainty and at most four significant digits without changing evidence',()=>{
+test('Box pixel measurements use Precision V2 without changing evidence',()=>{
  for(const kind of ['boxplot_v','boxplot_h']){
   const p=box(kind),axis=kind==='boxplot_h'?'x':'y';p.axes[axis]={p1:0,p2:300,v1:-50,v2:50,type:'linear'};
-  for(const [pixel,expected] of [[100,-16.7],[200,16.7],[150,0],[1,-49.7]]){
+  for(const [pixel,expected] of [[100,-16.67],[200,16.67],[150,0],[1,-49.67]]){
    const pt={x:pixel,y:pixel},before=plain({p,pt});assert.equal(app.boxValueAt(pt,p),expected);assert.deepEqual(plain({p,pt}),before);
   }
   p.axes[axis]={p1:0,p2:300,v1:1,v2:100,type:'log'};assert.equal(app.boxValueAt({x:100,y:100},p),4.64);

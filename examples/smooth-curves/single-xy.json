@@ -1,0 +1,50 @@
+{
+  "data": {
+    "values": [
+      {
+        "x": 0,
+        "y": 2
+      },
+      {
+        "x": 0.5,
+        "y": 4
+      },
+      {
+        "x": 1.5,
+        "y": 7
+      },
+      {
+        "x": 3,
+        "y": 5
+      },
+      {
+        "x": 4,
+        "y": 2
+      }
+    ]
+  },
+  "mark": {
+    "type": "line",
+    "interpolate": "monotone"
+  },
+  "encoding": {
+    "x": {
+      "field": "x",
+      "type": "quantitative"
+    },
+    "y": {
+      "field": "y",
+      "type": "quantitative"
+    }
+  },
+  "usermeta": {
+    "table_export": {
+      "tables": [
+        {
+          "id": "data",
+          "path": "/data/values"
+        }
+      ]
+    }
+  }
+}
