@@ -1,0 +1,98 @@
+{
+  "data": {
+    "values": [
+      {
+        "category": "A",
+        "category_id": "C1",
+        "value": 20,
+        "stack_order": 1,
+        "series": "Series 1"
+      },
+      {
+        "category": "A",
+        "category_id": "C1",
+        "value": 30,
+        "stack_order": 2,
+        "series": "Series 2"
+      },
+      {
+        "category": "null",
+        "category_id": "C2",
+        "value": 25,
+        "stack_order": 1,
+        "series": "Series 1"
+      },
+      {
+        "category": "null",
+        "category_id": "C2",
+        "value": 35,
+        "stack_order": 2,
+        "series": "Series 2"
+      },
+      {
+        "category": "A",
+        "category_id": "C3",
+        "value": 30,
+        "stack_order": 1,
+        "series": "Series 1"
+      },
+      {
+        "category": "A",
+        "category_id": "C3",
+        "value": 40,
+        "stack_order": 2,
+        "series": "Series 2"
+      },
+      {
+        "category": "null",
+        "category_id": "C4",
+        "value": 35,
+        "stack_order": 1,
+        "series": "Series 1"
+      },
+      {
+        "category": "null",
+        "category_id": "C4",
+        "value": 45,
+        "stack_order": 2,
+        "series": "Series 2"
+      }
+    ]
+  },
+  "mark": {
+    "type": "bar"
+  },
+  "encoding": {
+    "x": {
+      "field": "category_id",
+      "type": "nominal",
+      "title": "Category",
+      "sort": null
+    },
+    "y": {
+      "field": "value",
+      "type": "quantitative",
+      "title": "Value (units)",
+      "stack": "zero"
+    },
+    "color": {
+      "field": "series",
+      "type": "nominal",
+      "sort": null
+    },
+    "order": {
+      "field": "stack_order",
+      "type": "quantitative"
+    }
+  },
+  "usermeta": {
+    "table_export": {
+      "tables": [
+        {
+          "id": "data",
+          "path": "/data/values"
+        }
+      ]
+    }
+  }
+}

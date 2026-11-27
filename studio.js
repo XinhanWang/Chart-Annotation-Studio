@@ -8,7 +8,7 @@ const isPolarBar=p=>p.kind.startsWith('polar_bar_');
 const isRadarStack=p=>p.kind==='polar_bar_stack';
 const isSingleRadar=p=>p.kind==='radar_1'||p.kind==='polar_bar_1';
 const radarGT=gt=>['radar','polar_bar'].includes(gt?.usermeta?.chartType);
-const KINDS = [...RADAR_KINDS,'barh_1','barh_n','barv_1','barv_n','barv_stack','barh_stack',...PERCENT_STACK_KINDS,'line_1','line_n','line_smooth_1','line_smooth_n','scatter_1','scatter_n','pie','boxplot_v','boxplot_h','area_1','area_n','area_stack','barline_n',...HISTOGRAM_KINDS,...HEATMAP_KINDS];
+const KINDS = [...RADAR_KINDS,'barh_1','barh_n','barv_1','barv_n','barv_stack','barh_stack',...PERCENT_STACK_KINDS,'line_1','line_n','line_smooth_1','line_smooth_n','scatter_1','scatter_n','scatter_bubble_1','scatter_bubble_n','pie','boxplot_v','boxplot_h','area_1','area_n','area_stack','barline_n',...HISTOGRAM_KINDS,...HEATMAP_KINDS];
 const copy = value => JSON.parse(JSON.stringify(value));
 const finite = n => typeof n === 'number' && Number.isFinite(n);
 const present = n => n !== undefined && n !== null && n !== '';
@@ -16,7 +16,14 @@ const unique = values => [...new Set(values)];
 const isComposite = p => p.kind==='barline_n';
 const compositeRole = (p,key) => p.series.find(s=>s.key===key)?.role;
 const measurementAxis = (p,key) => isComposite(p)&&p.dualYAxis&&compositeRole(p,key)==='line'?'r':valueAxis(p);
+const isBubble = p => p.kind.startsWith('scatter_bubble_');
 const isBar = p => p.kind.startsWith('bar');
+const hasBarPositions = p => isBar(p)&&!isComposite(p);
+const UNNAMED_CATEGORY='null';
+const barCategoryLabel=name=>name==null||typeof name==='string'&&!name.trim()
+  ?UNNAMED_CATEGORY:finite(name)?String(name):name;
+const standardBarPosition=id=>typeof id==='string'&&/^C[1-9][0-9]*$/.test(id);
+const compareBarPositions=(a,b)=>a.length-b.length||(a<b?-1:a>b?1:0);
 const isPercentStack = p => PERCENT_STACK_KINDS.includes(p.kind);
 const usesPercentBarLength = (p,category) => p.percentStackBarCategories?.[category]===true;
 const usesPercentStackRatio = (p,category) => p.percentStackRatioCategories?.[category]===true;
@@ -31,6 +38,7 @@ const isSmoothLine = p => p.kind.startsWith('line_smooth_');
 const smoothGT=gt=>gt?.mark?.type==='line'&&gt.mark.interpolate==='monotone';
 const nominalType = type => type==='nominal'||type==='ordinal';
 const lineCategoryAxis = p => isLine(p)?(nominalType(p.yType)?'y':nominalType(p.xType)?'x':null):null;
+const smoothTimeAxis=p=>isSmoothLine(p)?['x','y'].find(axis=>p[axis+'Type']==='temporal'):undefined;
 const isHeatmap = p => HEATMAP_KINDS.includes(p?.kind);
 const isHistogram = p => p.kind.startsWith('histogram_');
 const isHistogramStack = p => isHistogram(p)&&p.kind.endsWith('_stack');
@@ -63,7 +71,7 @@ let keyCounter=0;
 const newKey=prefix=>prefix+':'+(globalThis.crypto?.randomUUID?.()??Date.now().toString(36)+':'+(++keyCounter));
 const identity=r=>r._seriesKey??r.series_id??r.series_instance??r.series??'Series 1';
 const categoryIdentity=r=>r._categoryKey??r.category_id??r.x_id??r.y_id??r.category_instance??r.x_instance??r.y_instance??r.category??r.x;
-const ROW_FIELDS=['category','category_id','value','x','x_id','y','y_id','lower','upper','path_order','stack_order','start','end','series','series_id'];
+const ROW_FIELDS=['category','category_id','value','x','x_id','y','y_id','size','size_relative','lower','upper','path_order','stack_order','start','end','series','series_id'];
 const orderRow=r=>Object.fromEntries(ROW_FIELDS.filter(k=>k in r).map(k=>[k,r[k]]));
 const categoryName=(p,key)=>p.categoryObjects?.find(c=>c.key===key)?.name??key;
 const seriesName=(p,key)=>p.series?.find(c=>c.key===key)?.name??key;
@@ -102,6 +110,10 @@ function ensureIdentities(p){
       const cat=p.categoryObjects.find(c=>c.key===r._categoryKey);if(!cat)throw Error('记录引用了不存在的类别对象');r[field]=cat.name;
     }
     for(const k of ['category_id','x_id','y_id','series_id','category_instance','x_instance','y_instance','series_instance'])delete r[k];
+  }
+  if(hasBarPositions(p)){
+    for(const category of p.categoryObjects)category.name=barCategoryLabel(category.name);
+    for(const row of p.rows)row.category=barCategoryLabel(row.category);
   }
   p.categories=p.categoryObjects.map(c=>c.name);
   if(isPercentStack(p))migratePercentStackSettings(p);
@@ -143,6 +155,9 @@ function parseObjectNames(text){return text.split(/\r\n?|\n/).map(name=>name.tri
 function applyObjectNames(p,kind,text){
   const names=parseObjectNames(text);if(!names.length)throw Error('请至少输入一个名称');
   if(kind==='series'&&p.kind.endsWith('_1')&&names.length>1)throw Error('单系列类型只允许一个系列，请先选择多系列图表');
+  return setObjectNames(p,kind,names);
+}
+function setObjectNames(p,kind,names){
   ensureIdentities(p);const list=kind==='series'?p.series:p.categoryObjects;
   // Match by visible position, never by name: duplicate labels remain distinct objects.
   const removed=new Set(list.slice(names.length).map(o=>o.key)),ref=kind==='series'?'_seriesKey':'_categoryKey';
@@ -153,6 +168,19 @@ function applyObjectNames(p,kind,text){
   const byKey=new Map(list.map(o=>[o.key,o.name])),field=kind==='series'?'series':categoryField(p);
   for(const r of p.rows)r[field]=byKey.get(r[ref]);
   p.categories=p.categoryObjects.map(c=>c.name);return names.length;
+}
+function barPositionNames(count,names,first,interval,repeats){
+  if(![first,interval,repeats].every(n=>Number.isSafeInteger(n)&&n>0))
+    throw Error('首个位置、间隔和重复次数必须为正整数');
+  if(!names.length)throw Error('请至少输入一个类别名称');
+  if(first+(names.length-1)*interval+repeats-1>count)
+    throw Error('填充范围超出当前类别位置数量');
+  const labels=Array(count).fill(UNNAMED_CATEGORY);
+  names.forEach((name,index)=>{
+    const start=first-1+index*interval;
+    labels.fill(name,start,start+repeats);
+  });
+  return labels;
 }
 function applyPieCategoryNames(p,text){
   const objects=new Map(p.categoryObjects.map(category=>[category.key,category]));
@@ -184,22 +212,30 @@ function renderSpec(gt,p){
       whisker.scale={zero:false,...whisker.scale};
     }
   }
+  const standaloneBar=(markType(out.mark)==='bar'||out.layer?.some(l=>markType(l.mark)==='bar'))&&
+    !rows.some(r=>Object.hasOwn(r,'series_role'));
   function view(node){for(const [channel,d] of Object.entries(node.encoding||{})){
     const field=d.field,label={category_id:'category',x_id:'x',y_id:'y',series_id:'series'}[field];
     if(label&&['x','y','color'].includes(channel)){
-      const mapping=Object.fromEntries(rows.map(r=>[r[field],r[label]]));
+      const barPositions=standaloneBar&&field==='category_id';
+      const mapping=Object.fromEntries(rows.map(r=>[r[field],
+        barPositions&&r[label]===UNNAMED_CATEGORY?'':r[label]]));
+      const ids=Object.keys(mapping);
+      if(barPositions&&d.sort==null&&ids.every(standardBarPosition))d.sort=ids.sort(compareBarPositions);
       const property=channel==='color'?'legend':'axis';
       if(d[property]!==null)d[property]={...(d[property]||{}),labelExpr:JSON.stringify(mapping)+'[datum.value]'};
     }
   }for(const child of node.layer||[])view(child);}
-  view(out);return smoothGT(out)?styleSmoothPreview(out):out;
+  view(out);return smoothGT(out)?styleSmoothPreview(out):
+    markType(out.mark)==='point'&&out.encoding?.size?styleBubblePreview(out):out;
 }
 
 // p.categories is an explicit screen order: left-to-right, or top-to-bottom for horizontal bars.
 function orderedRows(p,compositeLine=false) {
   if(isStat(p))return copy(p.rows);
   ensureIdentities(p);
-  const source=p.rows.map((r,i)=>({...r,__input:i}));
+  const bubble=isBubble(p);
+  const source=p.rows.map((r,i)=>({...r,...(bubble?bubbleObservation(p,r,p.evidence?.[i]):{}),__input:i}));
   const lineCategory=lineCategoryAxis(p),categorical=isBar(p)||lineCategory||p.xType==='ordinal';
   const categories=p.categoryObjects.map(c=>c.key);
   const series=p.series.map(s=>s.key);
@@ -260,6 +296,8 @@ function defaultProject(kind='scatter_1') {
   if(hasLayerOrder({kind}))series.forEach((s,i)=>s.stackOrder=i);
   const histogram=isHistogram({kind}),categories=isPie({kind})||isArea({kind})||histogram?[]:['A','B','C'];
   const axes={x:{p1:80,p2:560,v1:0,v2:10,type:'linear',reverse:false,calibrated:false},y:{p1:400,p2:50,v1:0,v2:100,type:'linear',reverse:false,calibrated:false}};
+  if(isBubble({kind}))return ensureIdentities({kind,title:'',xTitle:'',yTitle:'',axes,rows:[],series,legend:multi,
+    xType:'quantitative',categories:[],bubble:newBubbleSettings()});
   if(isRadar({kind}))return ensureIdentities({kind,title:'',xTitle:'',yTitle:'',axes,rows:[],series,legend:multi,
     categories,radar:newRadarState()});
   if(isHeatmap({kind})){
@@ -355,6 +393,19 @@ function decimalDifference(end,start){
   const integer=(part,value)=>(value<0?-1n:1n)*BigInt(part.digits)*10n**BigInt(part.exponent-exponent);
   return Number((integer(a,end)-integer(b,start))+'e'+exponent);
 }
+function stackAmount(project,difference){
+  return quantizeMeasurement(difference,{percent:percentLabels(project,valueAxis(project)),computed:true});
+}
+function consistentStackAmount(project,{start,end,value}){
+  const exact=decimalDifference(end,start),raw=end-start;
+  if(!finite(exact))return false;
+  // Manual value edits store the end using floating-point addition.
+  if(value===raw||raw!==0&&start+value===end||
+      Math.abs(value-exact)<=Number.EPSILON*Math.max(Math.abs(value),Math.abs(exact)))
+    return true;
+  try{return value===stackAmount(project,exact);}
+  catch{return false;}
+}
 function boxValueAt(pt,p) {
   const axis=valueAxis(p);
   return measureProjectAxis(p,axis,pt[axis]);
@@ -435,11 +486,16 @@ function validateModel(p) {
   if(isRadar(p))return validateRadar(p);
   if(isComposite(p))return validateComposite(p);
   if(isStat(p))return validateStat(p);
-  const bar=isBar(p), stack=isStack(p), percent=isPercentStack(p), line=isLine(p), lineCategory=lineCategoryAxis(p);
+  const bar=isBar(p), stack=isStack(p), percent=isPercentStack(p), line=isLine(p), lineCategory=lineCategoryAxis(p), temporal=smoothTimeAxis(p);
   if(line&&nominalType(p.xType)&&nominalType(p.yType))issue('error','折线图至少需要一个连续数值轴');
   for(const key of ['title','xTitle','yTitle'])if(present(p[key])&&!(typeof p[key]==='string'||Array.isArray(p[key])&&p[key].length&&p[key].every(v=>typeof v==='string')))issue('error',`${key} 需要文字或非空文字数组`);
   if(isArea(p)){validateArea(p,issue);validateAxes(p,issue);return out;}
   if(isHistogram(p)){validateHistogram(p,issue);return out;}
+  if(isBubble(p)){
+    validateAxes(p,issue);validateBubbles(p,issue);
+    if(p.kind.endsWith('_1')&&unique(p.rows.map(identity)).length>1)issue('error','单系列图只允许一个系列');
+    return out;
+  }
   const fields=unique(p.rows.flatMap(r=>Object.keys(r).filter(k=>present(r[k]))));
   for(const name of ['lower','upper','start','end','path_order','stack_order']) {
     if(percent&&['start','end','stack_order'].includes(name))continue;
@@ -460,15 +516,15 @@ function validateModel(p) {
     const prefix=`第 ${i+1} 行：`;
     for(const f of ['category','x','series'])if(present(r[f])&&!(typeof r[f]==='string'||finite(r[f])))issue('error',prefix+f+' 必须是文字或有限数字');
     const discrete=lineCategory??(p.xType==='ordinal'?'x':null);
-    for(const f of bar?['value']:['x','y'].filter(axis=>axis!==discrete)) if(!finite(r[f])) issue('error',prefix+f+' 必须是有限数字');
+    for(const f of bar?['value']:['x','y'].filter(axis=>axis!==discrete&&axis!==temporal)) if(!finite(r[f])) issue('error',prefix+f+' 必须是有限数字');
     for(const f of ['lower','upper','start','end','path_order','stack_order']) if(present(r[f])&&!finite(r[f])) issue('error',prefix+f+' 必须是有限数字');
     if(bar&&!present(r.category)) issue('error',prefix+'缺少类别');
     if(!bar&&discrete&&!present(r[discrete])&&!(isSmoothLine(p)&&p.smoothPositioned&&r[discrete]===null)) issue('error',prefix+'缺少 '+discrete+' 类别');
     if(lineCategory&&typeof r[lineCategory]!=='string'&&!(p.xType==='ordinal'&&finite(r[lineCategory]))&&!(isSmoothLine(p)&&p.smoothPositioned&&r[lineCategory]===null))issue('error',prefix+lineCategory+' 类别必须为文本');
     if(present(r.lower)&&finite(r.lower)&&finite(r.upper)&&r.lower>r.upper) issue('error',prefix+'lower 不能大于 upper');
-    if(!percent&&finite(r.start)&&finite(r.end)&&finite(r.value)&&Math.abs((r.end-r.start)-r.value)>1e-8*Math.max(1,Math.abs(r.value))) issue('error',prefix+'堆叠段 value 必须等于 end − start');
+    if(!percent&&finite(r.start)&&finite(r.end)&&finite(r.value)&&!consistentStackAmount(p,r)) issue('error',prefix+'堆叠段 value 必须等于 end − start');
     for(const channel of ['x','y']) {
-      const quantitative=bar?(isHorizontal(p)?channel==='x':channel==='y'):channel!==discrete;
+      const quantitative=bar?(isHorizontal(p)?channel==='x':channel==='y'):channel!==discrete&&channel!==temporal;
       const field=bar?'value':channel;
       if(!percent&&quantitative&&p.axes?.[channel]?.type==='log'&&(!(r[field]>0)||['lower','upper','start','end'].some(k=>present(r[k])&&r[k]<=0))) issue('error',prefix+'对数轴数值及区间必须大于零');
     }
@@ -578,6 +634,7 @@ function tableMetadata(p,s){
 function percentLabels(p,key){
   if(isSmoothLine(p)&&p.smoothPositioned&&lineCategoryAxis(p)===key)return false;
   if(key==='theta')return p.valueMode==='percent';
+  if(key==='size'&&isBubble(p)&&p.bubble.mode==='relative')return false;
   return p.percentLabels?.[key]===true;
 }
 const DEFAULT_PERCENT_FORMAT='.4~p';
@@ -648,8 +705,9 @@ function mapPercentScales(spec,project,reading){
   const flags={},guides={},fields=new Map(),formatTargets=[],digits={},losses=new Map();
   const guideOwner=reading?null:isBox(project)?spec.layer[0]:isBar(project)&&spec.layer?spec:null;
   function scan(node,right=false){
-    for(const ch of ['x','y','theta','color']){
-      const def=node.encoding?.[ch],guide=ch==='theta'?def:ch==='color'?def?.legend:def?.axis;
+    for(const ch of ['x','y','theta','color','size']){
+      const def=node.encoding?.[ch],guide=ch==='theta'?def:['color','size'].includes(ch)?def?.legend:def?.axis;
+      if(ch==='size'&&def?.field!=='size')continue;
       if(def?.type==='quantitative'&&isPercentFormat(guide)){
         const key=right&&ch==='y'?'r':ch,format=guide.format;
         flags[key]=true;
@@ -665,10 +723,10 @@ function mapPercentScales(spec,project,reading){
     const data=node.data?.values??inheritedData,enc={...parentEncoding,...node.encoding};
     if(!Array.isArray(data))return;
     if(!fields.has(data))fields.set(data,new Set());
-    for(const ch of ['x','y','color','theta']){
+    for(const ch of ['x','y','color','theta','size']){
       const key=right&&ch==='y'?'r':ch,def=enc[ch];
-      if(def?.type!=='quantitative')continue;
-      const guide=ch==='color'?'legend':ch==='theta'?null:'axis';
+      if(def?.type!=='quantitative'||ch==='size'&&def.field!=='size')continue;
+      const guide=['color','size'].includes(ch)?'legend':ch==='theta'?null:'axis';
       const active=reading?flags[key]:percentLabels(project,key);
       if(!active)continue;
       flags[key]=true;
@@ -881,12 +939,15 @@ function baseSpec(p,observation=row=>row) {
   if(isHistogram(p))return makeHistogramSpec(ensureIdentities(copy(p)),observation);
   const bar=isBar(p),stack=isStack(p),percent=isPercentStack(p),horizontal=isHorizontal(p),line=p.kind.startsWith('line');
   p=ensureIdentities(copy(p));
+  const bubble=isBubble(p);
   const ordered=orderedRows(p),lineCategory=lineCategoryAxis(p),categoryField=bar?'category':lineCategory??'x';
   const seriesKeys=unique(ordered.map(identity)),categoryKeys=unique(ordered.map(categoryIdentity));
-  const multi=seriesKeys.length>1,withSeries=percent||p.legend!==false||multi;
+  const multi=seriesKeys.length>1,withSeries=percent||p.legend!==false||multi||bubble&&p.kind.endsWith('_n');
   const repeatedSeries=unique(seriesKeys.map(k=>seriesName(p,k))).length<seriesKeys.length;
   const categoryLabel=key=>lineCategory?String(categoryName(p,key)):categoryName(p,key);
-  const repeatedCategory=(bar||lineCategory||p.xType==='ordinal')&&unique(categoryKeys.map(categoryLabel)).length<categoryKeys.length;
+  const categoryLabels=categoryKeys.map(categoryLabel);
+  const useCategoryIDs=(bar||lineCategory||p.xType==='ordinal')&&
+    (unique(categoryLabels).length<categoryKeys.length||bar&&categoryLabels.includes(UNNAMED_CATEGORY));
   const categoryID=categoryField+'_id',prefix=bar?'C':categoryField.toUpperCase();
   const observedCategories=p.categoryObjects.filter(c=>categoryKeys.includes(c.key));
   const standardID=new RegExp('^'+prefix+'[1-9][0-9]*$');
@@ -899,8 +960,9 @@ function baseSpec(p,observation=row=>row) {
   const ranks=percent?new Map(p.series.map((s,i)=>[s.key,stackRank(s,i)])):null;
   const rows=ordered.map(r=>{
     const out=bar?{category:r.category,value:r.value}:{x:r.x,y:r.y};
+    if(bubble)out[bubbleField(p)]=r[bubbleField(p)];
     if(lineCategory)out[lineCategory]=categoryLabel(categoryIdentity(r));
-    if(repeatedCategory)out[categoryID]=categoryKey(categoryIdentity(r));
+    if(useCategoryIDs)out[categoryID]=categoryKey(categoryIdentity(r));
     for(const k of optional)out[k]=r[k];
     if(percent)out.stack_order=ranks.get(identity(r));
     else if(stack&&!optional.includes('start')&&!optional.includes('stack_order'))out.stack_order=stackKeys.indexOf(identity(r));
@@ -916,17 +978,22 @@ function baseSpec(p,observation=row=>row) {
     return out;
   };
   const cat=horizontal?'y':'x',val=horizontal?'x':'y';
-  const enc=bar?{[cat]:axis(cat,repeatedCategory?'category_id':'category','nominal'),[val]:axis(val,'value','quantitative')}:
-    Object.fromEntries(['x','y'].map(ch=>[ch,axis(ch,repeatedCategory&&ch===categoryField?categoryID:ch,
+  const enc=bar?{[cat]:axis(cat,useCategoryIDs?'category_id':'category','nominal'),[val]:axis(val,'value','quantitative')}:
+    Object.fromEntries(['x','y'].map(ch=>[ch,axis(ch,useCategoryIDs&&ch===categoryField?categoryID:ch,
       ch===lineCategory?'nominal':ch==='x'&&p.xType==='ordinal'?'ordinal':'quantitative')]));
-  if(line)for(const ch of lineCategory?requiredAxes(p):['x']){
+  if(bubble)enc.size={field:bubbleField(p),type:'quantitative',
+    ...(p.bubble.mode==='relative'?{legend:null}:{
+      ...(present(p.bubble.title)?{title:copy(p.bubble.title)}:{}),
+      ...(p.bubble.legend===false?{legend:null}:{})
+    })};
+  if(line||bubble)for(const ch of lineCategory?requiredAxes(p):['x']){
     const scale=p.axes[ch];
     const calibratedReverse=scale.calibrated&&(scale.v2-scale.v1)/(scale.p2-scale.p1)*(ch==='x'?1:-1)<0;
     const reverse=lineCategory&&scale.calibrated?calibratedReverse:scale.reverse||calibratedReverse;
     if(reverse)enc[ch].scale={...enc[ch].scale,reverse:true};
   }
   if(lineCategory&&optional.includes('path_order'))enc[lineCategory].sort=observedCategories
-    .map(c=>repeatedCategory?categoryKey(c.key):categoryLabel(c.key));
+    .map(c=>useCategoryIDs?categoryKey(c.key):categoryLabel(c.key));
   if(withSeries)enc.color={field:rows[0].series_id?'series_id':'series',type:'nominal',sort:null};
   if(['barh_n','barv_n'].includes(p.kind))enc[cat+'Offset']={...enc.color};
   if(stack) {
@@ -965,6 +1032,8 @@ function baseImport(input,preferredKind,percentAxes={}) {
   const mark=primary?.mark??s.mark;
   const type=typeof mark==='string'?mark:mark?.type;
   if(!['bar','line','point'].includes(type)||!enc.x||!enc.y)throw Error('仅支持柱、折线、散点图的 x/y 编码');
+  const bubble=type==='point'&&!!enc.size;
+  if(bubble)checkBubbleImport(s);
   if(type==='line'&&mark?.interpolate==='monotone')return importSmoothSpec(s,percentAxes);
   if(type==='line'&&mark?.interpolate!==undefined&&mark.interpolate!=='linear')
     throw Error('只支持 linear 折线和 monotone 平滑曲线，请检查阶梯或闭合曲线');
@@ -977,7 +1046,7 @@ function baseImport(input,preferredKind,percentAxes={}) {
     throw Error('折线方向与类别轴的默认路径不一致，请用 path_order 明确路径后导入');
   }
   if(type==='line'&&enc.order&&(enc.order.field!=='path_order'||enc.order.type!=='quantitative'))throw Error('折线顺序只绑定 path_order');
-  if(Object.keys(enc).some(k=>!['x','y','x2','y2','color','xOffset','yOffset','order'].includes(k)))throw Error('导入包含当前十类工具尚不支持的视觉编码');
+  if(Object.keys(enc).some(k=>!['x','y','x2','y2','color','xOffset','yOffset','order',...(bubble?['size']:[])].includes(k)))throw Error('导入包含当前十类工具尚不支持的视觉编码');
   for(const [channel,def] of Object.entries(enc)) {
     const lineDomain=channel===lineCategory&&Array.isArray(def.sort);
     if(lineDomain&&(new Set(def.sort).size!==def.sort.length||def.sort.length!==unique(s.data.values.map(r=>r[def.field])).length||s.data.values.some(r=>!def.sort.includes(r[def.field]))))throw Error('折线显式类别顺序必须恰好覆盖观测位置');
@@ -1001,13 +1070,19 @@ function baseImport(input,preferredKind,percentAxes={}) {
     ['series','series_id','series_instance'].includes(seriesField)&&
     enc.order?.field==='stack_order'&&enc.order.type==='quantitative'&&
     (preferredKind===percentKind||formattedPercent);
-  const kind=type==='bar'?(stacked?(percent?percentKind:prefix+'_stack'):`${prefix}_${ids.length>1||enc[cat+'Offset']?'n':'1'}`):`${type==='line'?'line':'scatter'}_${ids.length>1?'n':'1'}`;
+  const kind=type==='bar'?(stacked?(percent?percentKind:prefix+'_stack'):`${prefix}_${ids.length>1||enc[cat+'Offset']?'n':'1'}`):`${type==='line'?'line':bubble?'scatter_bubble':'scatter'}_${ids.length>1||bubble&&preferredKind==='scatter_bubble_n'&&seriesField?'n':'1'}`;
   const p=defaultProject(kind);
   p.title=typeof s.title==='object'&&!Array.isArray(s.title)?s.title.text??'':s.title??'';
   p.xTitle=enc.x.title??enc.x.axis?.title??'';p.yTitle=enc.y.title??enc.y.axis?.title??'';
   p.xType=enc.x.type==='quantitative'?'quantitative':type==='line'?'nominal':'ordinal';
   if(type==='line')p.yType=lineCategory==='y'?'nominal':'quantitative';
   p.legend=!!seriesField&&enc.color.legend!==null;
+  if(bubble){
+    p.bubble.mode=enc.size.field==='size_relative'?'relative':'manual';
+    p.bubble.method=p.bubble.mode==='relative'?'center-edge':'center';
+    p.bubble.title=enc.size.title??enc.size.legend?.title??'';
+    p.bubble.legend=enc.size.legend!==null;
+  }
   p.series=ids.map((name,i)=>({name:s.data.values.find(r=>r[seriesField]===name)?.series??name,color:['#4263eb','#e8590c','#12b886','#ae3ec9'][i%4]}));
   for(const channel of ['x','y']) {
     const scale=enc[channel].scale;
@@ -1027,6 +1102,7 @@ function baseImport(input,preferredKind,percentAxes={}) {
   p.rows=s.data.values.map(r=>{
     if(percent&&(!r||!present(r[seriesField])))throw Error('百分比堆叠记录缺少系列');
     const row=type==='bar'?{category:r[enc[cat].field],value:r[enc[val].field]}:{x:r[enc.x.field],y:r[enc.y.field]};
+    if(bubble)row[enc.size.field]=r[enc.size.field];
     row.series=seriesField?(r.series??r[seriesField]):'Series 1';
     for(const k of ['category_id','x_id','y_id','series_id','category_instance','x_instance','y_instance','series_instance','path_order','stack_order','start','end','lower','upper'])if(present(r[k]))row[k]=r[k];
     const field=type==='bar'?'category':lineCategory??'x';
@@ -1037,6 +1113,10 @@ function baseImport(input,preferredKind,percentAxes={}) {
     return row;
   });
   p.categories=unique(p.rows.map(r=>r[type==='bar'?'category':lineCategory??'x']));delete p.categoryObjects;ensureIdentities(p);
+  if(type==='bar'&&enc[cat].field==='category_id'&&p.categoryObjects.every(c=>standardBarPosition(c.legacy))){
+    p.categoryObjects.sort((a,b)=>compareBarPositions(a.legacy,b.legacy));
+    p.categories=p.categoryObjects.map(c=>c.name);
+  }
   if(percent){
     const ranks=new Map();
     for(const row of p.rows){
@@ -1842,7 +1922,7 @@ function keepOtherAreaMode(p,next){
   next.areaModes=areaMode(next)===areaMode(p)?p.areaModes:{[areaMode(p)]:areaModeData(p)};
 }
 const LINE_MODE_FIELDS=[...AREA_MODE_FIELDS,'legend','smoothPositioned','smoothPhase','smoothSkipped'];
-const lineMode=p=>lineCategoryAxis(p)??'quantitative';
+const lineMode=p=>lineCategoryAxis(p)??(smoothTimeAxis(p)?smoothTimeAxis(p)+'-temporal':'quantitative');
 const lineModeData=p=>Object.fromEntries(LINE_MODE_FIELDS.map(key=>[key,p[key]]));
 function switchLineMode(p,next){
   const current=lineMode(p);
@@ -1853,8 +1933,7 @@ function switchLineMode(p,next){
   p.lineModes[current]=lineModeData(p);
   delete p.lineModes[next];
   for(const key of LINE_MODE_FIELDS)p[key]=active[key];
-  p.xType=next==='x'?'nominal':'quantitative';
-  p.yType=next==='y'?'nominal':'quantitative';
+  for(const axis of ['x','y'])p[axis+'Type']=next===axis?'nominal':next===axis+'-temporal'?'temporal':'quantitative';
   ensureIdentities(p);
 }
 function keepOtherLineModes(p,next){
@@ -2367,8 +2446,8 @@ const $=id=>document.getElementById(id), clone=x=>structuredClone(x);
 const labels={
   radar_1:'单系列雷达图',radar_n:'多系列雷达图',polar_bar_1:'单系列极坐标柱状图',
   polar_bar_n:'多系列极坐标柱状图',polar_bar_stack:'极坐标堆叠柱状图',
-  heatmap_dd:'离散 × 离散',heatmap_cc:'连续 × 连续',heatmap_dc:'离散 X × 连续 Y',heatmap_cd:'连续 X × 离散 Y',
-  barline_n:'柱线复合图 / 共用类别轴',barh_1:'单系列横向柱图',barh_n:'分组横向柱图',barv_1:'单系列纵向柱图',barv_n:'分组纵向柱图',barv_stack:'堆叠纵向柱图',barh_stack:'堆叠横向柱图',barv_stack_percent:'纵向百分比堆叠',barh_stack_percent:'横向百分比堆叠',line_1:'单系列折线图',line_n:'多系列折线图',line_smooth_1:'单系列平滑曲线',line_smooth_n:'多系列平滑曲线',scatter_1:'单系列散点图',scatter_n:'多系列散点图',area_1:'Single-series Area / 单系列',area_n:'Multi-series Area / 多系列',area_stack:'Stacked Area / 堆叠',pie:'Pie / 饼图（含环形）',boxplot_v:'Box Plot Vertical / 纵向',boxplot_h:'Box Plot Horizontal / 横向',
+  heatmap_dd:'离散 × 离散',heatmap_cc:'连续 × 连续',heatmap_dc:'横轴离散、纵轴连续',heatmap_cd:'横轴连续、纵轴离散',
+  barline_n:'柱线复合图 / 共用类别轴',barh_1:'单系列横向柱图',barh_n:'分组横向柱图',barv_1:'单系列纵向柱图',barv_n:'分组纵向柱图',barv_stack:'堆叠纵向柱图',barh_stack:'堆叠横向柱图',barv_stack_percent:'纵向百分比堆叠',barh_stack_percent:'横向百分比堆叠',line_1:'单系列折线图',line_n:'多系列折线图',line_smooth_1:'单系列平滑曲线',line_smooth_n:'多系列平滑曲线',scatter_1:'单系列散点图',scatter_n:'多系列散点图',scatter_bubble_1:'单系列气泡图',scatter_bubble_n:'多系列气泡图',area_1:'单系列面积图',area_n:'多系列面积图',area_stack:'堆叠面积图',pie:'饼图（含环形）',boxplot_v:'纵向箱线图',boxplot_h:'横向箱线图',
   histogram_v_1:'单系列纵向直方图',histogram_h_1:'单系列横向直方图',
   histogram_v_n:'重叠纵向直方图',histogram_h_n:'重叠横向直方图',
   histogram_v_stack:'堆叠纵向直方图',histogram_h_stack:'堆叠横向直方图'};
@@ -2383,7 +2462,8 @@ const categoryPixelAxis=()=>lineCategoryAxis(p)??(horizontal()?'y':'x');
 function fresh(kind,xType,yType){
   const q=defaultProject(kind);
   if(isArea(q)&&xType==='nominal')q.xType=xType;
-  if(isLine(q)){q.xType=nominalType(xType)?'nominal':'quantitative';q.yType=nominalType(yType)?'nominal':'quantitative';}
+  if(isLine(q))for(const [axis,type] of [['x',xType],['y',yType]])
+    q[axis+'Type']=nominalType(type)?'nominal':isSmoothLine(q)&&type==='temporal'?'temporal':'quantitative';
   q.rows=[];q.evidence=[];q.reviewed=false;for(const a of Object.values(q.axes))a.calibrated=false;return q;
 }
 p=fresh('scatter_1');
@@ -2391,7 +2471,7 @@ function toast(message){$('toast').textContent=message;$('toast').style.display=
 // History entries retain only changed paths. Calibration replay recalculates live
 // observations from their evidence instead of restoring historical data rows.
 const annotationHistory={
-  data:{past:[],next:[]},calibration:{past:[],next:[]}
+  data:{past:[],next:[]},calibration:{past:[],next:[]},size:{past:[],next:[]}
 };
 const historyTargetFields=['series','category','boxField','outlierTarget','histogramBin',
   'histogramHandle','percentStackEndpoint'];
@@ -2459,6 +2539,7 @@ function calibrationChanges(delta){
     root==='pieMeasurement');
 }
 function invalidateDataHistory(entry){
+  if(isBubble(p))return; // Bubble rows resolve their live measurements when read.
   if(!calibrationChanges(entry.delta))return;
   const stack=annotationHistory.data;
   if(entry.delta.every(({path})=>path[0]==='pieMeasurement')){
@@ -3141,10 +3222,12 @@ $('tableBody').addEventListener('paste',e=>{
 });
 
 function syncForm(){ensureIdentities(p);syncTypes();$('seriesNames').value=p.series.map(s=>s.name).join('\n');for(const key of ['title','xTitle','yTitle','notes'])$(key).value=p[key]??'';$('legend').checked=p.legend;$('reviewed').checked=!!p.reviewed;syncCategoryList();$('xTypeLabel').hidden=!isArea(p)&&!isLine(p);
-const axisTypes=[['quantitative','Quantitative / 连续数值'],['nominal','Nominal / 类别']];
-options($('xType'),axisTypes,nominalType(p.xType)?'nominal':'quantitative');
+const axisTypes=[['quantitative','连续数值'],['nominal','离散类别']];
+if(isSmoothLine(p))axisTypes.push(['temporal','时间']);
+options($('xType'),axisTypes,nominalType(p.xType)?'nominal':p.xType);
+$('lineModeNote').textContent=isSmoothLine(p)?'可使用双数值轴，或一条类别／时间轴配一条数值轴。各模式分别保存记录和校准。':'折线图支持双连续轴或一个类别轴。各模式分别保存记录、校准和像素位置，切回可继续。';
 $('yTypeLabel').hidden=$('lineModeNote').hidden=!isLine(p);
-if(isLine(p))options($('yType'),axisTypes,nominalType(p.yType)?'nominal':'quantitative');
+if(isLine(p))options($('yType'),axisTypes,nominalType(p.yType)?'nominal':p.yType);
 $('areaModeNote').hidden=!isArea(p);$('addSeries').hidden=p.kind.endsWith('_1');$('activeSeries').closest('label').hidden=p.kind.endsWith('_1');$('seriesSection').hidden=p.kind.endsWith('_1')&&!p.legend;$('roleLabel').hidden=!p.kind.startsWith('line');$('connect').closest('label').hidden=!p.kind.startsWith('line');$('tableNote').textContent=bar()?(hasErrors(p)?'下限 / 上限是绝对数值界限，不是误差长度。':isStack(p)?'数据记录保留段起点 / 段终点供测量核对；普通堆叠的精简 GT / 导出 GT 统一使用 value、stack_order，不导出这些中间端点。':'每条记录对应一个柱子。'):p.kind.startsWith('line')?'默认按取点顺序连接；复杂路径可展开高级字段调整顺序。':'每条记录对应一个可见散点。';$('categoryLabel').hidden=!categorical();$('activeCategoryLabel').hidden=!categorical();const order=annotationOrder(p);$('orderGuide').textContent=order.records;$('seriesOrderNote').textContent=order.series;$('categoryOrderNote').textContent=order.category;
 const active=$('activeSeries').value;options($('activeSeries'),p.series.map((s,i)=>[s.key,s.name+'（'+(i+1)+'）']),active);options($('activeCategory'),p.categoryObjects.map((c,i)=>[c.key,c.name+'（'+(i+1)+'）']),$('activeCategory').value);
 $('seriesList').innerHTML=p.series.map((s,i)=>`<div class="series-row"><input type="color" aria-label="系列颜色" value="${esc(s.color||'#008b7e')}" data-series="${i}" data-prop="color"><input aria-label="系列名称" value="${esc(s.name)}" data-series="${i}" data-prop="name">${isComposite(p)?`<select aria-label="系列角色" data-series="${i}" data-prop="role"><option value="bar" ${s.role==='bar'?'selected':''}>柱</option><option value="line" ${s.role==='line'?'selected':''}>线</option></select>`:''}<button data-move-series="${i}" data-delta="-1" title="上移">↑</button><button data-move-series="${i}" data-delta="1" title="下移">↓</button><button data-remove-series="${i}" title="删除系列">×</button></div>`).join('');
@@ -3185,13 +3268,13 @@ function axisForm(){
   $('categoryAxisNote').textContent=required.length===1?
     (required[0]==='x'?'Y':'X')+' 轴是类别轴，无需数值标定；在类别顺序中填写标签即可。':'';
   $('axisFields').innerHTML=required.map(a=>{
-    const axis=p.axes[a],effective=isHeatmap(p)?heatmapAxisCalibration(p,a):axis;
+    const axis=p.axes[a],effective=isHeatmap(p)?heatmapAxisCalibration(p,a):axis,time=a===smoothTimeAxis(p);
     const ticks=[1,2].map(n=>{
       const pixel=axis['p'+n],gridPixel=effective['p'+n];
       const placeholder=!finite(pixel)&&finite(gridPixel)?` placeholder="网格边界 ${gridPixel.toFixed(1)}"`:'';
-      return `<div class="tick-row"><button data-tick="${a}${n}" class="${tool==='calibrate'&&calTarget===a+n?'active':''}">${isComposite(p)?a==='r'?'右Y':'左Y':a.toUpperCase()}${n} 取刻度</button><label>原图像素<input type="number" step="any" data-axis="${a}" data-field="p${n}" value="${pixel??''}"${placeholder}></label><label>真实数值<input type="text" inputmode="decimal" data-axis="${a}" data-field="v${n}" value="${axis['v'+n]??''}"></label></div>`;
+      return `<div class="tick-row"><button data-tick="${a}${n}" class="${tool==='calibrate'&&calTarget===a+n?'active':''}">${isComposite(p)?a==='r'?'右Y':'左Y':a.toUpperCase()}${n} 取刻度</button><label>原图像素<input type="number" step="any" data-axis="${a}" data-field="p${n}" value="${pixel??''}"${placeholder}></label><label>${time?'真实时间':'真实数值'}<input type="text" inputmode="${time?'text':'decimal'}" data-axis="${a}" data-field="v${n}" value="${esc(time?axis.timeLabels?.[n-1]:axis['v'+n])}"${time?' placeholder="如 2024-01、1月、Jan、12:30"':''}></label></div>`;
     }).join('');
-    return `<div class="axis-group"><label><input type="checkbox" data-percent-scale="${a}" ${percentLabels(p,a)?'checked':''}> 原图数字带 %（25% 录入 25）</label><h4>${isComposite(p)?a==='r'?'右 Y（折线）':'左 Y（柱）':a.toUpperCase()} 轴 <small data-axis-status="${a}"></small></h4><label>坐标类型<select data-axis="${a}" data-field="type"><option value="linear" ${axis.type!=='log'?'selected':''}>线性</option><option value="log" ${axis.type==='log'?'selected':''}>对数</option></select></label>${ticks}</div>`;
+    return `<div class="axis-group">${time?'':`<label><input type="checkbox" data-percent-scale="${a}" ${percentLabels(p,a)?'checked':''}> 原图数字带 %（25% 录入 25）</label>`}<h4>${isComposite(p)?a==='r'?'右 Y（折线）':'左 Y（柱）':a.toUpperCase()} 轴 <small data-axis-status="${a}"></small></h4>${time?'':`<label>坐标类型<select data-axis="${a}" data-field="type"><option value="linear" ${axis.type!=='log'?'selected':''}>线性</option><option value="log" ${axis.type==='log'?'selected':''}>对数</option></select></label>`}${ticks}</div>`;
   }).join('');
   if(isHeatmap(p))$('axisFields').insertAdjacentHTML('beforeend',`<label><input type="checkbox" data-percent-scale="color" ${percentLabels(p,'color')?'checked':''}> 色标数字带 %（25% 录入 25）</label>`);
   syncCalibrationStatus();
@@ -3207,11 +3290,13 @@ function syncCalibrationStatus(){
   for(const axis of required)document.querySelector('[data-axis-status="'+axis+'"]').textContent=calibrated.includes(axis)?'已校准':'待校准';
   $('calibrationStatus').textContent=calibrated.length===required.length?'所需数值轴已校准':'先取两个刻度再测量';
 }
-function columns(){if(isSmoothLine(p)){const axis=lineCategoryAxis(p);return ['x',...(axis==='x'?['_curvePosition']:[]),'y',...(axis==='y'?['_curvePosition']:[]),...(p.kind.endsWith('_n')||p.legend?['series']:[])];}if(isRadar(p))return ['category','value',...(!isSingleRadar(p)||p.legend?['series']:[]),...(isRadarStack(p)?['stack_order']:[])];if(isComposite(p))return ['category','value','series',...(hasErrors(p)?['lower','upper']:[]),...($('advancedFields').checked?['path_order']:[])];if(isPie(p))return ['category','value'];if(isBox(p))return ['category',...BOX_FIELDS,'outliers'];const series=p.kind.endsWith('_1')?[]:['series'];if(isArea(p))return [categoryField(p),'y','baseline',...series,...(p.kind==='area_stack'?['stack_order']:[])];if(isHistogramStack(p))return ['histogram_bin','value','series','stack_order'];if(isHistogram(p))return [...HISTOGRAM_FIELDS,...series];return bar()?['category','value',...series,...(isStack(p)?['start','end']:[]),...(isPercentStack(p)?['difference','stack_order']:[]),...(hasErrors(p)?['lower','upper']:[])]:['x','y',...series,...(p.kind.startsWith('line')&&$('advancedFields').checked?['path_order']:[])];}
-const columnNames={_curvePosition:'采样位置',category:'类别',histogram_bin:'所属分箱',bin_start:'分箱起始 bin_start',bin_end:'分箱结束 bin_end',value:'数值',series:'系列',x:'X',y:'Y',baseline:'下界 baseline',start:'段起点',end:'段终点',difference:'端点差值',stack_order:'堆叠顺序',path_order:'路径顺序',lower:'下限',upper:'上限',q1:'Q1',median:'中位数',q3:'Q3',outliers:'异常值'};
-function table(){if(isHeatmap(p)){syncHeatmapTable();return;}const cols=columns();$('tableHead').innerHTML='<tr><th># / 来源</th>'+cols.map(k=>`<th>${isArea(p)&&k==='y'?'上界 Y':isHistogram(p)&&k==='value'?'统计值 value':isPercentStack(p)&&k==='value'?'占比 (%)':columnNames[k]}</th>`).join('')+'</tr>';
-$('tableBody').innerHTML=p.rows.map((r,i)=>`<tr class="${i===selected?'selected':''}" data-row="${i}"><td>${isStat(p)?`<button class="small" data-move="-1" data-index="${i}" title="上移类别">↑</button><button class="small" data-move="1" data-index="${i}" title="下移类别">↓</button> `:''}${i+1} ${isHistogram(p)?'<span data-row-source>'+rowSource(i)+'</span>':p.evidence?.[i]?.pixel&&!(isPercentStack(p)&&p.evidence[i].valueOverride)?'⌖':'✎'}${discreteSmooth(p)?
-  ` <small data-smooth-sample="${freeSmoothRow(p,r)?'free':'fixed'}">${freeSmoothRow(p,r)?'自由采样':'固定点'}</small>`:''}</td>${cols.map(k=>{
+function columns(){if(isBubble(p))return ['x','y',bubbleField(p),...(p.kind.endsWith('_n')||p.legend?['series']:[])];if(isSmoothLine(p)){const axis=lineCategoryAxis(p);return ['x',...(axis==='x'?['_curvePosition']:[]),'y',...(axis==='y'?['_curvePosition']:[]),...(p.kind.endsWith('_n')||p.legend?['series']:[])];}if(isRadar(p))return ['category','value',...(!isSingleRadar(p)||p.legend?['series']:[]),...(isRadarStack(p)?['stack_order']:[])];if(isComposite(p))return ['category','value','series',...(hasErrors(p)?['lower','upper']:[]),...($('advancedFields').checked?['path_order']:[])];if(isPie(p))return ['category','value'];if(isBox(p))return ['category',...BOX_FIELDS,'outliers'];const series=p.kind.endsWith('_1')?[]:['series'];if(isArea(p))return [categoryField(p),'y','baseline',...series,...(p.kind==='area_stack'?['stack_order']:[])];if(isHistogramStack(p))return ['histogram_bin','value','series','stack_order'];if(isHistogram(p))return [...HISTOGRAM_FIELDS,...series];return bar()?['category','value',...series,...(isStack(p)?['start','end']:[]),...(isPercentStack(p)?['difference','stack_order']:[]),...(hasErrors(p)?['lower','upper']:[])]:['x','y',...series,...(p.kind.startsWith('line')&&$('advancedFields').checked?['path_order']:[])];}
+const columnNames={size:'大小',size_relative:'面积占比',_curvePosition:'采样位置',category:'类别',histogram_bin:'所属分箱',bin_start:'分箱起始 bin_start',bin_end:'分箱结束 bin_end',value:'数值',series:'系列',x:'X',y:'Y',baseline:'下界 baseline',start:'段起点',end:'段终点',difference:'端点差值',stack_order:'堆叠顺序',path_order:'路径顺序',lower:'下限',upper:'上限',q1:'Q1',median:'中位数',q3:'Q3',outliers:'异常值'};
+function table(){if(isHeatmap(p)){syncHeatmapTable();return;}const cols=columns(),bubble=isBubble(p);$('tableHead').innerHTML='<tr><th># / 来源</th>'+cols.map(k=>`<th>${isArea(p)&&k==='y'?'上界 Y':isHistogram(p)&&k==='value'?'统计值 value':isPercentStack(p)&&k==='value'?'占比 (%)':columnNames[k]}</th>`).join('')+'</tr>';
+$('tableBody').innerHTML=p.rows.map((r,i)=>{
+const bubbleValues=bubble?bubbleObservation(p,r,p.evidence?.[i]):null;
+return `<tr class="${i===selected?'selected':''}" data-row="${i}"><td>${isStat(p)?`<button class="small" data-move="-1" data-index="${i}" title="上移类别">↑</button><button class="small" data-move="1" data-index="${i}" title="下移类别">↓</button> `:''}${i+1} ${isHistogram(p)?'<span data-row-source>'+rowSource(i)+'</span>':p.evidence?.[i]?.pixel&&!(isPercentStack(p)&&p.evidence[i].valueOverride)?'⌖':'✎'}${discreteSmooth(p)?
+  ` <small data-smooth-sample="${freeSmoothRow(p,r)?'free':'fixed'}">${freeSmoothRow(p,r)?'自由采样':'固定点'}</small>`:''}${isBubble(p)&&r.needs_review?' <small>needs_review</small>':''}</td>${cols.map(k=>{
 if(isComposite(p)&&(['lower','upper'].includes(k)&&compositeRole(p,identity(r))==='line'||k==='path_order'&&compositeRole(p,identity(r))==='bar'))return '<td>—</td>';
 if(isBox(p)&&k==='outliers')return `<td>${outlierCells(r,i)}</td>`;if(isPie(p)&&k==='category')return `<td><input aria-label="第${i+1}行 类别" data-i="${i}" data-key="category" value="${esc(r.category)}"></td>`;
 if(k==='difference')return `<td data-i="${i}" data-key="difference">${finite(r.difference)?r.difference:'—'}</td>`;
@@ -3222,12 +3307,18 @@ if(k==='histogram_bin')return `<td><select aria-label="第${i+1}行 所属分箱
     `<option value="${esc(bin.key)}"${r._histogramBin===bin.key?' selected':''}>第 ${j+1} 箱</option>`).join('')}</select></td>`;
 if(k==='_curvePosition'&&!freeSmoothRow(p,r))return `<td>${esc(smoothCategoryPositions(p,true).get(r._categoryKey))}</td>`;
 if(k==='_curvePosition')return `<td><input type="number" step="any" aria-label="第${i+1}行 采样位置" data-i="${i}" data-key="${k}" value="${esc(smoothRowPosition(p,r))}"></td>`;
+if(bubbleValues&&k!=='series'){
+  const value=bubbleValues[k];
+  const derivedRelative=k==='size_relative'&&finite(p.evidence?.[i]?.bubbleRadius);
+  return `<td><input aria-label="第 ${i+1} 行 ${columnNames[k]}" data-i="${i}" data-key="${k}"
+    value="${esc(value)}" inputmode="decimal"${derivedRelative?' readonly':''}></td>`;
+}
 const kind=k==='series'?'series':categorical()&&k===categoryField(p)?'category':null;
 if(kind==='category'&&freeSmoothRow(p,r))return '<td>类别之间</td>';
 if(kind){const list=kind==='series'?p.series:p.categoryObjects,ref=kind==='series'?'_seriesKey':'_categoryKey';return `<td><select aria-label="第${i+1}行 ${columnNames[k]}" data-i="${i}" data-object="${kind}">${list.map((o,j)=>`<option value="${esc(o.key)}" ${r[ref]===o.key?'selected':''}>${esc(o.name)}（${j+1}）</option>`).join('')}</select></td>`;}
 return `<td><input aria-label="第${i+1}行 ${columnNames[k]}" data-i="${i}" data-key="${k}"
-  value="${esc(r[k])}" type="text" inputmode="decimal"></td>`;
-}).join('')}</tr>`).join('');$('countBadge').textContent=`${p.rows.length} 条记录`;syncHistoryControls();}
+  value="${esc(r[k])}" type="text" inputmode="${k===smoothTimeAxis(p)?'text':'decimal'}"></td>`;
+}).join('')}</tr>`;}).join('');$('countBadge').textContent=`${p.rows.length} 条记录`;syncHistoryControls();}
 function syncHistoryControls(){
   for(const button of document.querySelectorAll('[data-history-scope]')){
     const stack=annotationHistory[button.dataset.historyScope];
@@ -3236,7 +3327,9 @@ function syncHistoryControls(){
 }
 function rowSource(i){return histogramHandleKeys(p).some(k=>p.evidence?.[i]?.[k])?'⌖':'✎';}
 function syncCategoryList(){
-  const pie=isPie(p),list=$('categoryObjects');
+  const pie=isPie(p),barPositions=hasBarPositions(p),list=$('categoryObjects');
+  $('barPositionTools').hidden=!barPositions;
+  if(barPositions)$('barPositionCount').value=p.categoryObjects.length;
   $('categories').value=(pie?p.rows.map(row=>row.category):p.categoryObjects.map(c=>c.name)).join('\n');
   $('categoryBulkLabel').textContent=pie?'批量输入类别名称':'批量输入对象名称';
   $('applyCategoryNames').textContent=pie?'应用类别名称':'应用对象名称';
@@ -3244,9 +3337,12 @@ function syncCategoryList(){
     '按当前位置顺序改名；多出的行新增对象，减少行数会确认删除末尾对象及记录。空行忽略，同名对象保持独立。';
   list.hidden=pie;
   if(pie)return;
-  list.innerHTML=p.categoryObjects.map((c,i)=>`<div class="series-row"><input aria-label="类别位置 ${i+1} 名称" data-category="${esc(c.key)}" value="${esc(c.name)}"><button data-move-category="${esc(c.key)}" data-delta="-1" title="上移">↑</button><button data-move-category="${esc(c.key)}" data-delta="1" title="下移">↓</button><button data-remove-category="${esc(c.key)}" title="删除类别及记录">×</button></div>`).join('')+'<button type="button" id="addCategory">＋ 添加类别位置</button>';
+  list.innerHTML=p.categoryObjects.map((c,i)=>`<div class="series-row">${barPositions?`<span class="muted" aria-hidden="true">C${i+1}</span>`:''}<input aria-label="类别位置 ${i+1} 名称" data-category="${esc(c.key)}" value="${esc(barPositions&&c.name===UNNAMED_CATEGORY?'':c.name)}"${barPositions?' placeholder="未命名"':''}><button data-move-category="${esc(c.key)}" data-delta="-1" title="上移">↑</button><button data-move-category="${esc(c.key)}" data-delta="1" title="下移">↓</button><button data-remove-category="${esc(c.key)}" title="删除类别及记录">×</button></div>`).join('')+'<button type="button" id="addCategory">＋ 添加类别位置</button>';
   list.onchange=e=>{if(e.target.dataset.category)change(()=>renameObject(p,'category',e.target.dataset.category,e.target.value),{form:true});};
-  list.onclick=e=>{const d=e.target.dataset;if(e.target.id==='addCategory')change(()=>addObject(p,'category','新类别'),{form:true});else if(d.moveCategory)change(()=>moveObject(p,'category',d.moveCategory,Number(d.delta)),{form:true});else if(d.removeCategory){if(p.rows.some(r=>r._categoryKey===d.removeCategory)&&!confirm('删除该类别位置及其全部记录？'))return;change(()=>{removeObject(p,'category',d.removeCategory);selected=-1;},{form:true});}};
+  list.onclick=e=>{const d=e.target.dataset;if(e.target.id==='addCategory')change(()=>addObject(p,'category',barPositions?UNNAMED_CATEGORY:'新类别'),{form:true});else if(d.moveCategory)change(()=>moveObject(p,'category',d.moveCategory,Number(d.delta)),{form:true});else if(d.removeCategory){if(p.rows.some(r=>r._categoryKey===d.removeCategory)&&!confirm('删除该类别位置及其全部记录？'))return;change(()=>{
+    if(barPositions&&assist().category===d.removeCategory)pendingStart=null;
+    removeObject(p,'category',d.removeCategory);selected=-1;
+  },{form:true});}};
 }
 function scheduleDraftSave(){clearTimeout(saveTimer);saveTimer=setTimeout(saveDraft,450);}
 function refresh(form=false,keepTable=false){ensureIdentities(p);queueUI();if(form)syncForm();if(keepTable)syncHistoryControls();else table();syncAssist();syncPercentStackHeightPanel();draw();clearTimeout(renderTimer);renderTimer=setTimeout(render,130);scheduleDraftSave();}
@@ -3268,9 +3364,22 @@ function assist(){
 function targetPairs(){const a=assist(),cats=p.categoryObjects.map(c=>c.key),series=p.series.map(s=>s.key);if(isRadarStack(p))return cats.flatMap(category=>radarSeriesOrder(p,category).map(series=>({category,series})));if(isBox(p))return cats.map(category=>({category,series:a.series}));return a.sequence==='series'?series.flatMap(series=>cats.map(category=>({series,category}))):cats.flatMap(category=>series.map(series=>({series,category})));}
 function targetIndex(t){if(isBox(p))return p.rows.findIndex(r=>categoryIdentity(r)===t.category);return p.rows.findIndex(r=>identity(r)===t.series&&categoryIdentity(r)===t.category);}
 const percentTargetKey=t=>JSON.stringify([t.category,t.series]);
-const skippedPercentTarget=t=>isPercentStack(p)&&!!p.assist?.skippedPercentSegments?.[percentTargetKey(t)];
-function clearPercentSkip(t){
-  if(isPercentStack(p)&&p.assist?.skippedPercentSegments)delete p.assist.skippedPercentSegments[percentTargetKey(t)];
+const stackSkipField=()=>isPercentStack(p)?'skippedPercentSegments':'skippedStackSegments';
+const skippedStackTarget=t=>isStack(p)&&!!p.assist?.[stackSkipField()]?.[percentTargetKey(t)];
+function clearStackSkip(t){
+  if(isStack(p))delete p.assist?.[stackSkipField()]?.[percentTargetKey(t)];
+}
+function previousStackBoundary(target){
+  if(pendingStart)return pendingStart;
+  for(let i=p.series.findIndex(s=>s.key===target.series)-1;i>=0;i--){
+    const previous={category:target.category,series:p.series[i].key};
+    const point=p.evidence?.[targetIndex(previous)]?.pixel;
+    if(point||!skippedStackTarget(previous))return point;
+  }
+}
+function pendingStackEnd(target){
+  const end=p.assist?.stackPendingEnd;
+  return end?.target===percentTargetKey(target)?end.pixel:undefined;
 }
 const percentEndpointLabel={start:'段起点',end:'段终点'};
 function inheritedPercentStart(target){
@@ -3289,6 +3398,7 @@ function percentStackEndpoint(target){
   const choice=target.percentStackEndpoint;
   if(choice?.target===percentTargetKey(target)&&Object.hasOwn(percentEndpointLabel,choice.field))return choice.field;
   const row=p.rows[targetIndex(target)];
+  if(!isPercentStack(p))return !pendingStackEnd(target)&&(pendingStart||finite(row?.start)||previousStackBoundary(target))?'end':'start';
   return (finite(row?.start)||!finite(row?.end)&&inheritedPercentStart(target))?'end':'start';
 }
 function syncPercentStackRatioCategories(){
@@ -3352,15 +3462,17 @@ function syncPercentStackHeightPanel(){
   syncPercentStackHeightPrompt();
 }
 function syncPercentStackAssist(target){
-  $('percentStackEndpoints').hidden=$('skipPercentStack').hidden=!isPercentStack(p);
-  if(!isPercentStack(p))return;
-  const checks=[...$('percentStackRatioCategories').querySelectorAll('[data-percent-ratio-category]')];
-  for(const input of checks)input.checked=usesPercentStackRatio(p,input.dataset.percentRatioCategory);
-  $('selectAllPercentRatios').disabled=checks.every(input=>input.checked);
-  $('clearPercentRatios').disabled=checks.every(input=>!input.checked);
-  $('tableNote').textContent='自动占比用段差值除以类别高度。类别高度留空时使用各段差值之和。手填占比优先。';
+  $('percentStackEndpoints').hidden=$('skipPercentStack').hidden=!isStack(p);
+  if(!isStack(p))return;
+  if(isPercentStack(p)){
+    const checks=[...$('percentStackRatioCategories').querySelectorAll('[data-percent-ratio-category]')];
+    for(const input of checks)input.checked=usesPercentStackRatio(p,input.dataset.percentRatioCategory);
+    $('selectAllPercentRatios').disabled=checks.every(input=>input.checked);
+    $('clearPercentRatios').disabled=checks.every(input=>!input.checked);
+    $('tableNote').textContent='自动占比用段差值除以类别高度。类别高度留空时使用各段差值之和。手填占比优先。';
+  }
   const disabled=!target.category||!target.series,field=percentStackEndpoint(target);
-  $('skipPercentStack').disabled=disabled||targetIndex(target)>=0||skippedPercentTarget(target);
+  $('skipPercentStack').disabled=disabled||targetIndex(target)>=0||skippedStackTarget(target);
   for(const button of $('percentStackEndpoints').querySelectorAll('[data-percent-endpoint]')){
     const active=button.dataset.percentEndpoint===field;
     button.disabled=disabled;
@@ -3371,7 +3483,7 @@ function syncPercentStackAssist(target){
   $('targetHint').textContent+=' · 取'+percentEndpointLabel[field];
   if(tool==='point'){
     const row=p.rows[targetIndex(target)];
-    const inherited=field==='end'&&!finite(row?.start)&&inheritedPercentStart(target);
+    const inherited=isPercentStack(p)&&field==='end'&&!finite(row?.start)&&inheritedPercentStart(target);
     $('hint').textContent=(inherited?'起点沿用上一段终点（'+inherited.value+'）。':'')+'点击原图取'+percentEndpointLabel[field]+'。';
   }
 }
@@ -3380,12 +3492,13 @@ function targetComplete(t){
   if(discreteSmooth(p))return smoothFixedDone(p,t);
   if(isRadar(p))return radarTargetDone(t);
   const row=p.rows[targetIndex(t)];
-  if(isPercentStack(p))return row?validPercent(row.value)||usesPercentStackRatio(p,t.category)&&finite(row.difference):skippedPercentTarget(t);
+  if(isPercentStack(p))return row?validPercent(row.value)||usesPercentStackRatio(p,t.category)&&finite(row.difference):skippedStackTarget(t);
+  if(isStack(p))return !!row||skippedStackTarget(t);
   if(isNominalArea(p))return areaComplete(row);
   if(isBox(p))return !!row&&BOX_FIELDS.every(k=>finite(row[k]));
   return hasErrors(p)&&(!isComposite(p)||compositeRole(p,t.series)==='bar')?errorComplete(t):!!row;
 }
-function nextTarget(){const a=assist(),pairs=targetPairs(),at=pairs.findIndex(t=>t.series===a.series&&t.category===a.category);for(let offset=1;offset<=pairs.length;offset++){const t=pairs[(Math.max(at,0)+offset)%pairs.length];if(discreteSmooth(p)||isRadar(p)||isPercentStack(p)?!targetComplete(t):targetIndex(t)<0||(isBox(p)||isNominalArea(p))&&!targetComplete(t)){if(isBox(p))a.boxField='lower';if(isPercentStack(p))delete a.percentStackEndpoint;a.series=t.series;a.category=t.category;syncAssist();return true;}}syncAssist();return false;}
+function nextTarget(){const a=assist(),pairs=targetPairs(),at=pairs.findIndex(t=>t.series===a.series&&t.category===a.category);for(let offset=1;offset<=pairs.length;offset++){const t=pairs[(Math.max(at,0)+offset)%pairs.length];if(discreteSmooth(p)||isRadar(p)||isStack(p)?!targetComplete(t):targetIndex(t)<0||(isBox(p)||isNominalArea(p))&&!targetComplete(t)){if(isBox(p))a.boxField='lower';if(isStack(p))delete a.percentStackEndpoint;a.series=t.series;a.category=t.category;syncAssist();return true;}}syncAssist();return false;}
 function errorTask(){if(!hasErrors(p)||isStack(p))return null;const a=assist(),pairs=targetPairs();
   const fields=t=>isComposite(p)&&compositeRole(p,t.series)==='line'?['value']:['value','upper','lower'];
   const missing=t=>{const i=targetIndex(t);return i<0||!finite(p.rows[i][t.field]);};
@@ -3405,14 +3518,22 @@ function syncAssist(){
     const button=document.querySelector('[data-tool='+k+']');
     button.hidden=!isArea(p);button.disabled=!p.rows[selected]||!(isNominalArea(p)?present(p.rows[selected].category):finite(p.rows[selected].x));
   }$('advancedFieldsLabel').hidden=!p.kind.startsWith('line')&&!isComposite(p);$('activeSeries').value=a.series;$('activeCategory').value=a.category;
-  $('sequence').value=a.sequence;$('sequenceLabel').hidden=!categorical()||isBox(p)||isPercentStack(p);$('nextTarget').hidden=!categorical();$('numericLock').hidden=categorical()||isPie(p)||isHistogram(p);$('unlockPoint').hidden=isHistogram(p);$('categoryLock').hidden=!categorical();
+  $('sequence').value=a.sequence;$('sequenceLabel').hidden=!categorical()||isBox(p)||isPercentStack(p);$('nextTarget').hidden=!categorical();$('numericLock').hidden=categorical()||isPie(p)||isHistogram(p)||isBubble(p)||!!smoothTimeAxis(p);$('unlockPoint').hidden=isHistogram(p);$('categoryLock').hidden=!categorical();
   for(const [id,key]of [['projections','projections'],['magnify','magnify'],['lockX','lockX'],['lockCategory','lockCategory']])$(id).checked=!!a[key];
   if(document.activeElement!==$('fixedX')){
     $('fixedX').value=isArea(p)&&(tool==='lock-x'||finite(a.fixedXPixel))?'':a.fixedXValue??'';
   }
   $('dragAxis').value=a.dragAxis;
   const pairs=categorical()?targetPairs():[],done=pairs.filter(targetComplete).length;
-  $('targetHint').textContent=isPie(p)?'Pie：在数据表录入类别及原始数值':isBox(p)?`当前目标：${categoryName(p,a.category)||'请填写类别'} · ${a.boxField}`:categorical()?`当前目标：${categoryName(p,a.category)||'请先填写类别'} · ${seriesName(p,a.series)}`:`当前系列：${seriesName(p,a.series)}${a.lockX?' · 固定 X = '+(a.fixedXValue??'待填写'):''}`;
+  const targetLabel=key=>{
+    const name=categoryName(p,key);
+    if(!hasBarPositions(p)||!key)return name;
+    const index=p.categoryObjects.findIndex(category=>category.key===key);
+    if(name===UNNAMED_CATEGORY)return 'C'+(index+1)+' · 未命名';
+    if(p.categoryObjects.some(category=>category.key!==key&&category.name===name))return 'C'+(index+1)+' · '+name;
+    return name;
+  };
+  $('targetHint').textContent=isPie(p)?'Pie：在数据表录入类别及原始数值':isBox(p)?`当前目标：${categoryName(p,a.category)||'请填写类别'} · ${a.boxField}`:categorical()?`当前目标：${targetLabel(a.category)||'请先填写类别'} · ${seriesName(p,a.series)}`:`当前系列：${seriesName(p,a.series)}${a.lockX?' · 固定 X = '+(a.fixedXValue??'待填写'):''}`;
   syncPercentStackAssist(a);
   if(isArea(p)){
     if(tool==='point'){
@@ -3424,12 +3545,12 @@ function syncAssist(){
     }
   }
   syncHistogramAssist();
-  if(hasErrors(p)&&!isStack(p))$('targetHint').textContent=task?'下一点：'+categoryName(p,task.category)+' · '+seriesName(p,task.series)+' · '+({value:isComposite(p)&&compositeRole(p,task.series)==='line'?'折线点':'柱子数值端点',upper:'误差上界（较大值）',lower:'误差下界（较小值）'}[task.field]):'误差棒取点完成，可选择标记复查';if(isComposite(p))$('targetHint').textContent+=' · '+(compositeRole(p,a.series)==='line'?'折线':'柱')+' / '+(measurementAxis(p,a.series)==='r'?'右 Y':'左 Y');if(!isHeatmap(p))$('targetTop').textContent=$('targetHint').textContent; $('targetProgress').textContent=pairs.length?`${done} / ${pairs.length} 已标注`:'';
+  if(hasErrors(p)&&!isStack(p))$('targetHint').textContent=task?'下一点：'+targetLabel(task.category)+' · '+seriesName(p,task.series)+' · '+({value:isComposite(p)&&compositeRole(p,task.series)==='line'?'折线点':'柱子数值端点',upper:'误差上界（较大值）',lower:'误差下界（较小值）'}[task.field]):'误差棒取点完成，可选择标记复查';if(isComposite(p))$('targetHint').textContent+=' · '+(compositeRole(p,a.series)==='line'?'折线':'柱')+' / '+(measurementAxis(p,a.series)==='r'?'右 Y':'左 Y');if(!isHeatmap(p))$('targetTop').textContent=$('targetHint').textContent; $('targetProgress').textContent=pairs.length?`${done} / ${pairs.length} 已标注`:'';
   syncHistogramWorkflow();
-  $('targetGrid').hidden=!categorical();$('targetGrid').innerHTML=pairs.map((t,i)=>`<button class="target-cell ${targetComplete(t)?'done':''} ${t.series===a.series&&t.category===a.category?'current':''}" data-target="${i}" title="${esc(categoryName(p,t.category)+' · '+seriesName(p,t.series))}">${(isRadar(p)&&radarTargetPrefix(t))||((skippedPercentTarget(t)||discreteSmooth(p)&&smoothTargetSkipped(p,t))?'缺 ':targetComplete(t)?'✓ ':'')}${esc(categoryName(p,t.category))} <small>${isBox(p)?BOX_FIELDS.filter(k=>finite(p.rows[targetIndex(t)]?.[k])).length+'/5':esc(seriesName(p,t.series))}</small></button>`).join('');
+  $('targetGrid').hidden=!categorical();$('targetGrid').innerHTML=pairs.map((t,i)=>`<button class="target-cell ${targetComplete(t)?'done':''} ${t.series===a.series&&t.category===a.category?'current':''}" data-target="${i}" title="${esc(targetLabel(t.category)+' · '+seriesName(p,t.series))}">${(isRadar(p)&&radarTargetPrefix(t))||((skippedStackTarget(t)||discreteSmooth(p)&&smoothTargetSkipped(p,t))?'缺 ':targetComplete(t)?'✓ ':'')}${esc(targetLabel(t.category))} <small>${isBox(p)?BOX_FIELDS.filter(k=>finite(p.rows[targetIndex(t)]?.[k])).length+'/5':esc(seriesName(p,t.series))}</small></button>`).join('');
   const anchor=a.categoryPixels[anchorKey()];$('anchorStatus').textContent=Number.isFinite(anchor)?`已定位 ${anchor.toFixed(1)} px`:'尚未定位';
   $('unlockPoint').disabled=selected<0||!p.evidence?.[selected]?.fixedX;
-  syncBoxTarget();syncPieAngles();syncRadarAssist();syncSmoothAssist();$('magnifier').hidden=hideAnnotations||!image||!a.magnify||!hover;document.querySelector('.lens-dock').hidden=!a.magnify;document.querySelector('.image-stage').classList.toggle('no-lens',!a.magnify);
+  syncBoxTarget();syncPieAngles();syncRadarAssist();syncSmoothAssist();syncBubbleControls();$('magnifier').hidden=hideAnnotations||!image||!a.magnify||!hover;document.querySelector('.lens-dock').hidden=!a.magnify;document.querySelector('.image-stage').classList.toggle('no-lens',!a.magnify);
 }
 function constrainAdd(pt){
   const axis=discreteSmooth(p);
@@ -3450,7 +3571,23 @@ function constrainDrag(pt,i,kind='pixel',shift=false){if(isRadar(p))return bound
   if(shift&&dragOrigin){if(Math.abs(out.x-dragOrigin.x)>=Math.abs(out.y-dragOrigin.y))out.y=dragOrigin.y;else out.x=dragOrigin.x;}return out;
 }
 function editHandle(i,kind,pt){
+  if(isBubble(p)){
+    calibrated();
+    const row=p.rows[i];
+    row.x=row.y=null;
+    if(row._percentData){delete row._percentData.x;delete row._percentData.y;}
+    p.evidence[i].pixel={...pt};
+    return;
+  }
   if(freeSmoothRow(p,p.rows[i])){editSmoothFreePoint(i,pt);return;}
+  const temporal=smoothTimeAxis(p);
+  if(temporal){
+    const row=p.rows[i],draft={...row,...measureAt(pt,i)};
+    refreshSmoothTime({...p,rows:p.rows.map(entry=>entry===row?draft:entry)});
+    Object.assign(row,draft);
+    p.evidence[i].pixel=pt;p.evidence[i].modifiedAt=new Date().toISOString();
+    return;
+  }
   if(isRadar(p)){retakeRadarEndpoint(i,pt);return;}
   if(isHistogram(p)){applyHistogramMeasurement(i,histogramMeasurementUpdate(i,kind,pt));return;}
   if(isArea(p)){editAreaHandle(i,kind,pt);return;}
@@ -3510,12 +3647,16 @@ $('fixedX').onchange=()=>calibrateChange(()=>{
   a.lockX=true;
 });
 $('dragAxis').onchange=()=>{assist().dragAxis=$('dragAxis').value;refresh();};
-for(const id of ['activeSeries','activeCategory'])$(id).onchange=()=>{const a=assist();a[id==='activeSeries'?'series':'category']=$(id).value;if(isPercentStack(p))delete a.percentStackEndpoint;pendingStart=null;if(id==='activeSeries'&&isHistogram(p)&&!isHistogramStack(p))selected=-1;if(isBox(p)){selected=targetIndex(a);selectedHandle=boxHandle(a.boxField);hover=null;}refresh();};
-$('nextTarget').onclick=()=>{if(isPercentStack(p))delete assist().percentStackEndpoint;if(!nextTarget())toast('所有类别和系列均已标注，可点击进度格复查');refresh();};
+for(const id of ['activeSeries','activeCategory'])$(id).onchange=()=>{const a=assist();a[id==='activeSeries'?'series':'category']=$(id).value;if(isStack(p))delete a.percentStackEndpoint;pendingStart=null;if(id==='activeSeries'&&(isBubble(p)||isHistogram(p)&&!isHistogramStack(p)))selected=-1;if(isBox(p)){selected=targetIndex(a);selectedHandle=boxHandle(a.boxField);hover=null;}refresh();};
+$('nextTarget').onclick=()=>{if(isStack(p)){delete assist().percentStackEndpoint;if(!isPercentStack(p))pendingStart=null;}if(!nextTarget())toast('所有类别和系列均已标注，可点击进度格复查');refresh();};
 $('skipPercentStack').onclick=()=>{
   const a=assist();
   change(()=>{
-    (a.skippedPercentSegments??={})[percentTargetKey(a)]=true;
+    (a[stackSkipField()]??={})[percentTargetKey(a)]=true;
+    if(!isPercentStack(p)){
+      pendingStart=null;
+      if(pendingStackEnd(a))delete a.stackPendingEnd;
+    }
     delete a.percentStackEndpoint;
     nextTarget();
   });
@@ -3581,7 +3722,7 @@ $('percentStackHeightCategories').onclick=e=>{
   percentStackHeightCapture={category,start:null};
   setTool('percent-stack-height');
 };
-$('targetGrid').onclick=e=>{const button=e.target.closest('[data-target]');if(!button)return;const t=targetPairs()[+button.dataset.target],a=assist();a.series=t.series;a.category=t.category;if(isPercentStack(p))delete a.percentStackEndpoint;pendingStart=null;const i=targetIndex(t);if(i>=0){selected=i;selectedHandle=isBox(p)?boxHandle(a.boxField):'pixel';hover=null;}$('hint').textContent=i>=0?'该目标已标注：拖动高亮标记或编辑表格修正。':'点击原图标注当前目标';refresh();};
+$('targetGrid').onclick=e=>{const button=e.target.closest('[data-target]');if(!button)return;const t=targetPairs()[+button.dataset.target],a=assist();a.series=t.series;a.category=t.category;if(isStack(p))delete a.percentStackEndpoint;pendingStart=null;const i=targetIndex(t);if(i>=0){selected=i;selectedHandle=isBox(p)?boxHandle(a.boxField):'pixel';hover=null;}$('hint').textContent=i>=0?'该目标已标注：拖动高亮标记或编辑表格修正。':'点击原图标注当前目标';refresh();};
 $('pickX').onclick=()=>setTool('lock-x');$('pickCategory').onclick=()=>setTool('anchor');
 $('unlockPoint').onclick=()=>{if(selected<0)return;change(()=>{delete p.evidence[selected].fixedX;});toast('选中点已解除 X 约束，可自由拖动');};
 $('canvasWrap').addEventListener('scroll',()=>{if(hover)draw();});
@@ -4649,15 +4790,20 @@ const mark=(pt,color,text,ring=false)=>{if(!pt||!Number.isFinite(pt.x)||!Number.
 if(isHeatmap(p)){drawHeatmap(mark);return;}
 if(tool==='pie-angle'&&isPie(p)){drawPieAngles(mark);return;}
 if(isRadar(p)){drawRadarGuides(mark);return;}
+if(isBubble(p))drawBubbleGuides(mark);
 if(isHistogramStack(p))drawHistogramRun(mark);
 if(isPercentStack(p))drawPercentStackHeights(mark);
-if($('connect').checked&&(p.kind.startsWith('line')||isComposite(p)))for(const s of p.series.filter(s=>!isComposite(p)||s.role==='line')){const pts=p.rows.map((r,i)=>({r,e:p.evidence?.[i]})).filter(v=>identity(v.r)===s.key&&v.e?.pixel).sort((a,b)=>discreteSmooth(p)?smoothRowPosition(p,a.r)-smoothRowPosition(p,b.r):(a.r.path_order??0)-(b.r.path_order??0));ctx.beginPath();pts.forEach((v,i)=>{const q=v.e.pixel;ctx[i?'lineTo':'moveTo'](q.x,q.y)});ctx.strokeStyle=s.color||'#06a77d';ctx.lineWidth=1.5/zoom;ctx.stroke();}
+if($('connect').checked&&(p.kind.startsWith('line')||isComposite(p)))for(const s of p.series.filter(s=>!isComposite(p)||s.role==='line')){const pts=p.rows.map((r,i)=>({r,e:p.evidence?.[i]})).filter(v=>identity(v.r)===s.key&&v.e?.pixel).sort((a,b)=>discreteSmooth(p)||smoothTimeAxis(p)?smoothRowPosition(p,a.r)-smoothRowPosition(p,b.r):(a.r.path_order??0)-(b.r.path_order??0));ctx.beginPath();pts.forEach((v,i)=>{const q=v.e.pixel;ctx[i?'lineTo':'moveTo'](q.x,q.y)});ctx.strokeStyle=s.color||'#06a77d';ctx.lineWidth=1.5/zoom;ctx.stroke();}
 p.rows.forEach((r,i)=>{const e=p.evidence?.[i];if(isBox(p)){for(const k of handleKeys(i))mark(e[k],i===selected&&k===selectedHandle?'#007bea':'#e85b35',`${i+1}:${boxHandleField(k)==='outliers'?'o'+(+k.match(/\d+/)[0]+1):boxHandleField(k)}`,i===selected&&k===selectedHandle);return;}const color=p.series.find(s=>s.key===identity(r))?.color||'#e85b35';if(isHistogram(p)){
   for(const k of handleKeys(i))mark(e?.[k],color,`${i+1}: ${histogramHandleLabels[k]}`,i===selected&&k===selectedHandle);
   return;
 }mark(pointPixel(r,e),color,isArea(p)?`${i+1}:上界`:String(i+1),i===selected&&(!isArea(p)||selectedHandle==='pixel'));if(isArea(p)&&e?.baselinePixel)mark(e.baselinePixel,color,`${i+1}:下界`,i===selected&&selectedHandle==='baselinePixel');
 if(e?.startPixel){mark(e.startPixel,color,'s');if(e.pixel){ctx.beginPath();ctx.moveTo(e.startPixel.x,e.startPixel.y);ctx.lineTo(e.pixel.x,e.pixel.y);ctx.stroke();}}for(const k of ['lower','upper'])if(e?.[k+'Pixel'])mark(e[k+'Pixel'],color,k==='lower'?'−':'+');});
-drawGuides();if(pendingStart&&tool==='point')mark(pendingStart,'#ffae00','起点');for(const a of isComposite(p)||isLine(p)?requiredAxes(p):isNominalArea(p)?['y']:['x','y'])for(const n of [1,2]){const pt=p.axes[a]['point'+n];if(pt)mark(pt,'#007bea',a.toUpperCase()+n);} }
+drawGuides();if(tool==='point'&&isStack(p)){
+  if(pendingStart)mark(pendingStart,'#ffae00','起点');
+  const end=pendingStackEnd(assist());
+  if(end)mark(end,'#ffae00','终点');
+}for(const a of isComposite(p)||isLine(p)?requiredAxes(p):isNominalArea(p)?['y']:['x','y'])for(const n of [1,2]){const pt=p.axes[a]['point'+n];if(pt)mark(pt,'#007bea',a.toUpperCase()+n);} }
 function setTool(t){
   activeShortcutScope='canvas';
   if(!['heatmap-corners','heatmap-boundary','heatmap-color'].includes(t))heatmapCapture=null;
@@ -4669,7 +4815,7 @@ function setTool(t){
     if(!required.includes(calTarget[0]))calTarget=(required[0]??'x')+'1';
     if(t==='calibrate'&&!required.length)t='select';
   }
-  if(t==='curve-insert'&&!isSmoothLine(p))t='select';
+  if(t==='curve-insert'&&!isSmoothLine(p)||t==='bubble-size'&&!isBubble(p))t='select';
   if(t.startsWith('radar-')&&!isRadar(p)||isRadar(p)&&!['select','point'].includes(t)&&!t.startsWith('radar-'))t='select';
   if(t==='pie-angle'){
     if(!isPie(p))t='select';
@@ -4696,6 +4842,12 @@ function resumeTool(){
 function coords(event){const rect=canvas.getBoundingClientRect();return{x:(event.clientX-rect.left)*image.width/rect.width,y:(event.clientY-rect.top)*image.height/rect.height};}
 function calibrated(skipX=false,key=null){const axes=isComposite(p)?[measurementAxis(p,key??assist().series)]:requiredAxes(p);for(const a of axes){if(a==='x'&&skipX)continue;if(!p.axes[a].calibrated)throw Error('请先校准 '+a.toUpperCase()+' 轴的两个刻度');pixelToValue(p.axes[a].p1,p.axes[a]);}}
 function measureAt(pt,i=null){
+  const time=smoothTimeAxis(p);
+  if(time){
+    calibrated();
+    const numeric=otherAxis(time);
+    return {...measuredSmoothTime(p,time,pt[time]),[numeric]:measureProjectAxis(p,numeric,pt[numeric])};
+  }
   if(i===null?freeSmoothPhase(p):freeSmoothRow(p,p.rows[i]))return smoothPointData(pt);
   if(isHistogram(p))return Object.fromEntries(['x','y'].map(axis=>[axis,measureProjectAxis(p,axis,pt[axis])]));
   if(isPercentStack(p)){
@@ -4812,7 +4964,7 @@ function measurePercentStackEndpoint(raw){
     }
     editHandle(index,handle,pt);
     selected=index;selectedHandle=handle;
-    clearPercentSkip(a);
+    clearStackSkip(a);
     delete a.percentStackEndpoint;
     if(!complete&&finite(row.start)&&finite(row.end))nextTarget();
   });
@@ -4824,11 +4976,72 @@ function updatePercentStackCalibration(axis){
   recalculatePercentStack();
 }
 function updateStackAmount(row){
-  row.value=quantizeMeasurement(decimalDifference(row.end,row.start),{percent:percentLabels(p,valueAxis(p)),computed:true});
+  row.value=stackAmount(p,decimalDifference(row.end,row.start));
+}
+function measureStackEndpoint(raw){
+  const a=assist();
+  if(!a.category||!a.series)throw Error('请先选择类别和系列');
+  const existing=targetIndex(a),choice=a.percentStackEndpoint?.target===percentTargetKey(a);
+  const savedEnd=pendingStackEnd(a),field=percentStackEndpoint(a);
+  if(existing>=0&&!choice&&!savedEnd&&a.sequence!=='manual'){
+    selected=existing;selectedHandle='pixel';hover=null;refresh();
+    throw Error('当前目标已经标注；可拖动修改，或选择下一个待标目标');
+  }
+  const pt=constrainAdd(raw),value=measureAt(pt).value,axis=valueAxis(p);
+  const previous=choice||savedEnd?p.rows[existing]:null;
+  const start=field==='start'?pt:previousStackBoundary(a);
+  const end=field==='end'?pt:savedEnd;
+  const handle=field==='start'?'startPixel':'pixel';
+  change(()=>{
+    clearStackSkip(a);
+    delete a.percentStackEndpoint;
+    if(previous&&finite(previous[field==='start'?'end':'start'])){
+      p.evidence??=[];
+      p.evidence[existing]??={role:'observation',source:'pixel_measurement'};
+      editHandle(existing,handle,pt);
+      selected=existing;selectedHandle=handle;
+      if(savedEnd)delete a.stackPendingEnd;
+      return;
+    }
+    if(!start||!end){
+      if(field==='start'){
+        pendingStart=pt;
+        if(previous)a.percentStackEndpoint={target:percentTargetKey(a),field:'end'};
+      }else a.stackPendingEnd={target:percentTargetKey(a),pixel:pt};
+      return;
+    }
+    const row=previous??{category:categoryName(p,a.category),series:seriesName(p,a.series),
+      _categoryKey:a.category,_seriesKey:a.series};
+    row.start=field==='start'?value:measureProjectAxis(p,axis,start[axis]);
+    row.end=field==='end'?value:measureProjectAxis(p,axis,end[axis]);
+    updateStackAmount(row);
+    const evidence={pixel:end,startPixel:start,role:$('role').value,source:'pixel_measurement',createdAt:new Date().toISOString()};
+    if(a.lockCategory)evidence[horizontal()?'fixedY':'fixedX']={pixel:end[horizontal()?'y':'x']};
+    p.evidence??=[];
+    selected=previous?existing:p.rows.length;
+    if(!previous)p.rows.push(row);
+    p.evidence[selected]={...p.evidence[selected],...evidence};
+    selectedHandle=handle;
+    pendingStart=null;
+    if(savedEnd)delete a.stackPendingEnd;
+    if(a.sequence!=='manual'){
+      const category=a.category,rank=p.series.findIndex(s=>s.key===a.series);
+      if(nextTarget()&&a.category===category&&p.series.findIndex(s=>s.key===a.series)>rank)
+        pendingStart={...end};
+    }
+  });
 }
 function applyPixel(i,pt){const r=p.rows[i],e=p.evidence[i],data=measureAt(pt,i);if(bar()){r.value=data.value;if(isStack(p)){r.end=data.value;updateStackAmount(r);}}else{const discrete=lineCategoryAxis(p);if(discrete!=='x'&&p.xType!=='ordinal')r.x=data.x;if(discrete!=='y')r.y=data.y;}e.pixel=pt;if(bar())for(const key of ['lowerPixel','upperPixel'])if(e[key])e[key][horizontal()?'y':'x']=pt[horizontal()?'y':'x'];e.modifiedAt=new Date().toISOString();}
 function recalculate(axis){
-  if(!p.axes[axis]?.calibrated)return;
+  if(!p.axes[axis]?.calibrated||isBubble(p))return;
+  if(axis===smoothTimeAxis(p)){
+    for(const [index,row] of p.rows.entries()){
+      const point=p.evidence?.[index]?.pixel;
+      if(point)Object.assign(row,measuredSmoothTime(p,axis,point[axis]));
+    }
+    refreshSmoothTime(p);
+    return;
+  }
   if(isArea(p)){recalculateArea(axis);return;}
   if(isBox(p)){
     for(let i=0;i<p.rows.length;i++)
@@ -4859,6 +5072,8 @@ function recalculate(axis){
 canvas.addEventListener('pointerdown',e=>{if(!image)return;canvas.focus({preventScroll:true});const raw=coords(e);try{
 if(isHeatmap(p)&&tool!=='calibrate'){if(e.button===0)handleHeatmapPointer(raw);return;}
 if(tool==='pie-angle'){if(e.button===0)recordPieAngle(raw);return;}
+if(isBubble(p)&&tool==='bubble-size'){if(e.button===0)recordBubbleCalibration(raw);return;}
+if(isBubble(p)&&tool==='point'){if(e.button===0)recordBubblePoint(raw);return;}
 if(isRadar(p)&&tool!=='select'){if(e.button===0)recordRadarPoint(raw);return;}
 if(tool==='percent-stack-height'){if(e.button===0)measurePercentStackHeight(raw);return;}
 if(tool==='lock-x'){
@@ -4889,16 +5104,21 @@ if(tool==='anchor'){
     hover=raw;draw();toast('当前位置已固定，可直接测数值');
   }return;
 }
-if(tool==='calibrate'){const a=calTarget[0],n=calTarget[1];calibrateChange(()=>{p.axes[a]['p'+n]=a==='x'?raw.x:raw.y;p.axes[a]['point'+n]=raw;if(isHistogram(p))updateHistogramCalibration(a);else if(isHeatmap(p))updateHeatmapCalibration(a);else if(isPercentStack(p))updatePercentStackCalibration(a);else{p.axes[a].calibrated=!!(p.axes[a].point1&&p.axes[a].point2);if(p.axes[a].calibrated)recalculate(a);}},{form:true});toast(`已取 ${calTarget.toUpperCase()}，请填写真实刻度值`);return;}
+if(tool==='calibrate'){const a=calTarget[0],n=calTarget[1];calibrateChange(()=>{p.axes[a]['p'+n]=a==='x'?raw.x:raw.y;p.axes[a]['point'+n]=raw;if(isHistogram(p))updateHistogramCalibration(a);else if(isHeatmap(p))updateHeatmapCalibration(a);else if(isPercentStack(p))updatePercentStackCalibration(a);else if(a===smoothTimeAxis(p))updateSmoothTimeCalibration(a);else{p.axes[a].calibrated=!!(p.axes[a].point1&&p.axes[a].point2);if(p.axes[a].calibrated)recalculate(a);}},{form:true});toast(`已取 ${calTarget.toUpperCase()}，请填写真实刻度值`);return;}
 if(isHistogram(p)&&tool==='point'){if(e.button===0)measureHistogram(raw);return;}
 if(isPercentStack(p)&&tool==='point'){if(e.button===0)measurePercentStackEndpoint(raw);return;}
 if(isArea(p)&&areaTool()){measureArea(raw);return;}
 if(isSmoothLine(p)&&['point','curve-insert'].includes(tool)){if(e.button===0)recordSmoothPoint(raw,tool==='curve-insert');return;}
 if(tool==='point'&&hasErrors(p)&&!isStack(p)){measureError(raw);return;}
+if(tool==='point'&&isStack(p)&&assist().percentStackEndpoint?.target===percentTargetKey(assist())){
+  if(e.button===0)measureStackEndpoint(raw);
+  return;
+}
 if((tool==='select'||tool==='point'&&!isBox(p)&&!(isStack(p)&&targetIndex(assist())<0))&&(!e.altKey||isArea(p))){let best=null,d=10/zoom;const chosen=p.evidence?.[selected]?.[selectedHandle];if(tool==='select'&&chosen&&Math.hypot(raw.x-chosen.x,raw.y-chosen.y)<d)best={i:selected,kind:selectedHandle};if(!best)p.evidence?.forEach((v,i)=>{for(const kind of handleKeys(i)){if(!v?.[kind])continue;const dist=Math.hypot(raw.x-v[kind].x,raw.y-v[kind].y);if(dist<d){best={i,kind};d=dist;}}});if(best){const before=checkpoint();selected=best.i;selectedHandle=best.kind;if(isBox(p)){assist().category=p.rows[selected]._categoryKey;assist().boxField=boxHandleField(best.kind);assist().outlierTarget=assist().boxField==='outliers'?best.kind.match(/\d+/)[0]:'new';}drag={...best,before,edited:false};dragOrigin={...p.evidence[selected][selectedHandle]};try{canvas.setPointerCapture(e.pointerId);}catch{}table();syncAssist();draw();return;}if(tool==='select'){selected=-1;selectedHandle='pixel';table();syncAssist();draw();return;}}
 if(tool==='lower'||tool==='upper'){if(isComposite(p)&&selected>=0&&compositeRole(p,identity(p.rows[selected]))!=='bar')throw Error('误差区间仅适用于柱系列');calibrated(false,selected>=0?identity(p.rows[selected]):null);if(selected<0)throw Error('请先选中一条数据记录');if(!bar())throw Error('当前规范只在柱图中导出误差区间');change(()=>{const axis=horizontal()?'x':'y';p.rows[selected][tool]=measureProjectAxis(p,measurementAxis(p,identity(p.rows[selected])),raw[axis]);clearMeasuredField(p.rows[selected],tool);p.evidence[selected]??={role:'transcribed'};p.evidence[selected][tool+'Pixel']=raw;selectedHandle=tool+'Pixel';});return;}
 if(tool==='point'&&isBox(p)){const pt=constrainAdd(raw);calibrated();change(()=>measureBox(pt));return;}
-if(tool==='point'){const a=assist();if(categorical()&&a.sequence!=='manual'&&targetIndex(a)>=0){selected=targetIndex(a);selectedHandle='pixel';hover=null;refresh();throw Error('当前目标已经标注；可拖动修改，或选择下一个待标目标');}const pt=constrainAdd(raw),data=measureAt(pt);if(categorical()&&!a.category)throw Error('请先填写类别并选择当前类别');let start=isStack(p)?pendingStart:null;if(isStack(p)&&!start){const previous=p.rows.findIndex(r=>categoryIdentity(r)===a.category&&identity(r)===p.series[p.series.findIndex(s=>s.key===a.series)-1]?.key);if(previous>=0&&p.evidence?.[previous]?.pixel)start={...p.evidence[previous].pixel};}if(isStack(p)&&!start){change(()=>{pendingStart=pt;});toast('起点已取，请依次点击各段交界点和最终终点');return;}change(()=>{const row={...data,series:seriesName(p,a.series),_seriesKey:a.series,...(categorical()?{_categoryKey:a.category}:{})};if(isLine(p)){appendLinePathRank(p,row);const axis=lineCategoryAxis(p);if(axis)a.categoryPixels[anchorKey()]??=pt[axis];}const ev={pixel:pt,role:$('role').value,source:'pixel_measurement',createdAt:new Date().toISOString()};if(a.lockX&&!categorical())ev.fixedX={value:a.fixedXValue,pixel:pt.x};else if(a.lockCategory&&categorical()){if(categoryPixelAxis()==='y')ev.fixedY={pixel:pt.y};else ev.fixedX={pixel:pt.x};}if(start){row.start=measureProjectAxis(p,valueAxis(p),start[valueAxis(p)]);row.end=data.value;updateStackAmount(row);ev.startPixel={...start};pendingStart=null;}p.rows.push(row);p.evidence??=[];p.evidence.push(ev);selected=p.rows.length-1;selectedHandle='pixel';if(categorical()&&a.sequence!=='manual'){const previousCategory=a.category;const advanced=nextTarget();if(isStack(p)&&advanced&&a.category===previousCategory)pendingStart={...pt};}});}}
+if(tool==='point'&&isStack(p)){if(e.button===0)measureStackEndpoint(raw);return;}
+if(tool==='point'){const a=assist();if(categorical()&&a.sequence!=='manual'&&targetIndex(a)>=0){selected=targetIndex(a);selectedHandle='pixel';hover=null;refresh();throw Error('当前目标已经标注；可拖动修改，或选择下一个待标目标');}const pt=constrainAdd(raw),data=measureAt(pt);if(categorical()&&!a.category)throw Error('请先填写类别并选择当前类别');change(()=>{const row={...data,series:seriesName(p,a.series),_seriesKey:a.series,...(categorical()?{_categoryKey:a.category}:{})};if(isLine(p)){appendLinePathRank(p,row);const axis=lineCategoryAxis(p);if(axis)a.categoryPixels[anchorKey()]??=pt[axis];}const ev={pixel:pt,role:$('role').value,source:'pixel_measurement',createdAt:new Date().toISOString()};if(a.lockX&&!categorical())ev.fixedX={value:a.fixedXValue,pixel:pt.x};else if(a.lockCategory&&categorical()){if(categoryPixelAxis()==='y')ev.fixedY={pixel:pt.y};else ev.fixedX={pixel:pt.x};}p.rows.push(row);p.evidence??=[];p.evidence.push(ev);selected=p.rows.length-1;selectedHandle='pixel';if(categorical()&&a.sequence!=='manual')nextTarget();});}}
 catch(err){toast(err.message);}});
 canvas.addEventListener('pointermove',e=>{if(!image)return;const pt=coords(e);hover=pt;let val='';if(isRadar(p)){try{val=' · 径向值 '+quantizeMeasurement(pixelToValue(radarDistance(pt,p.radar.center),radarCalibration(p)),{percent:percentLabels(p,'y'),computed:true});}catch{}}else if(!isHeatmap(p))try{const area=isArea(p)&&areaTool(),i=area?areaTargetIndex():-1;const v=measureAt(area?areaPoint(pt):tool==='point'&&!isHistogram(p)?constrainAdd(pt):pt,i>=0?i:null);val=isHistogram(p)?` · X ${v.x} / Y ${v.y}`:isBox(p)?` · ${v.category} / ${assist().boxField}: ${v.value}`:bar()?` · ${v.category}: ${v.value}`:` · X ${v.x??v.category} / Y ${v.y}`;}catch{}$('cursorInfo').textContent=`原图 px: ${pt.x.toFixed(1)}, ${pt.y.toFixed(1)}${val}`;if(drag!==null){try{const next=constrainDrag(pt,drag.i,drag.kind,e.shiftKey),old=p.evidence[drag.i][drag.kind];if(next.x!==old.x||next.y!==old.y){const before=isPercentStack(p)?clone(p):null;editHandle(drag.i,drag.kind,next);if(before)syncPercentStackRatios(p,before);drag.edited=true;dirty();table();}}catch(err){toast(err.message);}}draw();});
 function endDrag(){if(drag!==null){if(drag.edited)finishHistory(drag.before,'data');drag=null;dragOrigin=null;refresh();}}
@@ -4906,9 +5126,12 @@ canvas.addEventListener('pointerup',endDrag);canvas.addEventListener('pointercan
 canvas.addEventListener('pointerleave',()=>{if(drag===null){hover=null;$('magnifier').hidden=true;draw();}});
 
 $('tableBody').addEventListener('click',e=>{if(isStat(p)&&e.target.closest('button'))return;const row=e.target.closest('[data-row]');if(row){selected=+row.dataset.row;
-if(isRadar(p)||isNominalArea(p)||isPercentStack(p)){
+if(isRadar(p)||isNominalArea(p)||isStack(p)||isBubble(p)){
   const a=assist(),category=categoryIdentity(p.rows[selected]),series=identity(p.rows[selected]);
-  if(isPercentStack(p)&&(category!==a.category||series!==a.series))delete a.percentStackEndpoint;
+  if(isStack(p)&&(category!==a.category||series!==a.series)){
+    delete a.percentStackEndpoint;
+    if(!isPercentStack(p))pendingStart=null;
+  }
   a.category=category;a.series=series;
 }
 if(isHistogramStack(p)&&!activeHistogramRun()){
@@ -4940,15 +5163,27 @@ function editPercentStackCell(index,field,input){
       evidence.source=evidence.pixel&&evidence.startPixel?'pixel_measurement':'endpoint_calculation';
     }
     if(field==='value'&&validPercent(row.value)){
-      clearPercentSkip(target);
+      clearStackSkip(target);
       const current=assist();
       if(!complete&&targetIndex(current)===index)nextTarget();
     }
   });
 }
 $('tableBody').addEventListener('change',e=>{const {i,key,object}=e.target.dataset;if(i===undefined)return;
+if(isBubble(p)&&key){if(!e.target.readOnly)editBubbleCell(+i,key,e.target);return;}
 if(isSmoothLine(p)&&key==='_curvePosition'){editSmoothPositionCell(+i,e.target);return;}
 if(discreteSmooth(p)&&object){editSmoothTarget(+i,object,e.target.value);return;}
+if(key&&key===smoothTimeAxis(p)){
+  const raw=e.target.value.trim();
+  if(!change(()=>{
+    const row=p.rows[i];
+    row[key]=raw?parseSmoothTime(raw).label:null;
+    delete row._smoothTime;
+    (p.evidence??=[])[i]={role:'transcribed',source:'manual_edit'};
+    refreshSmoothTime(p);
+  }))table();
+  return;
+}
 let scale;
 if(key&&!['category','series','path_order','stack_order'].includes(key)&&!(key===categoryField(p)&&categorical())){
   const display=printedPercent(e.target.value);
@@ -4979,7 +5214,7 @@ if(isNominalArea(p)||isPercentStack(p)){
     delete p.evidence[i].baselinePixel;
     if(isPercentStack(p))delete p.evidence[i].startPixel;
   }
-  clearPercentSkip(target);
+  clearStackSkip(target);
 }
 if(isComposite(p)&&object==='series'){const role=compositeRole(p,e.target.value);if(role==='line'&&['lower','upper'].some(k=>present(p.rows[i][k]))||role==='bar'&&present(p.rows[i].path_order))throw Error('请先清除与目标系列角色不兼容的字段');if(p.evidence?.[i]){delete p.evidence[i].pixel;delete p.evidence[i].lowerPixel;delete p.evidence[i].upperPixel;}}
 if(lineCategoryAxis(p)&&object==='category'&&row[ref]!==e.target.value&&p.evidence?.[i]){
@@ -4989,6 +5224,7 @@ if(lineCategoryAxis(p)&&object==='category'&&row[ref]!==e.target.value&&p.eviden
 }
 row[ref]=e.target.value;row[field]=object==='series'?seriesName(p,e.target.value):categoryName(p,e.target.value);
 if(restoreDirectPercent)updatePercentStackValue(p,row,p.evidence?.[i]);
+if(smoothTimeAxis(p))refreshSmoothTime(p);
 return;}const raw=e.target.value;const numeric=!(key==='category'||key==='series'||key===categoryField(p)&&categorical());if(raw===''&&['lower','upper','start','end','stack_order','path_order'].includes(key))delete p.rows[i][key];else p.rows[i][key]=numeric?(raw===''?null:Number(raw)):raw;if(isStack(p)){const r=p.rows[i];if(['start','end'].includes(key)&&Number.isFinite(r.start)&&Number.isFinite(r.end))r.value=decimalDifference(r.end,r.start);else if(key==='value'&&Number.isFinite(r.start)&&Number.isFinite(r.value))r.end=r.start+r.value;}p.evidence??=[];p.evidence[i]??={};p.evidence[i].role='transcribed';p.evidence[i].source='manual_edit';delete p.evidence[i].pixel;delete p.evidence[i].startPixel;delete p.evidence[i].lowerPixel;delete p.evidence[i].upperPixel;});});
 for(const key of ['title','xTitle','yTitle','notes','heatmapTitle'])$(key).addEventListener('change',()=>change(()=>p[key]=$(key).value,{form:true}));
 $('xType').onchange=()=>{
@@ -4998,11 +5234,13 @@ $('xType').onchange=()=>{
   setTool('select');
 };
 function selectLineMode(axis,type){
-  const current=lineMode(p),next=type==='nominal'?axis:current===axis?'quantitative':current;
+  const current=lineMode(p);
+  const next=type==='nominal'?axis:type==='temporal'&&isSmoothLine(p)?axis+'-temporal':
+    current===axis||current===axis+'-temporal'?'quantitative':current;
   if(next===current)return;
   change(()=>{switchLineMode(p,next);selected=-1;},{form:true});
   setTool('select');
-  toast(next==='quantitative'?'已切换到双连续轴，原模式记录已保留':`已切换到离散 ${next.toUpperCase()}，原模式记录已保留`);
+  toast(next==='quantitative'?'已切换到双连续轴，原模式记录已保留':`已切换到 ${axis.toUpperCase()} 轴${type==='temporal'?'时间':'类别'}模式，原模式记录已保留`);
 }
 $('yType').onchange=()=>selectLineMode('y',$('yType').value);
 $('legend').onchange=()=>change(()=>p.legend=$('legend').checked,{form:true});$('reviewed').onchange=()=>{p.reviewed=$('reviewed').checked;p.reviewedAt=p.reviewed?new Date().toISOString():null;refresh();};
@@ -5023,6 +5261,34 @@ function applyBulkNames(kind,inputId){
 }
 $('applySeriesNames').onclick=()=>applyBulkNames('series','seriesNames');
 $('applyCategoryNames').onclick=()=>applyBulkNames('category','categories');
+$('resizeBarPositions').onclick=()=>{
+  if(!hasBarPositions(p))return;
+  const count=$('barPositionCount').valueAsNumber,current=p.categoryObjects.length;
+  if(!Number.isSafeInteger(count)||count<1){toast('类别位置数量必须为正整数');return;}
+  if(count===current)return;
+  const removed=new Set(p.categoryObjects.slice(count).map(c=>c.key));
+  const rows=p.rows.filter(r=>removed.has(categoryIdentity(r))).length;
+  if(removed.size&&!confirm('将删除末尾 '+removed.size+' 个类别位置及其 '+rows+' 条记录。继续？'))return;
+  const savedNames=p.categoryObjects.map(c=>c.name).join('\n'),draft=$('categories').value;
+  const applied=change(()=>{
+    const names=Array.from({length:count},(_,i)=>p.categoryObjects[i]?.name??UNNAMED_CATEGORY);
+    setObjectNames(p,'category',names);
+    if(removed.size){selected=-1;pendingStart=null;}
+  },{form:true});
+  if(applied&&draft!==savedNames)$('categories').value=draft;
+};
+function fillBarPositions(repeat){
+  if(!hasBarPositions(p))return;
+  const first=$('barPositionFirst').valueAsNumber,names=parseObjectNames($('categories').value);
+  const repeats=repeat?$('barPositionRepeats').valueAsNumber:1;
+  const interval=repeat?repeats:$('barPositionInterval').valueAsNumber;
+  change(()=>{
+    const labels=barPositionNames(p.categoryObjects.length,names,first,interval,repeats);
+    setObjectNames(p,'category',labels);
+  },{form:true});
+}
+$('fillBarPositionInterval').onclick=()=>fillBarPositions(false);
+$('fillBarPositionRepeats').onclick=()=>fillBarPositions(true);
 $('seriesList').onchange=e=>{const {series,prop}=e.target.dataset;if(series===undefined)return;change(()=>{const obj=p.series[series];if(prop==='name')renameObject(p,'series',obj.key,e.target.value);else if(prop==='role'){if(!['bar','line'].includes(e.target.value))throw Error('请选择柱或线');if(p.rows.some(r=>identity(r)===obj.key))throw Error('该系列已有记录，请先移除记录再更改角色');obj.role=e.target.value;}else obj[prop]=e.target.value;},{form:true});};
 $('seriesList').onclick=e=>{const d=e.target.dataset;if(d.moveSeries!==undefined){change(()=>{moveSeries(p,+d.moveSeries,Number(d.delta));if(isPercentStack(p))pendingStart=null;},{form:true});return;}if(d.removeSeries===undefined)return;const obj=p.series[d.removeSeries];if(p.rows.some(r=>identity(r)===obj.key)&&!confirm('删除该系列及其全部记录？'))return;change(()=>{removeObject(p,'series',obj.key);selected=-1;},{form:true});};
 $('addSeries').onclick=()=>{if(p.kind.endsWith('_1')){toast('单系列类型只允许一个系列，请先选择多系列图表');return;}change(()=>{
@@ -5036,7 +5302,31 @@ $('axisFields').onclick=e=>{
   setTool('calibrate');
   if(image)canvas.focus({preventScroll:true});
 };
+function updateSmoothTimeCalibration(axis){
+  const cal=p.axes[axis],labels=cal.timeLabels??[];
+  cal.calibrated=false;
+  if(!labels[0]||!labels[1])return;
+  smoothTimeProfile(cal);
+  [cal.v1,cal.v2]=labels.map(label=>parseSmoothTime(label).time);
+  cal.calibrated=!!(cal.point1&&cal.point2)&&cal.p1!==cal.p2&&cal.v1!==cal.v2;
+  if(cal.calibrated)recalculate(axis);
+}
 $('axisFields').onchange=e=>{const {axis,field,percentScale}=e.target.dataset;if(percentScale){calibrateChange(()=>{p.percentLabels??={};p.percentLabels[percentScale]=e.target.checked;},{form:true});return;}if(!axis)return;
+if(axis===smoothTimeAxis(p)){
+  if(!calibrateChange(()=>{
+    const cal=p.axes[axis],raw=e.target.value.trim(),index=Number(field[1])-1;
+    if(field[0]==='v'){
+      (cal.timeLabels??=[null,null])[index]=raw?parseSmoothTime(raw).label:null;
+    }else{
+      const pixel=raw===''?null:Number(raw),point='point'+field[1];
+      cal[field]=pixel;
+      if(!finite(pixel))delete cal[point];
+      else cal[point]=axis==='x'?{x:pixel,y:0}:{x:0,y:pixel};
+    }
+    updateSmoothTimeCalibration(axis);
+  },{form:true}))axisForm();
+  return;
+}
 let scale;
 if(['v1','v2'].includes(field)){
   const display=printedPercent(e.target.value);
@@ -5065,7 +5355,7 @@ document.querySelectorAll('[data-tool]').forEach(button=>button.onclick=()=>{
   setTool(button.dataset.tool);
   if(image)canvas.focus({preventScroll:true});
 });
-$('addRow').onclick=()=>{if(isSmoothLine(p)){addManualSmoothRow();return;}if(isRadar(p)){addRadarRow();return;}if(isHistogram(p)){addHistogramRow();return;}if(isArea(p)){
+$('addRow').onclick=()=>{if(isBubble(p)){change(()=>{selected=appendBubble();selectedHandle='pixel';});return;}if(isSmoothLine(p)){addManualSmoothRow();return;}if(isRadar(p)){addRadarRow();return;}if(isHistogram(p)){addHistogramRow();return;}if(isArea(p)){
   const nominal=isNominalArea(p);
   if(nominal&&(targetIndex(assist())>=0||!assist().category)){
     toast(assist().category?'该类别和系列已有记录，请选择其他目标':'请先填写类别并选择当前类别');
@@ -5074,8 +5364,8 @@ $('addRow').onclick=()=>{if(isSmoothLine(p)){addManualSmoothRow();return;}if(isR
   change(()=>addAreaRow({...(nominal?{}:{x:null}),y:null,baseline:null},{role:'transcribed',source:'manual_entry'}));
   document.querySelector(`[data-i="${selected}"][data-key="${nominal?'y':'x'}"]`)?.focus();
   return;
-}if(isStat(p)){change(()=>{const a=assist(),c=isBox(p)&&a.category&&targetIndex(a)<0?p.categoryObjects.find(c=>c.key===a.category):addObject(p,'category',nextCategory());p.rows.push({...isPie(p)?{category:c.name,value:null}:emptyBox(c.name),_categoryKey:c.key,_seriesKey:a.series,series:seriesName(p,a.series)});p.evidence??=[];p.evidence.push({role:'transcribed',source:'manual_entry'});selected=p.rows.length-1;a.category=c.key;selectedHandle=isBox(p)?boxHandle('lower'):'pixel';},{form:true});return;}if(lineCategoryAxis(p)&&!assist().category){toast('请先填写并选择当前类别');return;}if(categorical()&&(assist().sequence!=='manual'||isPercentStack(p))&&targetIndex(assist())>=0){toast(isPercentStack(p)?'当前目标已有记录，可直接编辑该行':'当前目标已标注，请选择其他目标或切换手动模式');return;}change(()=>{const row=bar()?{category:categoryName(p,assist().category)||'A',value:0,series:seriesName(p,assist().series),_categoryKey:assist().category,_seriesKey:assist().series}:{x:categorical()&&categoryField(p)==='x'?categoryName(p,assist().category):0,y:lineCategoryAxis(p)==='y'?categoryName(p,assist().category):0,series:seriesName(p,assist().series),_seriesKey:assist().series,...(categorical()?{_categoryKey:assist().category}:{})};if(isPercentStack(p)){row.value=null;clearPercentSkip(assist());pendingStart=null;}else if(isStack(p)){row.start=0;row.end=0;}if(isLine(p))appendLinePathRank(p,row);p.rows.push(row);p.evidence??=[];p.evidence.push({role:$('role').value,source:'manual_entry'});selected=p.rows.length-1;selectedHandle='pixel';if(categorical()&&assist().sequence!=='manual'&&!isPercentStack(p))nextTarget();});const field=document.querySelector('[data-i="'+selected+'"][data-key="'+(bar()?'value':lineCategoryAxis(p)==='y'?'x':'y')+'"]');field?.focus();field?.select();};
-$('deleteRow').onclick=()=>{if(selected<0)return;change(()=>{const row=p.rows[selected];p.rows.splice(selected,1);p.evidence?.splice(selected,1);if(isRadar(p))recalculateRadar(p,categoryIdentity(row));if(isPercentStack(p))pendingStart=null;selected=-1;},{form:isPie(p)});};
+}if(isStat(p)){change(()=>{const a=assist(),c=isBox(p)&&a.category&&targetIndex(a)<0?p.categoryObjects.find(c=>c.key===a.category):addObject(p,'category',nextCategory());p.rows.push({...isPie(p)?{category:c.name,value:null}:emptyBox(c.name),_categoryKey:c.key,_seriesKey:a.series,series:seriesName(p,a.series)});p.evidence??=[];p.evidence.push({role:'transcribed',source:'manual_entry'});selected=p.rows.length-1;a.category=c.key;selectedHandle=isBox(p)?boxHandle('lower'):'pixel';},{form:true});return;}if(lineCategoryAxis(p)&&!assist().category){toast('请先填写并选择当前类别');return;}if(categorical()&&(assist().sequence!=='manual'||isPercentStack(p))&&targetIndex(assist())>=0){toast(isPercentStack(p)?'当前目标已有记录，可直接编辑该行':'当前目标已标注，请选择其他目标或切换手动模式');return;}change(()=>{const row=bar()?{category:categoryName(p,assist().category)||(hasBarPositions(p)?UNNAMED_CATEGORY:'A'),value:0,series:seriesName(p,assist().series),_categoryKey:assist().category,_seriesKey:assist().series}:{x:categorical()&&categoryField(p)==='x'?categoryName(p,assist().category):0,y:lineCategoryAxis(p)==='y'?categoryName(p,assist().category):0,series:seriesName(p,assist().series),_seriesKey:assist().series,...(categorical()?{_categoryKey:assist().category}:{})};if(isPercentStack(p)){row.value=null;clearStackSkip(assist());pendingStart=null;}else if(isStack(p)){row.start=0;row.end=0;clearStackSkip(assist());}if(isLine(p))appendLinePathRank(p,row);p.rows.push(row);p.evidence??=[];p.evidence.push({role:$('role').value,source:'manual_entry'});selected=p.rows.length-1;selectedHandle='pixel';if(categorical()&&assist().sequence!=='manual'&&!isPercentStack(p))nextTarget();});const field=document.querySelector('[data-i="'+selected+'"][data-key="'+(bar()?'value':lineCategoryAxis(p)==='y'?'x':'y')+'"]');field?.focus();field?.select();};
+$('deleteRow').onclick=()=>{if(selected<0)return;change(()=>{const row=p.rows[selected];p.rows.splice(selected,1);p.evidence?.splice(selected,1);if(isRadar(p))recalculateRadar(p,categoryIdentity(row));if(isPercentStack(p))pendingStart=null;if(smoothTimeAxis(p))refreshSmoothTime(p);selected=-1;},{form:isPie(p)});};
 for(const button of document.querySelectorAll('[data-history-scope]')){
   button.onclick=()=>{
     const scope=button.dataset.historyScope;
@@ -5088,10 +5378,12 @@ const arrowOffsets={ArrowUp:[-1,0],ArrowDown:[1,0],ArrowLeft:[0,-1],ArrowRight:[
 const calibrationTools=new Set(['calibrate','anchor','lock-x','radar-center','radar-anchor','radar-tick1',
   'radar-tick2','heatmap-corners','heatmap-boundary','heatmap-color']);
 function canvasHistoryScope(){
+  if(tool==='bubble-size')return 'size';
   return calibrationTools.has(tool)||tool==='pie-angle'&&!p.pieMeasurement?.center?'calibration':'data';
 }
 function shortcutScope(target){
   if(!target.closest?.('.workspace'))return null;
+  if(target.closest('#bubbleReferences,#bubbleBounds,[data-history-scope="size"]'))return 'size';
   if(target.closest('#axisFields,#calibrationPanel,#smoothAnchorList,[data-history-scope="calibration"],'+
     '#radarControls button:not(#radarRetake):not(#radarStackControls button),#radarControls input,#radarCenterMode,'+
     '#heatmapCorners,#heatmapBoundary,#heatmapClearGrid,#heatmapColorPoint,#heatmapColorPoints,#pickX,#pickCategory'))
@@ -5172,7 +5464,7 @@ function cycleMeasurementItem(step){
   }
   if(isHistogram(p))return cycleMeasurementControl('histogramField',step);
   if(isBox(p))return cycleMeasurementControl('boxField',step);
-  if(isPercentStack(p)){
+  if(isStack(p)){
     const button=$('percentStackEndpoints').querySelector('[data-percent-endpoint="'+(percentStackEndpoint(assist())==='start'?'end':'start')+'"]');
     if(button.disabled)return false;
     button.click();
@@ -5216,6 +5508,7 @@ function cancelMeasurement(){
     if(edited){p=before.project;restoreInteraction(before.interaction,'data');refresh(true);}
     return true;
   }
+  if(cancelBubbleCapture())return true;
   if(tool==='pie-angle'){
     const draft=p.pieMeasurement;
     if(draft?.boundaries.length){
@@ -5236,9 +5529,12 @@ function cancelMeasurement(){
     return true;
   }
   const run=activeHistogramRun();
-  if(canvasHistoryScope()==='data'&&(pendingStart||percentStackHeightCapture||run?.pending?.[run.step])){
+  const stackEnd=isStack(p)&&pendingStackEnd(assist());
+  if(canvasHistoryScope()==='data'&&(pendingStart||stackEnd||percentStackHeightCapture||run?.pending?.[run.step])){
     change(()=>{
       pendingStart=null;
+      if(isStack(p))delete assist().percentStackEndpoint;
+      if(stackEnd)delete assist().stackPendingEnd;
       if(run?.pending?.[run.step])delete run.pending[run.step];
       setTool('select');
     });
@@ -5347,7 +5643,7 @@ $('exportTables').onclick=async()=>{
 $('batchExport').onclick=async()=>{stash();const items=visibleQueue();if(!items.length){toast('当前项目还没有图像');return;}const report=[],entries=[],names=new Set();for(const q of items){let reason='',spec,tables;try{if(!q.project.reviewed)throw Error('尚未核对');spec=makeSpec(q.project);window.vega.parse(radarGT(spec)?radarPreview(spec,q.project):(smoothGT(spec)?compileStudioVega(renderSpec(spec,q.project),window.vegaLite):window.vegaLite.compile(spec).spec));tables=tableFiles(spec,'tables');}catch(e){reason=e.message;}let name=safeExportName(q.name);for(let n=2;names.has(name);n++)name=safeExportName(q.name).replace(/\.gt\.json$/,'-'+n+'.gt.json');if(!reason){names.add(name);if($('withSchema').checked)spec.$schema='https://vega.github.io/schema/vega-lite/v6.json';entries.push({name:'gt/'+name,text:JSON.stringify(spec,null,2)},...tables.map(t=>({...t,name:'tables/'+name.slice(0,-8)+'/'+t.name.slice(7)})));}report.push({image:q.name,id:q.id,status:reason?'skipped':'exported',file:reason?null:'gt/'+name,reason:reason||null});}entries.push({name:'export-report.json',text:JSON.stringify({project:projectName(),exported:names.size,skipped:report.filter(q=>q.status==='skipped').length,images:report},null,2)});downloadBlob(projectName().replace(/[<>:"/\\|?*]/g,'_')+'.gt.zip',new Blob([zipBytes(entries)],{type:'application/zip'}));toast('批量导出 '+names.size+' 张；跳过 '+report.filter(q=>q.status==='skipped').length+' 张（原因见 ZIP 内清单）');queueUI();};
 $('copyGT').onclick=async()=>{if(!lastSpec){toast('暂无有效 GT');return;}try{await navigator.clipboard.writeText(JSON.stringify(lastSpec,null,2));toast('JSON 已复制');}catch{toast('无法访问剪贴板，请使用导出 GT');}};
 $('openProject').onclick=()=>$('projectInput').click();$('importSpec').onclick=()=>$('specInput').click();
-async function restore(data){if(data.format!=='chart-studio-project'||![1,2].includes(data.version)||!data.current?.project||!Array.isArray(data.queue))throw Error('不是受支持的 Chart Studio 工程');const all=[data.current.project,...data.queue.map(q=>q.project)];for(const item of all){if(item?.kind==='radar_stack')migrateRadarProject(item);if(!labels[item.kind]||!Array.isArray(item.rows)||!item.axes?.x||!item.axes?.y||!Array.isArray(item.series))throw Error('工程结构不完整');if(isHeatmap(item))checkHeatmapProject(item);if(isRadar(item))checkRadarProject(item);}const nextProjects=data.version===2?data.projects||[]:[];if(!Array.isArray(nextProjects)||nextProjects.some(q=>!q.id||typeof q.name!=='string')||new Set(nextProjects.map(q=>q.id)).size!==nextProjects.length)throw Error('项目列表无效');if(new Set(data.queue.map(q=>q.id)).size!==data.queue.length||data.queue.some(q=>typeof q.id!=='string'))throw Error('图像列表 ID 无效');const projectIds=new Set(nextProjects.map(q=>q.id));const active=data.queue.find(q=>q.id===data.activeId);if(data.activeId&&!active)throw Error('当前图像 ID 不存在');if(data.version===2&&active&&(active.projectId??null)!==(data.currentProjectId||null))throw Error('当前图像与所选项目不一致');if(data.version===2&&(data.currentProjectId&&!projectIds.has(data.currentProjectId)||data.queue.some(q=>q.projectId&&!projectIds.has(q.projectId))))throw Error('图像所属项目不存在');if(data.current.image)await new Promise((resolve,reject)=>{const im=new Image();im.onload=resolve;im.onerror=()=>reject(Error('工程原图无法读取'));im.src=data.current.image;});activationVersion++;queue=clone(data.queue);for(const q of queue){preserveLegacyHeatmapIntervals(q.project);restoreHistogramBins(ensureIdentities(q.project));}projects=clone(nextProjects);currentProjectId=data.version===2?data.currentProjectId||null:null;activeId=data.activeId;p=restoreHistogramBins(ensureIdentities(clone(data.current.project)));preserveLegacyHeatmapIntervals(p);p.errorBars=hasErrors(p);imageData=data.current.image;fileName=data.current.name||'';image=null;hover=null;pendingStart=null;drag=null;clearAnnotationHistory();resetTemporaryView();selected=-1;if(imageData)await loadImage(imageData);else{$('empty').style.display='flex';$('magnifier').hidden=true;draw();}$('fileName').textContent=fileName||'未命名工程';queueUI();refresh(true);resumeTool();}
+async function restore(data){if(data.format!=='chart-studio-project'||![1,2].includes(data.version)||!data.current?.project||!Array.isArray(data.queue))throw Error('不是受支持的 Chart Studio 工程');const all=[data.current.project,...data.queue.map(q=>q.project)];for(const item of all){if(item?.kind==='radar_stack')migrateRadarProject(item);if(!labels[item.kind]||!Array.isArray(item.rows)||!item.axes?.x||!item.axes?.y||!Array.isArray(item.series))throw Error('工程结构不完整');if(isHeatmap(item))checkHeatmapProject(item);if(isRadar(item))checkRadarProject(item);if(isBubble(item))checkBubbleProject(item);}const nextProjects=data.version===2?data.projects||[]:[];if(!Array.isArray(nextProjects)||nextProjects.some(q=>!q.id||typeof q.name!=='string')||new Set(nextProjects.map(q=>q.id)).size!==nextProjects.length)throw Error('项目列表无效');if(new Set(data.queue.map(q=>q.id)).size!==data.queue.length||data.queue.some(q=>typeof q.id!=='string'))throw Error('图像列表 ID 无效');const projectIds=new Set(nextProjects.map(q=>q.id));const active=data.queue.find(q=>q.id===data.activeId);if(data.activeId&&!active)throw Error('当前图像 ID 不存在');if(data.version===2&&active&&(active.projectId??null)!==(data.currentProjectId||null))throw Error('当前图像与所选项目不一致');if(data.version===2&&(data.currentProjectId&&!projectIds.has(data.currentProjectId)||data.queue.some(q=>q.projectId&&!projectIds.has(q.projectId))))throw Error('图像所属项目不存在');if(data.current.image)await new Promise((resolve,reject)=>{const im=new Image();im.onload=resolve;im.onerror=()=>reject(Error('工程原图无法读取'));im.src=data.current.image;});activationVersion++;queue=clone(data.queue);for(const q of queue){preserveLegacyHeatmapIntervals(q.project);restoreHistogramBins(ensureIdentities(q.project));}projects=clone(nextProjects);currentProjectId=data.version===2?data.currentProjectId||null:null;activeId=data.activeId;p=restoreHistogramBins(ensureIdentities(clone(data.current.project)));preserveLegacyHeatmapIntervals(p);p.errorBars=hasErrors(p);imageData=data.current.image;fileName=data.current.name||'';image=null;hover=null;pendingStart=null;drag=null;clearAnnotationHistory();resetTemporaryView();selected=-1;if(imageData)await loadImage(imageData);else{$('empty').style.display='flex';$('magnifier').hidden=true;draw();}$('fileName').textContent=fileName||'未命名工程';queueUI();refresh(true);resumeTool();}
 $('projectInput').onchange=async e=>{try{await restore(JSON.parse(await e.target.files[0].text()));toast('工程已恢复');}catch(err){toast('打开失败：'+err.message);}e.target.value='';};
 $('specInput').onchange=async e=>{try{const next=importSpec(JSON.parse(await e.target.files[0].text()),p.kind);next.errorBars=hasErrors(next);change(()=>{keepOtherAreaMode(p,next);keepOtherLineModes(p,next);p={...next,evidence:next.rows.map(()=>({role:'transcribed',source:'imported_gt',...(isPercentStack(next)?{valueOverride:true}:{})})),reviewed:false};for(const a of Object.values(p.axes))a.calibrated=false;selected=-1;},{form:true,resetHistory:true});setTool('select');toast('GT 已导入；像素证据需重新标注');}catch(err){toast('导入失败：'+err.message);}e.target.value='';};
 function db(){return new Promise((resolve,reject)=>{const r=indexedDB.open('chart-studio',1);r.onupgradeneeded=()=>r.result.createObjectStore('drafts');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});}
@@ -5359,7 +5655,7 @@ const c=document.createElement('canvas');c.width=640;c.height=460;const g=c.getC
 async function enterFocus(){if(focusMode)return;focusZoom=zoom;focusMode=true;document.body.classList.add('focus-mode');$('focusToggle').textContent='退出全屏 · Esc';try{if(document.querySelector('.workspace').requestFullscreen)await document.querySelector('.workspace').requestFullscreen();}catch{/* CSS focus view works if native fullscreen is unavailable. */}requestAnimationFrame(fit);}
 function exitFocus(){if(!focusMode)return;focusMode=false;document.body.classList.remove('focus-mode');$('focusToggle').textContent='全屏标注 ⛶';if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});requestAnimationFrame(()=>setZoom(focusZoom));}
 $('focusReview').onclick=()=>{exitFocus();requestAnimationFrame(()=>document.querySelector('.review').scrollIntoView({behavior:'smooth'}));};$('focusToggle').onclick=()=>focusMode?exitFocus():enterFocus();document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&focusMode)exitFocus();});window.addEventListener('resize',()=>{if(focusMode)fit();});
-bindRadarTools();bindSmoothTools();
+bindRadarTools();bindSmoothTools();bindBubbleTools();
 window.addEventListener('error',e=>toast(e.message));syncForm();table();render();restoreDraft();
 // Read-only diagnostic snapshot for reproducible browser checks.
 window.chartStudio={snapshot:()=>clone({projects,currentProjectId,queue,focusMode,project:p,selected,tool,selectedHandle,pendingStart,heatmapCapture,percentStackHeightCapture,projectionInfo,renderOk,lastSpec,imageSize:image?{width:image.width,height:image.height}:null}),get bundle(){return bundle();}};

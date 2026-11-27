@@ -1,0 +1,60 @@
+{
+  "data": {
+    "values": [
+      {
+        "x": 1,
+        "y": 3,
+        "size": 0.2,
+        "series": "A"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "size": 0.512,
+        "series": "B"
+      },
+      {
+        "x": 3,
+        "y": 2,
+        "size": 0.8,
+        "series": "A"
+      }
+    ]
+  },
+  "mark": {
+    "type": "point"
+  },
+  "encoding": {
+    "x": {
+      "field": "x",
+      "type": "quantitative"
+    },
+    "y": {
+      "field": "y",
+      "type": "quantitative"
+    },
+    "color": {
+      "field": "series",
+      "type": "nominal",
+      "sort": null
+    },
+    "size": {
+      "field": "size",
+      "type": "quantitative",
+      "title": "Share (%)",
+      "legend": {
+        "format": ".4~p"
+      }
+    }
+  },
+  "usermeta": {
+    "table_export": {
+      "tables": [
+        {
+          "id": "data",
+          "path": "/data/values"
+        }
+      ]
+    }
+  }
+}

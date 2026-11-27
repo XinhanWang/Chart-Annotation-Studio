@@ -21,6 +21,26 @@ const task=async()=>{
   const gt=snap.lastSpec;ok(gt.data.values.every((r,i)=>near(r.value,[10,20,30][i%3])),kind+' exported GT follows physical stack direction');ok(gt.encoding[h?'x':'y'].field==='value'&&gt.encoding[h?'x':'y'].stack==='zero'&&!gt.encoding[h?'x2':'y2'],kind+' canonical segment value encoding');ok(gt.data.values.every((r,i)=>r.stack_order===i%3&&!('start' in r)&&!('end' in r)),kind+' intermediate endpoints excluded from GT');ok(snap.project.rows.every(r=>Number.isFinite(r.start)&&Number.isFinite(r.end)),kind+' intermediate endpoints retained in records');ok(JSON.stringify(JSON.parse($('jsonPreview').textContent))===JSON.stringify(gt),kind+' compact GT panel equals canonical spec');ok($('seriesOrderNote').textContent.includes(h?'从左到右':'从下到上')&&$('categoryOrderNote').textContent.includes(h?'从上到下':'从左到右'),kind+' type specific legend and category instructions visible');
   $('reviewed').checked=true;$('reviewed').onchange();$('withSchema').checked=false;await $('exportGT').onclick();const single=downloads.at(-1);ok(single?.name.endsWith('.gt.json')&&JSON.stringify(JSON.parse(await single.blob.text()))===JSON.stringify(gt),kind+' downloaded GT equals compact GT');await $('batchExport').onclick();const zip=await unzip(downloads.at(-1).blob),entry=Object.entries(zip).find(([name])=>name.endsWith('.gt.json'));ok(entry&&JSON.stringify(JSON.parse(entry[1]))===JSON.stringify(gt),kind+' ZIP GT equals compact GT');await $('saveProject').onclick();const backup=JSON.parse(await downloads.at(-1).blob.text());ok(backup.current.project.rows.every(r=>Number.isFinite(r.start)&&Number.isFinite(r.end)),kind+' project backup retains measurement endpoints');
   document.querySelector('[data-tool="select"]').click();h?point(320,150):point(150,250);const old=structuredClone(chartStudio.snapshot().project.rows);$('canvas').dispatchEvent(new KeyboardEvent('keydown',{key:h?'ArrowRight':'ArrowUp',ctrlKey:true,bubbles:true}));snap=chartStudio.snapshot();ok(near(snap.project.rows[1].end,snap.project.rows[2].start)&&!near(snap.project.rows[1].value,old[1].value),kind+' boundary nudge updates adjacent segments');$('undo').click();ok(chartStudio.snapshot().project.rows.every((r,i)=>near(r.value,old[i].value)),kind+' boundary edit undo restores both segments');
+  await upload({format:'chart-studio-project',version:1,activeId:'stack',queue:[{id:'stack',name:'stack.png',image,project:p}],current:{project:p,image,name:'stack.png'}});
+  const endpoint=field=>$('percentStackEndpoints').querySelector('[data-percent-endpoint="'+field+'"]');
+  const rowState=()=>chartStudio.snapshot().project.rows;
+  ok(!$('skipPercentStack').hidden&&!$('percentStackEndpoints').hidden,kind+' exposes all three stack tools');
+  endpoint('start').click();click(0);click(1);
+  $('skipPercentStack').click();
+  ok($('targetGrid').children[1].textContent.includes('缺')&&rowState().length===1,kind+' marks the missing series without adding a row');
+  ok(endpoint('end').getAttribute('aria-pressed')==='true',kind+' inherits the previous observed boundary across a skipped series');
+  click(3);
+  ok(rowState().map(r=>r.value).join(',')==='10,50',kind+' skips the missing series and keeps both segment values');
+  endpoint('end').click();click(2,1);
+  ok(rowState().length===2&&endpoint('start').getAttribute('aria-pressed')==='true',kind+' can capture the segment end before its start');
+  endpoint('start').click();click(0,1);
+  ok(near(rowState()[2].value,30),kind+' finishes the end-first segment with the chosen start');
+  document.querySelector('[data-target="3"]').click();
+  endpoint('end').click();click(3,1);
+  ok(rowState().length===3&&near(rowState()[2].value,60),kind+' can remeasure an existing endpoint');
+  await wait();
+  ok(chartStudio.snapshot().renderOk&&chartStudio.snapshot().lastSpec.data.values.every(r=>!('start' in r)&&!('end' in r)),
+    kind+' sparse and explicitly captured segments use canonical GT');
  }
  const selector=(row,key)=>document.querySelector(`[data-i="${row}"][data-key="${key}"]`);
  const edit=(input,value)=>{input.value=String(value);input.dispatchEvent(new Event('change',{bubbles:true}));};

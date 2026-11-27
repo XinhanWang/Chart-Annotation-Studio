@@ -7,7 +7,7 @@ const scripts=[...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].map(match
 const context=vm.createContext({console,performance,structuredClone,setTimeout,clearTimeout});
 for(const token of ['.vega={}', '.vegaLite={}'])vm.runInContext(scripts.find(script=>script.includes(token)),context);
 vm.runInContext(html.split('<script type="module">')[1].split('const $=id=>')[0]+
-  'globalThis.api={makeSpec,importSpec,renderSpec,compileStudioVega,smoothAnchorProfile,sampleSmoothPosition,projectSmoothSamplePositions,applySmoothSamplePositions,refreshSmoothPositions,validate};',context);
+  'globalThis.api={makeSpec,importSpec,renderSpec,compileStudioVega,smoothAnchorProfile,sampleSmoothPosition,projectSmoothSamplePositions,applySmoothSamplePositions,refreshSmoothPositions,validate,parseSmoothTime,refreshSmoothTime};',context);
 const {api,vega,vegaLite}=context;
 const tableExport=require('../vendor/vega-lite-table-export.js');
 const plain=object=>JSON.parse(JSON.stringify(object));
@@ -196,4 +196,64 @@ test('grouping preserves sparse category order and removes unneeded IDs when the
   const nominal=plain(api.makeSpec(simple));
   assert.deepEqual(nominal.encoding.x,{field:'x',type:'nominal',sort:null});
   assert.ok(nominal.data.values.every(row=>!Object.hasOwn(row,'x_id')));
+});
+
+test('Chinese and English calendar labels normalize without adding a year',()=>{
+  const cases={
+    '2024年':'2024','2024年一月':'2024-01','2024/2/29':'2024-02-29',
+    '1月':'01','一月':'01','Jan':'01','Jan.':'01','January 2024':'2024-01',
+    'Jan 1, 2024':'2024-01-01','29 February':'02-29','二月29日':'02-29',
+    '12时30分5秒':'12:30:05','1:05 PM':'13:05','2024-01-01T03:04:05.123Z':'2024-01-01T03:04:05.123Z'
+  };
+  for(const [text,label] of Object.entries(cases))assert.equal(api.parseSmoothTime(text).label,label);
+  for(const text of ['2023-02-29','02-30','24:00','00:60','2024-13','Jan ram','明年'])
+    assert.throws(()=>api.parseSmoothTime(text),/无效时间/,text);
+});
+
+for(const name of ['single-x-temporal','multi-y-temporal','single-x-clock']){
+  test(name+' round-trips, renders temporal cubic paths and preserves exported text',async()=>{
+    const gt=fixture(name),axis=name.includes('-y-')?'y':'x';
+    const p=api.importSpec(gt);
+    assert.equal(p[axis+'Type'],'temporal');
+    assert.deepEqual(plain(api.makeSpec(p)),gt);
+    const svg=await svgFor(gt,p);
+    const paths=[...svg.matchAll(/line mark" d="([^"]*)"/g)];
+    assert.equal(paths.length,name.startsWith('multi')?2:1);
+    assert.ok(paths.every(([,path])=>path.includes('C')&&!path.includes('NaN')));
+    if(name==='multi-y-temporal')assert.match(svg,/>01-01<\/text>/);
+    if(name==='single-x-clock')assert.match(svg,/>08:[0-9]+<\/text>/);
+    const [table]=tableExport.exportTables(gt);
+    assert.deepEqual(table.rows,gt.data.values);
+    assert.ok(table.csv.includes(gt.data.values[0][axis]));
+    assert.ok(table.markdown.includes(gt.data.values[0][axis]));
+    assert.equal(gt.encoding[axis].scale,undefined);
+    assert.equal(gt.encoding[axis].timeUnit,undefined);
+  });
+}
+test('time paths are sorted per series and reject duplicate and mixed time scopes',()=>{
+  const gt=fixture('multi-y-temporal'),canonical=plain(gt);
+  gt.data.values=[gt.data.values[2],gt.data.values[5],gt.data.values[0],gt.data.values[3],gt.data.values[1],gt.data.values[4]];
+  assert.deepEqual(plain(api.makeSpec(api.importSpec(gt))),canonical);
+  const both=plain(canonical);
+  both.encoding.x.type='temporal';
+  assert.throws(()=>api.importSpec(both),/连续数值轴/);
+  const mixed=plain(canonical);
+  mixed.data.values[1].y='2024-01-22';
+  assert.throws(()=>api.importSpec(mixed),/统一/);
+  const repeated=plain(canonical);
+  repeated.data.values[1].y='Jan 1';
+  assert.throws(()=>api.importSpec(repeated),/重合/);
+  const truncated=plain(canonical);
+  truncated.encoding.y.timeUnit='monthdate';
+  assert.throws(()=>api.importSpec(truncated),/Compact GT/);
+});
+test('time precision is refined only as needed and never adds a year to month-day rows',()=>{
+  const p=api.importSpec(fixture('multi-y-temporal'));
+  const [first,second]=p.rows;
+  p.axes.y.timeLabels=['01-01','03-01'];
+  first._smoothTime=api.parseSmoothTime('01-01T12:30:02').time;
+  second._smoothTime=api.parseSmoothTime('01-01T12:30:04').time;
+  api.refreshSmoothTime(p);
+  assert.deepEqual(plain(p.rows.slice(0,2).map(row=>row.y)),['01-01T12:30:02','01-01T12:30:04']);
+  assert.deepEqual(plain(api.makeSpec(api.importSpec(api.makeSpec(p)))),plain(api.makeSpec(p)));
 });

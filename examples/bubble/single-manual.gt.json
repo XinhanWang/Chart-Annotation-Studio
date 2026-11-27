@@ -1,0 +1,44 @@
+{
+  "data": {
+    "values": [
+      {
+        "x": 1,
+        "y": 3,
+        "size": 20
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "size": 75
+      }
+    ]
+  },
+  "mark": {
+    "type": "point"
+  },
+  "encoding": {
+    "x": {
+      "field": "x",
+      "type": "quantitative"
+    },
+    "y": {
+      "field": "y",
+      "type": "quantitative"
+    },
+    "size": {
+      "field": "size",
+      "type": "quantitative",
+      "title": "Population (thousand)"
+    }
+  },
+  "usermeta": {
+    "table_export": {
+      "tables": [
+        {
+          "id": "data",
+          "path": "/data/values"
+        }
+      ]
+    }
+  }
+}

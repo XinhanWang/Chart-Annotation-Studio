@@ -1,0 +1,84 @@
+{
+  "data": {
+    "values": [
+      {
+        "category": "Control",
+        "category_id": "C1",
+        "value": 20,
+        "series": "Series 1"
+      },
+      {
+        "category": "Control",
+        "category_id": "C1",
+        "value": 30,
+        "series": "Series 2"
+      },
+      {
+        "category": "null",
+        "category_id": "C2",
+        "value": 25,
+        "series": "Series 1"
+      },
+      {
+        "category": "null",
+        "category_id": "C2",
+        "value": 35,
+        "series": "Series 2"
+      },
+      {
+        "category": "Control",
+        "category_id": "C3",
+        "value": 40,
+        "series": "Series 2"
+      },
+      {
+        "category": "Treatment",
+        "category_id": "C4",
+        "value": 35,
+        "series": "Series 1"
+      },
+      {
+        "category": "Treatment",
+        "category_id": "C4",
+        "value": 45,
+        "series": "Series 2"
+      }
+    ]
+  },
+  "mark": {
+    "type": "bar"
+  },
+  "encoding": {
+    "x": {
+      "field": "value",
+      "type": "quantitative",
+      "title": "Value (units)"
+    },
+    "y": {
+      "field": "category_id",
+      "type": "nominal",
+      "title": "Category",
+      "sort": null
+    },
+    "yOffset": {
+      "field": "series",
+      "type": "nominal",
+      "sort": null
+    },
+    "color": {
+      "field": "series",
+      "type": "nominal",
+      "sort": null
+    }
+  },
+  "usermeta": {
+    "table_export": {
+      "tables": [
+        {
+          "id": "data",
+          "path": "/data/values"
+        }
+      ]
+    }
+  }
+}

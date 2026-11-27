@@ -112,6 +112,35 @@ async function checkPercentStack(horizontal){
  assert.ok(validate(zero).some(issue=>issue.severity==='error'&&/系列高度必须为有限的非负数/.test(issue.message)));
  count++;
 }
+for(const axis of ['x','y']){
+ const kind=axis==='x'?'barh_stack':'barv_stack';
+ const cases=[
+  [0.01234,25.37,25.36,25.35766,25.35],
+  [0.00001234,0.0001358,0.0001235,0.00012346,0.0001234],
+  [-0.01234,-25.37,-25.36,-25.35766,-25.35],
+  [0.01234,25.37,25.36,25.35766,25.35,true],
+  [0.01234,0.02634,0.01,0.014,0.00014,true],
+  [1e-12,2e-12,1e-12,1e-12,9e-13]
+ ];
+ for(const [start,end,rounded,exact,wrong,percent] of cases){
+  const p=defaultProject(kind);
+  p.rows=[{category:'A',series:'Series 1',start,end}];
+  if(percent)p.percentLabels={[axis]:true};
+  for(const value of [rounded,exact,end-start]){
+   p.rows[0].value=value;
+   assert.equal(makeSpec(p).data.values[0].value,percent?Number(value.toString()+'e-2'):value);
+  }
+  p.rows[0].value=wrong;
+  assert.throws(()=>makeSpec(p),/value 必须等于/);
+  count++;
+ }
+ const p=defaultProject(kind+'_percent');
+ p.percentLabels={[axis]:true};
+ p.rows=[{category:'A',series:'Series 1',start:0.01234,end:25.37,value:25.36},
+         {category:'A',series:'Series 2',start:25.37,end:100,value:74.64}];
+ assert.deepEqual(plain(makeSpec(p).data.values.map(r=>r.value)),[0.2536,0.7464]);
+ count++;
+}
 (async()=>{for(const kind of ['barv_stack','barh_stack']){const h=kind==='barh_stack',p=fixture(kind),before=JSON.stringify(p),gt=plain(makeSpec(p));assert.deepEqual(gt,{...expected(h),usermeta:{table_export:{tables:[{id:'data',path:'/data/values'}]}}});assert.equal(JSON.stringify(p),before,'export must not alter measurement evidence');assert.equal(JSON.stringify(makeSpec(importSpec(gt))),JSON.stringify(gt),'canonical serialized roundtrip');await render(plain(gt),h);count++;
  const both=fixture(kind);both.rows.forEach(r=>r.stack_order=r.series==='S1'?0:1);assert(!validate(both).some(x=>x.severity==='error'));assert.deepEqual(plain(makeSpec(both)),gt,'intermediate rank + boundaries are accepted, only rank exported');count++;
  const legacy=plain(gt),v=h?'x':'y';legacy.data.values.forEach(r=>{r.start=r.stack_order===0?0:r.category==='A'?3:4;r.end=r.start+r.value;delete r.stack_order;});legacy.encoding[v]={...legacy.encoding[v],field:'end',stack:null};legacy.encoding[v+'2']={field:'start'};delete legacy.encoding.order;assert.deepEqual(plain(makeSpec(importSpec(legacy))),gt,'legacy ordinary endpoint GT migrates to canonical values');count++;
