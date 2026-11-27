@@ -1,0 +1,65 @@
+{
+  "data": {
+    "values": [
+      {
+        "x": 20,
+        "y": "01-01",
+        "series": "Series 1"
+      },
+      {
+        "x": 60,
+        "y": "01-22",
+        "series": "Series 1"
+      },
+      {
+        "x": 31,
+        "y": "03-01",
+        "series": "Series 1"
+      },
+      {
+        "x": 35,
+        "y": "01-01",
+        "series": "Series 2"
+      },
+      {
+        "x": 22,
+        "y": "01-22",
+        "series": "Series 2"
+      },
+      {
+        "x": 70,
+        "y": "03-01",
+        "series": "Series 2"
+      }
+    ]
+  },
+  "mark": {
+    "type": "line",
+    "interpolate": "monotone"
+  },
+  "encoding": {
+    "x": {
+      "field": "x",
+      "type": "quantitative"
+    },
+    "y": {
+      "field": "y",
+      "type": "temporal"
+    },
+    "color": {
+      "field": "series",
+      "type": "nominal",
+      "sort": null
+    }
+  },
+  "usermeta": {
+    "table_export": {
+      "tables": [
+        {
+          "id": "data",
+          "path": "/data/values"
+        }
+      ]
+    }
+  }
+}

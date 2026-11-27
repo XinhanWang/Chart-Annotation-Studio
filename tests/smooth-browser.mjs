@@ -155,6 +155,75 @@ const task=async()=>{
   await waitFor(()=>snap().renderOk&&observed(snap().lastSpec)===3);
   check(snap().lastSpec.usermeta.x_labels.some(label=>label.position===2)&&snap().lastSpec.data.values[0].y===150.123456789,
     'A fixed value can be revised precisely and another fixed observation deleted without inventing data');
+  for(const axis of ['x','y'])for(const count of [1,2]){
+    const other=axis==='x'?'y':'x',kind=count===1?'line_smooth_1':'line_smooth_n';
+    change($('kind'),kind);
+    // Reset a mode already used earlier without changing any other chart workflow.
+    change($('kind'),'line_1');change($('kind'),kind);
+    change($(axis+'Type'),'temporal');
+    check(project()[axis+'Type']==='temporal'&&project()[other+'Type']==='quantitative',kind+' enables '+axis+' temporal');
+    const first=axis==='x'?100:400,last=axis==='x'?400:100;
+    tick(axis,1,first,axis==='x'?'2024年1月1日':'一月');
+    tick(axis,2,last,axis==='x'?'Mar 1, 2024':'Mar');
+    tick(other,1,100,0);tick(other,2,400,300);
+    check(project().axes[axis].calibrated,kind+' '+axis+' accepts Chinese and English tick values');
+    const at=(t,v)=>axis==='x'?point(t,v):point(v,t);
+    clickTool('point');
+    at(last,300);at(first,180);at(first+(last-first)/2,240);
+    check(project().rows.length===3,kind+' '+axis+' records free clicks regardless of time order');
+    if(count===2){
+      change($('activeSeries'),project().series[1].key);
+      at(first,150);at(last,250);
+      check(project().rows.length===5,kind+' '+axis+' accepts shared times in different series');
+    }
+    await waitFor(()=>snap().renderOk&&snap().lastSpec?.encoding[axis].type==='temporal'&&observed(snap().lastSpec)===3+2*(count-1));
+    let gt=snap().lastSpec;
+    check(gt.data.values.slice(0,3).map(row=>row[axis]).join()===
+      (axis==='x'?'2024-01-01,2024-01-31,2024-03-01':'01-01,01-31,03-01'),
+      kind+' '+axis+' uses calendar spacing, sorts times, and preserves the presence or absence of a year');
+    check(gt.data.values.every(row=>!(axis+'_id' in row)&&!('_smoothTime' in row))&&!gt.encoding[axis].timeUnit&&
+      $('preview').querySelectorAll('g.mark-line path').length===count,
+      kind+' '+axis+' renders all paths and exports only compact time strings');
+    const backup=structuredClone(chartStudio.bundle);
+    change($(axis+'Type'),'quantitative');
+    change($(axis+'Type'),'temporal');
+    check(project().axes[axis].calibrated&&project().rows.length===backup.current.project.rows.length,
+      kind+' '+axis+' switching back restores calibrated samples');
+    if(count===1&&axis==='x'){
+      const index=project().rows.findIndex(row=>row.x==='2024-01-31');
+      document.querySelector(`[data-row="${index}"] td`).click();
+      clickTool('select');
+      $('canvas').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',ctrlKey:true,bubbles:true}));
+      check(project().rows[index]._smoothTime>backup.current.project.rows[index]._smoothTime,
+        'Canvas time correction updates the measured time coordinate');
+      tick(axis,2,last,'Mar 31, 2024');
+      check(project().rows[index].x==='2024-02-15','Changing a temporal tick recalculates measured observations');
+      tick(axis,2,last,'Mar 1, 2024');
+      check(project().rows[index].x==='2024-01-31','Restoring a tick restores the observation time');
+      await load('projectInput',backup);
+      check(project().axes[axis].calibrated&&project().rows[index].x==='2024-01-31','Project backup restores temporal calibration and values');
+    }
+    if(count===2&&axis==='x'){
+      change($('activeSeries'),project().series[0].key);
+      clickTool('point');
+      at(250.05,220);
+      check(project().rows.length===6&&project().rows.some(row=>row.x.includes('T')),
+        'Nearby time observations refine precision without merging');
+      at(250.05,200);
+      check(project().rows.length===6,'Exactly coincident time in the same series is rejected');
+      await waitFor(()=>snap().renderOk&&observed(snap().lastSpec)===6);
+      gt=snap().lastSpec;
+    }
+    await load('specInput',gt);
+    await waitFor(()=>snap().renderOk&&JSON.stringify(snap().lastSpec)===JSON.stringify(gt));
+    const input=document.querySelector(`[data-i="0"][data-key="${axis}"]`);
+    check(input.value===gt.data.values[0][axis],kind+' '+axis+' imports times into editable table cells');
+    change(input,axis==='x'?'Jan 2, 2024':'一月2日');
+    await waitFor(()=>snap().renderOk&&snap().lastSpec.data.values[0][axis]===(axis==='x'?'2024-01-02':'01-02'));
+  }
+  change($('kind'),'line_1');
+  check(![...$('xType').options,...$('yType').options].some(option=>option.value==='temporal'),
+    'Ordinary lines retain their original axis types');
   return {checks,passed:true};
 };
 const result=await runInPage('('+task.toString()+')()',process.argv[2]);

@@ -11,19 +11,158 @@ function smoothFixedDone(p,target){
   return smoothTargetSkipped(p,target)||p.rows.some(row=>row._categoryKey===target.category&&
     identity(row)===target.series&&finite(row[axis]));
 }
+const DAY_MS=86400000;
+const TIME_UNITS=[365*DAY_MS,30*DAY_MS,DAY_MS,60000,1000,1];
+const TIME_FORMATS={
+  calendar:['%Y','%Y-%m','%Y-%m-%d','%Y-%m-%d %H:%M','%Y-%m-%d %H:%M:%S','%Y-%m-%d %H:%M:%S.%L'],
+  partial:[null,'%m','%m-%d','%m-%d %H:%M','%m-%d %H:%M:%S','%m-%d %H:%M:%S.%L'],
+  clock:[null,null,null,'%H:%M','%H:%M:%S','%H:%M:%S.%L']
+};
+const TIME_MONTHS=['january','february','march','april','may','june','july','august','september','october','november','december'];
+const CHINESE_MONTHS=['一','二','三','四','五','六','七','八','九','十','十一','十二'];
+const timePad=(value,length=2)=>String(value).padStart(length,'0');
+
+function parseSmoothTime(input){
+  const invalid=()=>Error('无效时间，请填写有效的年、月、日期或时刻');
+  if(typeof input!=='string'||!input.trim())throw invalid();
+  let text=input.trim().normalize('NFKC').toLowerCase();
+  text=text.replace(/([一二三四五六七八九十]+)月/g,(_,name)=>(CHINESE_MONTHS.indexOf(name)+1)+'月')
+    .replace(/年\s*/g,'-').replace(/月\s*(?=\d)/g,'-').replace(/月/g,'')
+    .replace(/[日号]\s*/g,' ').replace(/时\s*(?=\d)/g,':').replace(/时/g,':00')
+    .replace(/分\s*(?=\d)/g,':').replace(/[分秒]/g,'').trim().replace(/-$/,'');
+  const monthWord=text.match(/[a-z]{3,9}/)?.[0];
+  if(monthWord&&monthWord!=='am'&&monthWord!=='pm'){
+    const month=TIME_MONTHS.findIndex(name=>monthWord===name||monthWord===name.slice(0,3)||monthWord==='sept'&&name==='september')+1;
+    if(!month)throw invalid();
+    const numbers=text.replace(monthWord,'').match(/\d+/g)??[];
+    if(numbers.length>2||/[^\d\s,./-]/.test(text.replace(monthWord,'')))throw invalid();
+    const year=numbers.find(value=>value.length===4),day=numbers.find(value=>value!==year);
+    if(numbers.length===2&&(!year||!day))throw invalid();
+    text=[year,timePad(month),day].filter(value=>value!==undefined).join('-');
+  }
+  const clock=text.match(/(?:^|[t\s])(\d{1,2}):(\d{1,2})(?::(\d{1,2})(?:\.(\d{1,3}))?)?\s*(am|pm|z)?$/);
+  const dateText=(clock?text.slice(0,clock.index):text).trim();
+  const calendar=dateText.match(/^(\d{4})(?:[-/.](\d{1,2})(?:[-/.](\d{1,2}))?)?$/);
+  const partial=dateText.match(/^(\d{1,2})(?:[-/.](\d{1,2}))?$/);
+  if(dateText&&!calendar&&!partial||!dateText&&!clock||clock&&dateText&&!(calendar?.[3]||partial?.[2]))throw invalid();
+  const family=calendar?'calendar':partial?'partial':'clock';
+  const year=calendar?Number(calendar[1]):2000;
+  const month=Number(calendar?.[2]??partial?.[1]??1),day=Number(calendar?.[3]??partial?.[2]??1);
+  let hour=Number(clock?.[1]??0);
+  if(clock?.[5]==='am'||clock?.[5]==='pm'){
+    if(hour<1||hour>12)throw invalid();
+    hour=hour%12+(clock[5]==='pm'?12:0);
+  }
+  const minute=Number(clock?.[2]??0),second=Number(clock?.[3]??0),ms=Number((clock?.[4]??'').padEnd(3,'0'));
+  const date=new Date(0);
+  date.setUTCFullYear(year,month-1,day);date.setUTCHours(hour,minute,second,ms);
+  if(year<1||month<1||month>12||day<1||day!==date.getUTCDate()||hour>23||minute>59||second>59)
+    throw invalid();
+  const precision=clock?(clock[4]?5:clock[3]?4:3):calendar?.[3]||partial?.[2]?2:calendar?.[2]||partial?1:0;
+  const time=date.getTime();
+  return {family,precision,time,label:formatSmoothTime(time,family,precision)};
+}
+
+function formatSmoothTime(time,family,precision){
+  const date=new Date(time),year=date.getUTCFullYear();
+  if(!Number.isFinite(year)||year<1||year>9999||family!=='calendar'&&year!==2000||
+      family==='clock'&&(date.getUTCMonth()!==0||date.getUTCDate()!==1))
+    throw Error('采样时间超出该时间格式可表示的范围，请核对刻度或补充已知日期');
+  const parts=[timePad(year,4),timePad(date.getUTCMonth()+1),timePad(date.getUTCDate())];
+  const clock=[timePad(date.getUTCHours()),timePad(date.getUTCMinutes()),
+    timePad(date.getUTCSeconds())].slice(0,precision===3?2:3).join(':')+
+    (precision===5?'.'+timePad(date.getUTCMilliseconds(),3):'');
+  if(family==='clock')return clock;
+  const prefix=parts.slice(family==='partial'?1:0,Math.min(precision+1,3)).join('-');
+  return precision<3?prefix:prefix+'T'+clock+(family==='calendar'?'Z':'');
+}
+
+function smoothTimeProfile(cal){
+  const [first,last]=(cal.timeLabels??[]).map(label=>label&&parseSmoothTime(label));
+  if(!first||!last)throw Error('请填写两个时间刻度');
+  if(first.family!==last.family)throw Error('两个刻度需使用相同的时间范围：含年日期、不含年日期或时刻');
+  const span=Math.abs(first.time-last.time);
+  const base=TIME_UNITS.findIndex(unit=>unit<=span/25);
+  const anchor=Math.max(first.precision,last.precision);
+  return {family:first.family,precision:Math.max(anchor,Math.min(2,base<0?5:base),
+    anchor>=3?(base<0?5:base):0)};
+}
+
+function smoothTimeProjection(p){
+  const axis=smoothTimeAxis(p),samples=[],series=new Map();
+  let family,profile;
+  for(const row of p.rows){
+    if(!present(row[axis]))continue;
+    const parsed=parseSmoothTime(row[axis]);
+    if(family&&family!==parsed.family)throw Error('同一个时间轴须统一使用含年日期、不含年日期或时刻');
+    family=parsed.family;
+    const measured=finite(row._smoothTime);
+    if(measured){
+      profile??=smoothTimeProfile(p.axes[axis]);
+      if(profile.family!==family)throw Error('时间轴刻度与采样时间的格式范围不一致');
+    }
+    const entry={row,parsed,measured,time:measured?row._smoothTime:parsed.time};
+    samples.push(entry);
+    const key=identity(row);
+    if(!series.has(key))series.set(key,[]);
+    series.get(key).push(entry);
+  }
+  for(const path of series.values())path.sort((a,b)=>a.time-b.time);
+  for(let precision=profile?.precision??5;precision<=5;precision++){
+    for(const entry of samples){
+      entry.label=entry.measured?formatSmoothTime(entry.time,family,precision):entry.parsed.label;
+      entry.savedTime=entry.measured?parseSmoothTime(entry.label).time:entry.time;
+    }
+    if([...series.values()].every(path=>path.every((entry,i)=>!i||entry.savedTime>path[i-1].savedTime)))
+      return new Map(samples.map(entry=>[entry.row,entry]));
+  }
+  throw Error('同一系列的时间采样位置重合，请调整或删除重合的观测');
+}
+
+function refreshSmoothTime(p){
+  const axis=smoothTimeAxis(p);
+  for(const [row,entry] of smoothTimeProjection(p))row[axis]=entry.label;
+}
+
+function measuredSmoothTime(project,axis,pixel){
+  const cal=project.axes[axis],profile=smoothTimeProfile(cal);
+  const time=Math.round(pixelToValue(pixel,cal));
+  return {[axis]:formatSmoothTime(time,profile.family,profile.precision),_smoothTime:time};
+}
+
+function styleSmoothTimePreview(spec,axis){
+  const def=spec.encoding[axis],times=spec.data.values.map(row=>parseSmoothTime(row[axis]));
+  const precision=Math.max(...times.map(time=>time.precision)),family=times[0].family;
+  spec.data.values.forEach((row,i)=>{row[axis]=times[i].time;});
+  def.scale={...def.scale,type:'utc',nice:false};
+  def.axis={...def.axis,format:TIME_FORMATS[family][precision]};
+}
+
 const smoothPositionAxis=gt=>['x','y'].find(axis=>gt?.encoding?.[axis]?.type==='quantitative'&&gt.encoding[axis].field===axis+'_id');
-const verticalSmooth=gt=>smoothGT(gt)&&(smoothPositionAxis(gt)==='y'||nominalType(gt.encoding.y.type));
+const verticalSmooth=gt=>smoothGT(gt)&&(smoothPositionAxis(gt)==='y'||nominalType(gt.encoding.y.type)||gt.encoding.y.type==='temporal');
 
 function smoothCategoryPositions(p,usePixelPositions=true){
   return new Map(p.categoryObjects.map((c,i)=>[c.key,usePixelPositions?c.curvePosition??i:i]));
 }
 function smoothRowPosition(p,row,positions=smoothCategoryPositions(p)){
   const axis=lineCategoryAxis(p);
-  if(!axis)return row.x;
+  if(!axis){
+    const time=smoothTimeAxis(p);
+    return time?(row._smoothTime??(present(row[time])?parseSmoothTime(row[time]).time:NaN)):row.x;
+  }
   return row[axis]===null?row._curvePosition:positions.get(row._categoryKey);
 }
 function validateSmoothLine(p,issue){
-  const axis=lineCategoryAxis(p),positions=smoothCategoryPositions(p);
+  const axis=lineCategoryAxis(p),positions=smoothCategoryPositions(p),temporal=smoothTimeAxis(p);
+  if(temporal){
+    try{smoothTimeProjection(p);}catch(error){issue('error',error.message);}
+    for(const [index,row] of p.rows.entries()){
+      if(!present(row[temporal]))issue('error',`第 ${index+1} 行：请填写采样时间`);
+      if(row.path_order!==undefined||row._curveReview)
+        issue('error',`第 ${index+1} 行：断点、尖角或显式回走待复核，请拆分为独立曲线或使用普通折线`);
+    }
+    return;
+  }
   if(axis){
     const values=[...positions.values()];
     if(values.some((value,i)=>!finite(value)||i>0&&value<=values[i-1]))
@@ -70,18 +209,20 @@ function needsSmoothPositionIDs(axis,categories,positions,rows){
 }
 
 function makeSmoothSpec(p,observation){
-  const axis=lineCategoryAxis(p),positions=smoothCategoryPositions(p);
+  const axis=lineCategoryAxis(p),positions=smoothCategoryPositions(p),temporal=smoothTimeAxis(p);
+  const time=temporal?smoothTimeProjection(p):null;
   const categories=p.categoryObjects,observedSeries=new Set(p.rows.map(identity));
-  const seriesKeys=axis?p.series.map(series=>series.key).filter(key=>observedSeries.has(key)):[...observedSeries];
+  const seriesKeys=axis||temporal?p.series.map(series=>series.key).filter(key=>observedSeries.has(key)):[...observedSeries];
   const seriesRank=new Map(seriesKeys.map((key,i)=>[key,i]));
   const withSeries=p.legend||seriesKeys.length>1;
   const repeatedSeries=p.legend&&unique(seriesKeys.map(key=>seriesName(p,key))).length<seriesKeys.length;
   const id=axis+'_id';
-  const ordered=axis?[...p.rows].sort((a,b)=>seriesRank.get(identity(a))-seriesRank.get(identity(b))||
-    smoothRowPosition(p,a,positions)-smoothRowPosition(p,b,positions)):p.rows;
+  const ordered=axis||temporal?[...p.rows].sort((a,b)=>seriesRank.get(identity(a))-seriesRank.get(identity(b))||
+    (time?time.get(a).time-time.get(b).time:smoothRowPosition(p,a,positions)-smoothRowPosition(p,b,positions))):p.rows;
   const positioned=axis&&needsSmoothPositionIDs(axis,categories,positions,ordered);
   const rows=ordered.map(row=>{
     const out={x:row.x,y:row.y};
+    if(time)out[temporal]=time.get(row).label;
     if(positioned)out[id]=smoothRowPosition(p,row,positions)+0;
     if(withSeries){
       const index=seriesRank.get(identity(row));
@@ -98,7 +239,7 @@ function makeSmoothSpec(p,observation){
       return [channel,{field:channel,type:'nominal',...heading,sort:null}];
     }
     const reverse=cal.calibrated?(cal.v2-cal.v1)/(cal.p2-cal.p1)*(channel==='x'?1:-1)<0:cal.reverse;
-    return [channel,{field:channel,type:'quantitative',...heading,
+    return [channel,{field:channel,type:channel===temporal?'temporal':'quantitative',...heading,
       ...(cal.type==='log'||reverse?{scale:{...(cal.type==='log'?{type:'log'}:{}),...(reverse?{reverse:true}:{})}}:{})}];
   }));
   if(withSeries)encoding.color={field:repeatedSeries?'series_id':'series',type:'nominal',sort:null};
@@ -152,14 +293,16 @@ function importSmoothSpec(gt,percentAxes){
   const positioned=smoothPositionAxis(gt);
   if(positioned&&percentAxes[positioned])throw Error('类别位置不能使用百分比数值格式');
   const discrete=['x','y'].filter(axis=>nominalType(enc[axis].type)||axis===positioned);
-  if(discrete.length>1)throw Error('平滑曲线至少需要一条连续数值轴');
+  const times=['x','y'].filter(axis=>enc[axis].type==='temporal');
+  const temporal=times[0];
+  if(discrete.length+times.length>1)throw Error('平滑曲线至少需要一条连续数值轴');
   const axis=discrete[0];
   for(const channel of ['x','y']){
     const def=enc[channel];
     if(def.field!==(channel===axis&&def.field===channel+'_id'?channel+'_id':channel)||
-        (channel!==axis&&def.type!=='quantitative')||def.axis?.labelExpr||def.condition||
+        (channel!==axis&&channel!==temporal&&def.type!=='quantitative')||def.axis?.labelExpr||def.condition||
         def.aggregate||def.bin||def.timeUnit||def.datum!==undefined||def.value!==undefined||
-        def.scale?.type&&!['linear','log'].includes(def.scale.type)||
+        def.scale?.type&&(channel===temporal?!['time','utc'].includes(def.scale.type):!['linear','log'].includes(def.scale.type))||
         channel===positioned&&def.scale?.type==='log'||
         channel!==axis&&def.sort!=null)throw Error('平滑曲线的轴映射不符合 Compact GT');
     if(channel!==axis&&gt.usermeta?.[channel+'_labels']!==undefined)throw Error('轴标签映射只用于实际离散的轴');
@@ -169,7 +312,7 @@ function importSmoothSpec(gt,percentAxes){
   if(enc.color&&(!['series','series_id'].includes(seriesField)||enc.color.type!=='nominal'||enc.color.sort!=null))
     throw Error('平滑曲线系列须使用 nominal 的 series 映射');
   if(rows.some(row=>!row||Object.keys(row).some(key=>!fields.has(key))||
-      ['x','y'].some(channel=>channel!==axis&&!finite(row[channel]))))
+      ['x','y'].some(channel=>channel!==axis&&channel!==temporal&&!finite(row[channel]))))
     throw Error('平滑曲线包含断点、无效数值或显式回走，请先复核原始数据');
   const names=new Map();
   for(const row of rows){
@@ -181,13 +324,13 @@ function importSmoothSpec(gt,percentAxes){
   const p=defaultProject(names.size>1?'line_smooth_n':'line_smooth_1');
   p.title=typeof gt.title==='object'&&!Array.isArray(gt.title)?gt.title?.text??'':gt.title??'';
   p.legend=!!seriesField&&enc.color.legend!==null;
-  p.xType=axis==='x'?'nominal':'quantitative';
-  p.yType=axis==='y'?'nominal':'quantitative';
+  p.xType=axis==='x'?'nominal':temporal==='x'?'temporal':'quantitative';
+  p.yType=axis==='y'?'nominal':temporal==='y'?'temporal':'quantitative';
   p.smoothPositioned=!!positioned;
   for(const channel of ['x','y']){
     const def=enc[channel];
     p[channel+'Title']=def.title??def.axis?.title??'';
-    p.axes[channel].type=def.scale?.type??'linear';
+    p.axes[channel].type=channel===temporal?'linear':def.scale?.type??'linear';
     p.axes[channel].reverse=!!def.scale?.reverse;
     if(p.axes[channel].type==='log')p.axes[channel].v1=1;
   }
@@ -204,6 +347,7 @@ function importSmoothSpec(gt,percentAxes){
   });
   p.rows=rows.map(row=>{
     const out={x:row.x,y:row.y,_seriesKey:bySeries.get(seriesField?row[seriesField]:'Series 1')};
+    if(temporal)out[temporal]=parseSmoothTime(row[temporal]).label;
     if(axis){
       if(positioned&&row[axis]===null)out._curvePosition=row[axis+'_id'];
       else out._categoryKey=byCategory.get(row[enc[axis].field]);
@@ -227,6 +371,8 @@ function importSmoothSpec(gt,percentAxes){
 
 function styleSmoothPreview(spec){
   for(const channel of ['x','y'])spec.encoding[channel].title??=null;
+  const temporal=['x','y'].find(channel=>spec.encoding[channel].type==='temporal');
+  if(temporal)styleSmoothTimePreview(spec,temporal);
   const positioned=smoothPositionAxis(spec);
   const axis=positioned??['x','y'].find(channel=>nominalType(spec.encoding[channel].type));
   if(axis&&(positioned||spec.usermeta?.[axis+'_labels']?.length)){
@@ -442,7 +588,7 @@ function appendSmoothSample(row,evidence,insert=false){
   selected=index;selectedHandle='pixel';
 }
 function recordSmoothPoint(raw,insert=false){
-  const a=assist(),axis=discreteSmooth(p);
+  const a=assist(),axis=discreteSmooth(p),temporal=smoothTimeAxis(p);
   if(axis){recordDiscreteSmoothPoint(raw,a,axis);return;}
   const pt=constrainAdd(raw),data=measureAt(pt);
   const row={...data,series:seriesName(p,a.series),_seriesKey:a.series};
@@ -450,6 +596,7 @@ function recordSmoothPoint(raw,insert=false){
     ...(a.lockX?{fixedX:{value:a.fixedXValue,pixel:pt.x}}:{})};
   change(()=>{
     appendSmoothSample(row,evidence,insert);
+    if(temporal)refreshSmoothTime(p);
     if(insert)setTool('point');
   });
 }
@@ -501,7 +648,7 @@ function addManualSmoothRow(){
     if(axis&&p.smoothSkipped)delete p.smoothSkipped[smoothTargetKey(a)];
     appendSmoothSample(row,{role:'transcribed',source:'manual_entry'});
   });
-  document.querySelector(`[data-i="${selected}"][data-key="${axis?otherAxis(axis):'x'}"]`)?.focus();
+  document.querySelector(`[data-i="${selected}"][data-key="${axis?otherAxis(axis):smoothTimeAxis(p)??'x'}"]`)?.focus();
 }
 function editSmoothPositionCell(index,input){
   const row=p.rows[index],raw=input.value.trim(),position=Number(raw);
@@ -566,6 +713,8 @@ function syncSmoothAssist(){
   const axis=discreteSmooth(p),free=freeSmoothPhase(p);
   $('lockCategory').closest('label').hidden=!!axis;
   if(!isSmoothLine(p))return;
+  if(smoothTimeAxis(p)&&tool==='point')
+    $('hint').textContent='校准时间轴和数值轴后，选择系列，再直接点击曲线取点。';
   $('advancedFieldsLabel').hidden=true;
   $('smoothReviewPoint').disabled=selected<0;
   $('smoothReviewPoint').textContent=p.rows[selected]?._curveReview?'清除此点的待复核标记':'标记断点或尖角待复核';

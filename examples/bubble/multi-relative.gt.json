@@ -1,0 +1,63 @@
+{
+  "data": {
+    "values": [
+      {
+        "x": 1,
+        "y": 3,
+        "size_relative": 0.003142,
+        "series": "A"
+      },
+      {
+        "x": 1,
+        "y": 3,
+        "size_relative": 0.01257,
+        "series": "B"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "size_relative": 3.142e-09,
+        "series": "A"
+      },
+      {
+        "x": 3,
+        "y": 2,
+        "size_relative": 0,
+        "series": "B"
+      }
+    ]
+  },
+  "mark": {
+    "type": "point"
+  },
+  "encoding": {
+    "x": {
+      "field": "x",
+      "type": "quantitative"
+    },
+    "y": {
+      "field": "y",
+      "type": "quantitative"
+    },
+    "color": {
+      "field": "series",
+      "type": "nominal",
+      "sort": null
+    },
+    "size": {
+      "field": "size_relative",
+      "type": "quantitative",
+      "legend": null
+    }
+  },
+  "usermeta": {
+    "table_export": {
+      "tables": [
+        {
+          "id": "data",
+          "path": "/data/values"
+        }
+      ]
+    }
+  }
+}

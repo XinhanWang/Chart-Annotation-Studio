@@ -1,0 +1,67 @@
+{
+  "data": {
+    "values": [
+      {
+        "category": "1993",
+        "category_id": "C1",
+        "value": 20
+      },
+      {
+        "category": "null",
+        "category_id": "C2",
+        "value": 25
+      },
+      {
+        "category": "null",
+        "category_id": "C3",
+        "value": 30
+      },
+      {
+        "category": "1996",
+        "category_id": "C4",
+        "value": 35
+      },
+      {
+        "category": "null",
+        "category_id": "C5",
+        "value": 40
+      },
+      {
+        "category": "null",
+        "category_id": "C6",
+        "value": 45
+      },
+      {
+        "category": "1999",
+        "category_id": "C7",
+        "value": 50
+      }
+    ]
+  },
+  "mark": {
+    "type": "bar"
+  },
+  "encoding": {
+    "x": {
+      "field": "category_id",
+      "type": "nominal",
+      "title": "Year",
+      "sort": null
+    },
+    "y": {
+      "field": "value",
+      "type": "quantitative",
+      "title": "Value (units)"
+    }
+  },
+  "usermeta": {
+    "table_export": {
+      "tables": [
+        {
+          "id": "data",
+          "path": "/data/values"
+        }
+      ]
+    }
+  }
+}

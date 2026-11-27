@@ -1,0 +1,46 @@
+{
+  "data": {
+    "values": [
+      {
+        "x": "08:15",
+        "y": 30
+      },
+      {
+        "x": "08:30",
+        "y": 45
+      },
+      {
+        "x": "09:05",
+        "y": 15
+      },
+      {
+        "x": "10:20",
+        "y": 68
+      }
+    ]
+  },
+  "mark": {
+    "type": "line",
+    "interpolate": "monotone"
+  },
+  "encoding": {
+    "x": {
+      "field": "x",
+      "type": "temporal"
+    },
+    "y": {
+      "field": "y",
+      "type": "quantitative"
+    }
+  },
+  "usermeta": {
+    "table_export": {
+      "tables": [
+        {
+          "id": "data",
+          "path": "/data/values"
+        }
+      ]
+    }
+  }
+}
